@@ -266,11 +266,25 @@ router.post("/postColors", function(req, res, next) {
 	colors = req.body.colors;
 	res.send("done");
 });
+function toList(l) {
+	var ans = [];
+	for (var i=0; i<l.length; i++) {
+		var t=[];
+		for (var j=0; j<l[i].length; j++) {
+			if (l[i][j]) {
+				t.push(j+1);
+			}
+		}
+		ans.push(t)
+	}
+	return ans;
+}
 router.get("/getDisplayState", function(req, res, next) {
 	d={
 		colors: colors,
 		points: points,
 		money: countryMoney,
+		availStock: toList(availStock),
 	}
 	res.send(d);
 });
