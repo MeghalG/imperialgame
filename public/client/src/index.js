@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './App';
 import * as serviceWorker from './serviceWorker';
-import 'antd/dist/custom-dark.css';
+import 'antd/dist/custom_dark.css';
 
 ReactDOM.render(
   <React.StrictMode>
