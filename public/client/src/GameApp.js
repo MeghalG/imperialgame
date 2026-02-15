@@ -6,14 +6,13 @@ import MainApp from './MainApp.js';
 import HistoryApp from './HistoryApp.js';
 import RulesApp from './RulesApp.js';
 import UserContext from './UserContext.js';
-import { InputNumber, Button } from 'antd';
 import { database } from './backendFiles/firebase.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 
 import { Tabs } from 'antd';
 import { Layout } from 'antd';
 
-const { Header, Content, Footer } = Layout;
+const { Header, Content } = Layout;
 
 const { TabPane } = Tabs;
 
@@ -26,10 +25,17 @@ class GameApp extends React.Component {
 	}
 
 	componentDidMount() {
-		database.ref('games/' + this.context.game + '/turnID').on('value', (dataSnapshot) => {
+		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
+		this.turnRef.on('value', (dataSnapshot) => {
 			this.makeTitle();
 			this.context.resetValues();
 		});
+	}
+
+	componentWillUnmount() {
+		if (this.turnRef) {
+			this.turnRef.off();
+		}
 	}
 
 	async makeTitle() {

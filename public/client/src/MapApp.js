@@ -8,7 +8,7 @@ import UserContext from './UserContext.js';
 import * as mapAPI from './backendFiles/mapAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
-import { Card, Space, Popover } from 'antd';
+import { Popover } from 'antd';
 
 class MapApp extends React.Component {
 	constructor(props) {
@@ -55,9 +55,15 @@ class MapApp extends React.Component {
 		let countries = await helper.getCountries(this.context);
 		this.setState({ countries: countries });
 		this.getMapItems();
-		database.ref('games/' + this.context.game + '/turnID').on('value', (dataSnapshot) => {
+		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
+		this.turnRef.on('value', (dataSnapshot) => {
 			this.getMapItems();
 		});
+	}
+	componentWillUnmount() {
+		if (this.turnRef) {
+			this.turnRef.off();
+		}
 	}
 	async getMapItems() {
 		let sea = await mapAPI.getSeaFactories(this.context);
@@ -225,12 +231,9 @@ class MapApp extends React.Component {
 		return t;
 	}
 	clicked(country) {
-		if (this.state.vis[country]) {
-			this.state.vis[country] = false;
-		} else {
-			this.state.vis[country] = true;
-		}
-		this.render();
+		this.setState((prevState) => ({
+			vis: { ...prevState.vis, [country]: !prevState.vis[country] },
+		}));
 	}
 	makePoints() {
 		let d = [];

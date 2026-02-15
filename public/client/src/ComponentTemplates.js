@@ -1,7 +1,6 @@
 import React from 'react';
 import './App.css';
 import { Radio, Button } from 'antd';
-import 'antd/dist/antd.css';
 import { Select, Checkbox, Divider } from 'antd';
 import UserContext from './UserContext.js';
 const { Option } = Select;
@@ -583,10 +582,6 @@ function Display(props) {
 }
 
 class ActionComponent extends React.Component {
-	constructor(props) {
-		super(props);
-	}
-
 	update = async (value, object) => {
 		await this.setState({ [object]: value });
 		let visLayers = new Array(this.state.visibleLayers.length).fill(false);

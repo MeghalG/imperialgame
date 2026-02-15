@@ -1,6 +1,38 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    "games": {
+      ".read": "auth !== null",
+      "$gameID": {
+        ".write": "auth !== null"
+      }
+    },
+
+    "game histories": {
+      ".read": "auth !== null",
+      "$gameID": {
+        "$turnID": {
+          ".write": "auth !== null"
+        }
+      }
+    },
+
+    "template game": {
+      ".read": "auth !== null",
+      ".write": false
+    },
+
+    "setups": {
+      ".read": "auth !== null",
+      ".write": false
+    },
+
+    "users": {
+      ".read": false,
+      ".write": false,
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        ".write": "auth !== null && auth.uid === $uid"
+      }
+    }
   }
 }

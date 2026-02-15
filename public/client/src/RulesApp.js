@@ -20,7 +20,11 @@ class RulesApp extends React.Component {
 						description={
 							<p style={{ marginBottom: '-30px', marginTop: '-10px' }}>
 								This ruleset is a variant on the{' '}
-								<a href="https://www.ultraboardgames.com/imperial/game-rules.php" target="_blank">
+								<a
+									href="https://www.ultraboardgames.com/imperial/game-rules.php"
+									target="_blank"
+									rel="noopener noreferrer"
+								>
 									official rules
 								</a>
 								. Read this first, then read the list of modifications to learn how to play this version of Imperial.
@@ -47,7 +51,7 @@ class RulesApp extends React.Component {
 								</p>
 								<p>
 									Greatness bonuses are distributed according to the{' '}
-									<a href="https://en.wikipedia.org/wiki/D%27Hondt_method" target="_blank">
+									<a href="https://en.wikipedia.org/wiki/D%27Hondt_method" target="_blank" rel="noopener noreferrer">
 										Jefferson method
 									</a>{' '}
 									based on total stock of each player in the country. If there is a shortfall in an Investor action,

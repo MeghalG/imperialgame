@@ -125,7 +125,6 @@ class StaticTurnApp extends React.Component {
 				);
 			case 'buy-bid':
 				let bids = (this.state.gameState.bidBuyOrder || []).map((x) => [x, this.state.gameState.playerInfo[x].bid]);
-				let s = bids.join(', ');
 				let t = [];
 				for (let bid of bids) {
 					t.push(
@@ -181,6 +180,8 @@ class StaticTurnApp extends React.Component {
 						<Divider />
 					</div>
 				);
+			default:
+				break;
 		}
 		return '';
 	};

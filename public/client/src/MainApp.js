@@ -4,7 +4,7 @@ import TurnApp from './TurnApp.js';
 import PlayerApp from './PlayerApp.js';
 import MapApp from './MapApp.js';
 
-import { Card, Row, Col } from 'antd';
+import { Row, Col } from 'antd';
 
 class MainApp extends React.Component {
 	constructor(props) {

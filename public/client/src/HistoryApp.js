@@ -13,10 +13,17 @@ class HistoryApp extends React.Component {
 	}
 
 	componentDidMount() {
-		database.ref('games/' + this.context.game + '/history').on('value', (dataSnapshot) => {
+		this.historyRef = database.ref('games/' + this.context.game + '/history');
+		this.historyRef.on('value', (dataSnapshot) => {
 			let history = dataSnapshot.val();
 			this.setState({ history: history.reverse() });
 		});
+	}
+
+	componentWillUnmount() {
+		if (this.historyRef) {
+			this.historyRef.off();
+		}
 	}
 
 	render() {

@@ -1,4 +1,3 @@
-import React from 'react';
 import './App.css';
 import { RadioComponent } from './ComponentTemplates.js';
 import { ActionComponent } from './ComponentTemplates.js';

@@ -29,9 +29,16 @@ class PlayerApp extends React.Component {
 
 	componentDidMount() {
 		this.reinitialize();
-		database.ref('games/' + this.context.game + '/turnID').on('value', (dataSnapshot) => {
+		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
+		this.turnRef.on('value', (dataSnapshot) => {
 			this.reinitialize();
 		});
+	}
+
+	componentWillUnmount() {
+		if (this.turnRef) {
+			this.turnRef.off();
+		}
 	}
 
 	reinitialize = async () => {

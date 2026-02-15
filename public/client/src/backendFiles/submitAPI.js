@@ -1,9 +1,41 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
 import emailjs from 'emailjs-com';
+import {
+	MODES,
+	WHEEL_ACTIONS,
+	GOV_TYPES,
+	MANEUVER_ACTIONS,
+	WIN_POINTS,
+	FACTORY_COST,
+	INVESTOR_BONUS,
+	FREE_RONDEL_STEPS,
+	RONDEL_STEP_COST,
+	PUNT_BUY,
+	WHEEL_CENTER,
+} from '../gameConstants.js';
 
-// modes are "buy" "proposal" "vote" "continue-man", "game-over"
-
+/**
+ * Persists the updated game state to Firebase, sends email notifications,
+ * handles timer adjustments, and archives the previous state to game histories.
+ *
+ * This is the final step of every turn submission. It:
+ * 1. Rounds all money values to 2 decimal places
+ * 2. Sends email notifications to players whose myTurn is now true
+ * 3. Adjusts chess-clock timer (banked time, increment) for the player(s) who just moved
+ * 4. Saves the OLD state as a history snapshot (for undo)
+ * 5. Writes the NEW state to Firebase and increments turnID
+ *
+ * Called at the end of: submitBuy, submitVote, submitNoCounter, submitProposal, bidBuy, bid.
+ *
+ * @param {GameState} gameState - The modified game state to persist
+ * @param {string} gameID - The Firebase game ID
+ * @param {Object} context - UserContext with at least { name, game }
+ *
+ * @bug Uses `.on('value')` for server time offset which returns a listener, not a promise.
+ *      Should use `.once('value')` instead. The `await` on `.on()` doesn't wait for the value.
+ * @bug Empty error handler on the `.set()` callback silently swallows write failures.
+ */
 async function finalizeSubmit(gameState, gameID, context) {
 	let oldState = await database.ref('games/' + gameID).once('value');
 	oldState = oldState.val();
@@ -52,7 +84,17 @@ async function finalizeSubmit(gameState, gameID, context) {
 	});
 }
 
-// player's turn is over
+/**
+ * Adjusts a player's banked time after their turn ends (chess-clock style).
+ *
+ * Calculates remaining time = bankedTime - elapsed + increment.
+ * If negative, the player loses 1 point (scoreModifier -= 1) and banked resets to 60s.
+ * Otherwise, banked time is updated but never increases beyond its previous value.
+ *
+ * @param {string} player - Player name whose time to adjust
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {number} t - Current server timestamp in milliseconds
+ */
 async function adjustTime(player, gameState, t) {
 	let time = gameState.timer.pause;
 	if (time === 0) {
@@ -72,7 +114,18 @@ async function adjustTime(player, gameState, t) {
 	}
 }
 
-// increment country/round up/player up/mode
+/**
+ * Advances the game to the next country's turn on the country rotation.
+ *
+ * Sets countryUp to the next country, increments round if wrapping around,
+ * sets mode to PROPOSAL, and makes the new country's leader the active player.
+ * If the next country has no leadership (no stock owned), recursively skips it.
+ *
+ * Called after: a proposal executes (without passing investor), or after buy round ends.
+ *
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {Object} context - UserContext with { game } for looking up country order
+ */
 async function incrementCountry(gameState, context) {
 	let country = gameState.countryUp;
 	let countries = await helper.getCountries(context);
@@ -98,10 +151,22 @@ async function incrementCountry(gameState, context) {
 		gameState.playerInfo[key].myTurn = false;
 	}
 	gameState.playerInfo[leadership[0]].myTurn = true;
-	gameState.mode = 'proposal';
+	gameState.mode = MODES.PROPOSAL;
 }
 
-// adds to owned, remove from avail, charged player + gives money to country.
+/**
+ * Executes a stock purchase: adds stock to player's portfolio, removes from
+ * country's available stock, transfers money from player to country treasury.
+ *
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {string} player - Player name buying the stock
+ * @param {StockEntry} stock - { country, stock } identifying the stock to buy
+ * @param {number} price - Purchase price (from stockCosts lookup)
+ * @param {Object} context - UserContext (passed to sortStock for country ordering)
+ *
+ * @bug If availStock doesn't contain stock.stock, indexOf returns -1 and
+ *      splice(-1, 1) removes the last element instead of failing gracefully.
+ */
 function buyStock(gameState, player, stock, price, context) {
 	if (!gameState.playerInfo[player].stock) {
 		gameState.playerInfo[player].stock = [];
@@ -114,7 +179,18 @@ function buyStock(gameState, player, stock, price, context) {
 	helper.sortStock(gameState.playerInfo[player].stock, context);
 }
 
-// same as buy, but return
+/**
+ * Returns a stock from a player's portfolio back to the country's available pool.
+ * Reverse of buyStock: removes from owned, adds back to availStock, refunds money.
+ *
+ * If stock.stock is 0 (the "no return" sentinel), does nothing except remove the
+ * matching entry from the player's stock array.
+ *
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {string} player - Player name returning the stock
+ * @param {StockEntry} stock - { country, stock } identifying the stock to return
+ * @param {number} price - Refund price (from stockCosts lookup)
+ */
 function returnStock(gameState, player, stock, price) {
 	let owned = gameState.playerInfo[player].stock;
 	for (let i in owned) {
@@ -131,6 +207,19 @@ function returnStock(gameState, player, stock, price) {
 	}
 }
 
+/**
+ * Recalculates leadership and government type for a country after a stock transaction.
+ *
+ * Adds the player to the leadership array if not already present, then sorts all
+ * leaders by total stock denomination owned (descending). If the top stockholder
+ * owns >= 50% of all stock, government becomes dictatorship; otherwise democracy.
+ *
+ * Called after: buyStock (in submitBuy and bidBuy).
+ *
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {string} country - Country name to recalculate
+ * @param {string} player - Player who just bought stock (ensures they're in leadership)
+ */
 function changeLeadership(gameState, country, player) {
 	let stockOwned = [];
 	let leadership = gameState.countryInfo[country].leadership;
@@ -154,20 +243,37 @@ function changeLeadership(gameState, country, player) {
 	stockOwned.sort((a, b) => b[1] - a[1]);
 	gameState.countryInfo[country].leadership = stockOwned.map((x) => x[0]);
 	if (2 * stockOwned[0][1] >= total) {
-		gameState.countryInfo[country].gov = 'dictatorship';
+		gameState.countryInfo[country].gov = GOV_TYPES.DICTATORSHIP;
 	} else {
-		gameState.countryInfo[country].gov = 'democracy';
+		gameState.countryInfo[country].gov = GOV_TYPES.DEMOCRACY;
 	}
 }
 
-// fix
+/**
+ * Submits a stock buy during the Investor round (mode === BUY).
+ *
+ * The active player either buys a stock (optionally returning one) or "Punt Buy"s
+ * (adds themselves to the swiss banking set for a later buy opportunity).
+ *
+ * After buying:
+ * 1. Marks the country as offLimits (can't buy same country twice in one round)
+ * 2. Recalculates leadership for that country
+ * 3. Looks for the next swiss banking player to buy
+ * 4. If no more buyers: moves investor card to next player, activates swiss banking
+ *    players, resets offLimits, and advances to the next country (proposal mode)
+ *
+ * Called from: BuyApp component when player submits their buy action.
+ *
+ * @param {Object} context - UserContext with { game, name, buyCountry, buyStock, returnStock }
+ * @returns {Promise<string>} 'done' on success
+ */
 async function submitBuy(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
 	gameState.sameTurn = false;
-	if (context.buyCountry === 'Punt Buy') {
+	if (context.buyCountry === PUNT_BUY) {
 		if (!gameState.swissSet) {
 			gameState.swissSet = [];
 		}
@@ -262,7 +368,19 @@ async function submitBuy(context) {
 	return 'done';
 }
 
-// fix
+/**
+ * Submits a player's vote on the leader vs opposition proposal (mode === VOTE).
+ *
+ * Adds the voter's stock-weighted vote to the chosen proposal. If a proposal
+ * exceeds the threshold (> 50% of total stock + tiebreak), that proposal is
+ * executed immediately via executeProposal(), voting state is cleared, and the
+ * game moves on. The leader gets a +0.1 bonus on their vote for tiebreaking.
+ *
+ * Called from: VoteApp component when player casts their vote.
+ *
+ * @param {Object} context - UserContext with { game, name, vote } where vote is 1 or 2
+ * @returns {Promise<string>} 'done' on success
+ */
 async function submitVote(context) {
 	let proposal = null;
 	if (context.vote === 1) {
@@ -325,7 +443,17 @@ async function submitVote(context) {
 	return 'done';
 }
 
-// fix
+/**
+ * Opposition agrees with the leader's proposal (no counter-proposal).
+ *
+ * Skips the vote phase entirely and executes the leader's proposal directly.
+ * Used when the opposition player clicks "Agree" instead of making a counter-proposal.
+ *
+ * Called from: ProposalAppOpp component when opposition agrees.
+ *
+ * @param {Object} context - UserContext with { game, name }
+ * @returns {Promise<string>} 'done' on success
+ */
 async function submitNoCounter(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -342,11 +470,27 @@ async function submitNoCounter(context) {
 	return 'done';
 }
 
-// fix (note this is continue-man) (make sure to set currentManeuver)
+/**
+ * Submits a continued maneuver action (mode === CONTINUE_MAN).
+ *
+ * STUB: Not implemented. Currently returns 'done' without doing anything.
+ * This is intended for multi-step maneuvers where the player continues
+ * moving units across multiple turns.
+ *
+ * @param {Object} context - UserContext
+ * @returns {string} 'done'
+ */
 function submitManeuver(context) {
 	return 'done';
 }
 
+/**
+ * Helper for maneuver history strings. Returns ' with ' if the action code
+ * is non-empty (war/peace/blow up), or '' for plain moves.
+ *
+ * @param {string} x - The maneuver action code
+ * @returns {string} ' with ' or ''
+ */
 function w(x) {
 	if (x) {
 		return ' with ';
@@ -355,16 +499,29 @@ function w(x) {
 	}
 }
 
+/**
+ * Builds a human-readable history string describing a wheel action proposal.
+ *
+ * Generates text like "Austria taxes for 3 points, and $5 into its treasury."
+ * or "France L-Maneuvers fleets from X to Y with war Austria fleet."
+ *
+ * Called from: executeProposal (to record what happened) and submitProposal
+ * (to record the proposal before it happens).
+ *
+ * @param {GameState} gameState - Current game state
+ * @param {Object} context - Proposal context with wheelSpot and action-specific fields
+ * @returns {Promise<string>} Human-readable description of the action
+ */
 async function makeHistory(gameState, context) {
 	let country = gameState.countryUp;
 
 	switch (context.wheelSpot) {
-		case 'Investor':
+		case WHEEL_ACTIONS.INVESTOR:
 			let amt = helper.getInvestorPayout(gameState, country, context.name);
 			let msgs = amt.map((x) => '$' + x[1] + ' to ' + x[0]);
 			return country + ' investors, paying ' + msgs.join(', ') + '.';
-		case 'L-Produce':
-		case 'R-Produce':
+		case WHEEL_ACTIONS.L_PRODUCE:
+		case WHEEL_ACTIONS.R_PRODUCE:
 			return (
 				country +
 				' ' +
@@ -375,7 +532,7 @@ async function makeHistory(gameState, context) {
 				(context.fleetProduce || []).join(', ') +
 				'.'
 			);
-		case 'Taxation':
+		case WHEEL_ACTIONS.TAXATION:
 			let taxInfo = await helper.getTaxInfo(gameState.countryInfo, gameState.playerInfo, country);
 			let s =
 				country +
@@ -390,9 +547,9 @@ async function makeHistory(gameState, context) {
 			}
 			s += splits + '.';
 			return s;
-		case 'Factory':
+		case WHEEL_ACTIONS.FACTORY:
 			return country + ' builds a factory in ' + context.factoryLoc + '.';
-		case 'Import':
+		case WHEEL_ACTIONS.IMPORT:
 			let fleets = [];
 			let armies = [];
 			for (let i in context.import.types) {
@@ -404,8 +561,8 @@ async function makeHistory(gameState, context) {
 				}
 			}
 			return country + ' imports fleets in ' + fleets.join(', ') + ' and armies in ' + armies.join(', ') + '.';
-		case 'L-Maneuver':
-		case 'R-Maneuver':
+		case WHEEL_ACTIONS.L_MANEUVER:
+		case WHEEL_ACTIONS.R_MANEUVER:
 			let sortedF = [...context.fleetMan].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
 			let f = sortedF.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
 			f = f.join(', ');
@@ -414,9 +571,34 @@ async function makeHistory(gameState, context) {
 			let a = sortedA.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
 			a = a.join(', ');
 			return country + ' ' + context.wheelSpot + 's fleets from ' + f + '. It moves armies from ' + a + '.';
+		default:
+			break;
 	}
 }
 
+/**
+ * Executes a wheel action proposal, mutating the game state accordingly.
+ *
+ * This is the core game engine function (226 lines). Each wheel action is a
+ * case in a switch statement that modifies countryInfo/playerInfo:
+ *
+ * - **Investor**: Pays out money from country treasury to stockholders proportionally.
+ * - **L-Produce / R-Produce**: Creates new fleet/army units at unsaturated factory locations.
+ * - **Taxation**: Awards victory points, adds money to treasury, distributes greatness to stockholders.
+ *   If points reach WIN_POINTS, sets mode to GAME_OVER.
+ * - **Factory**: Builds a factory in a territory. Costs $5 from country (shortfall from player).
+ * - **Import**: Places up to 3 new units. Costs $1 each from country (shortfall from player).
+ * - **L-Maneuver / R-Maneuver**: Moves all fleets/armies, resolving wars, placing tax chips,
+ *   handling peaceful/hostile entry, and destroying factories.
+ *
+ * After executing the action:
+ * - Checks if the Investor slot was passed on the rondel (triggers buy mode)
+ * - Otherwise advances to next country (proposal mode)
+ * - Clears proposals, pays rondel spin cost ($2 per step beyond 3), updates wheelSpot
+ *
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {Object} context - Proposal context (unstringified) with wheelSpot and action fields
+ */
 async function executeProposal(gameState, context) {
 	let country = gameState.countryUp;
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
@@ -428,7 +610,7 @@ async function executeProposal(gameState, context) {
 	let history = await makeHistory(gameState, context);
 	gameState.history.push(context.name + "'s proposal occurs: " + history);
 	switch (context.wheelSpot) {
-		case 'Investor':
+		case WHEEL_ACTIONS.INVESTOR:
 			let amt = helper.getInvestorPayout(gameState, country, context.name);
 			let total = 0;
 			for (let i in amt) {
@@ -437,8 +619,8 @@ async function executeProposal(gameState, context) {
 			}
 			gameState.countryInfo[country].money -= total;
 			break;
-		case 'L-Produce':
-		case 'R-Produce':
+		case WHEEL_ACTIONS.L_PRODUCE:
+		case WHEEL_ACTIONS.R_PRODUCE:
 			if (!context.fleetProduce) {
 				context.fleetProduce = [];
 			}
@@ -458,28 +640,31 @@ async function executeProposal(gameState, context) {
 				gameState.countryInfo[country].armies.push({ territory: army, hostile: true });
 			}
 			break;
-		case 'Taxation':
+		case WHEEL_ACTIONS.TAXATION:
 			let taxInfo = await helper.getTaxInfo(gameState.countryInfo, gameState.playerInfo, country);
-			gameState.countryInfo[country].points = Math.min(gameState.countryInfo[country].points + taxInfo.points, 25);
+			gameState.countryInfo[country].points = Math.min(
+				gameState.countryInfo[country].points + taxInfo.points,
+				WIN_POINTS
+			);
 			gameState.countryInfo[country].money += taxInfo.money;
 			gameState.countryInfo[country].lastTax = Math.min(taxInfo.points + 5, 15);
 			for (let tax of taxInfo['tax split']) {
 				gameState.playerInfo[tax[0]].money += tax[1];
 			}
-			if (gameState.countryInfo[country].points === 25) {
-				gameState.mode = 'game-over';
+			if (gameState.countryInfo[country].points === WIN_POINTS) {
+				gameState.mode = MODES.GAME_OVER;
 				break;
 			}
 			break;
-		case 'Factory':
+		case WHEEL_ACTIONS.FACTORY:
 			gameState.countryInfo[country].factories.push(context.factoryLoc);
-			gameState.countryInfo[country].money -= 5;
+			gameState.countryInfo[country].money -= FACTORY_COST;
 			if (gameState.countryInfo[country].money < 0) {
 				gameState.playerInfo[context.name].money += gameState.countryInfo[country].money;
 				gameState.countryInfo[country].money = 0;
 			}
 			break;
-		case 'Import':
+		case WHEEL_ACTIONS.IMPORT:
 			for (let i in context.import.types) {
 				if (!context.import.types) {
 					context.import.types = [];
@@ -508,12 +693,12 @@ async function executeProposal(gameState, context) {
 				}
 			}
 			break;
-		case 'L-Maneuver':
-		case 'R-Maneuver':
+		case WHEEL_ACTIONS.L_MANEUVER:
+		case WHEEL_ACTIONS.R_MANEUVER:
 			let fleets = [];
 			for (let fleet of context.fleetMan) {
 				let split = fleet[2].split(' ');
-				if (split[0] === 'war') {
+				if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX) {
 					if (split[2] === 'fleet') {
 						for (let i in gameState.countryInfo[split[1]].fleets) {
 							if (gameState.countryInfo[split[1]].fleets[i].territory === fleet[1]) {
@@ -556,7 +741,7 @@ async function executeProposal(gameState, context) {
 			for (let army of sortedArmyMan) {
 				let hostile = true;
 				let split = army[2].split(' ');
-				if (split[0] === 'war') {
+				if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX) {
 					if (split[2] === 'fleet') {
 						for (let i in gameState.countryInfo[split[1]].fleets) {
 							if (gameState.countryInfo[split[1]].fleets[i].territory === army[1]) {
@@ -589,7 +774,7 @@ async function executeProposal(gameState, context) {
 						gameState.countryInfo[country].taxChips.push(army[1]);
 					}
 				}
-				if (split[0] === 'peace') {
+				if (split[0] === MANEUVER_ACTIONS.PEACE) {
 					if (territorySetup[army[1]].country && territorySetup[army[1]].country !== country) {
 						hostile = false;
 					}
@@ -608,6 +793,8 @@ async function executeProposal(gameState, context) {
 			gameState.countryInfo[country].armies = armies;
 
 			break;
+		default:
+			break;
 	}
 	// if investor was passed
 	let investorPassed = await helper.investorPassed(
@@ -620,11 +807,11 @@ async function executeProposal(gameState, context) {
 		for (let key in gameState.playerInfo) {
 			gameState.playerInfo[key].myTurn = false;
 			if (gameState.playerInfo[key].investor) {
-				gameState.playerInfo[key].money += 2;
+				gameState.playerInfo[key].money += INVESTOR_BONUS;
 				gameState.playerInfo[key].myTurn = true;
 			}
 		}
-		gameState.mode = 'buy';
+		gameState.mode = MODES.BUY;
 	} else {
 		await incrementCountry(gameState, context);
 	}
@@ -632,19 +819,39 @@ async function executeProposal(gameState, context) {
 	gameState['proposal 2'] = null;
 	// pay spin cost
 	let diff = 0;
-	if (gameState.countryInfo[country].wheelSpot !== 'center') {
+	if (gameState.countryInfo[country].wheelSpot !== WHEEL_CENTER) {
 		diff =
 			(wheel.indexOf(context.wheelSpot) - wheel.indexOf(gameState.countryInfo[country].wheelSpot) + wheel.length) %
 			wheel.length;
 	}
-	if (diff > 3) {
-		gameState.playerInfo[context.name].money -= 2 * (diff - 3);
+	if (diff > FREE_RONDEL_STEPS) {
+		gameState.playerInfo[context.name].money -= RONDEL_STEP_COST * (diff - FREE_RONDEL_STEPS);
 	}
 	gameState.countryInfo[country].wheelSpot = context.wheelSpot;
 	gameState.currentManeuver = null;
 }
 
-// fix (make sure to set currentManeuver)
+/**
+ * Submits a player's proposal for a wheel action (mode === PROPOSAL or PROPOSAL_OPP).
+ *
+ * Flow depends on government type and which player is submitting:
+ *
+ * **Dictatorship** (leader only): Executes the proposal immediately via executeProposal().
+ *
+ * **Democracy — Leader** (leadership[0]):
+ *   - Stores the proposal in gameState['proposal 1'] (stringified with stringifyFunctions)
+ *   - Sets mode to PROPOSAL_OPP, switches turn to opposition (leadership[1])
+ *
+ * **Democracy — Opposition** (leadership[1]):
+ *   - Stores counter-proposal in gameState['proposal 2'] (stringified)
+ *   - Sets mode to VOTE, creates voting state, makes all leadership players active
+ *
+ * Called from: ProposalApp (leader) and ProposalAppOpp (opposition).
+ *
+ * @param {Object} context - UserContext with wheelSpot and action-specific fields
+ *                           (e.g. factoryLoc, fleetProduce, armyMan, etc.)
+ * @returns {Promise<string>} 'done' on success
+ */
 async function submitProposal(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -654,7 +861,7 @@ async function submitProposal(context) {
 
 	gameState.playerInfo[context.name].myTurn = false;
 	let history = await makeHistory(gameState, context);
-	if (gameState.countryInfo[country].gov === 'dictatorship') {
+	if (gameState.countryInfo[country].gov === GOV_TYPES.DICTATORSHIP) {
 		await executeProposal(gameState, context);
 	} else {
 		if (context.name === leadership[0]) {
@@ -666,7 +873,7 @@ async function submitProposal(context) {
 
 			gameState.history.push(context.name + ' proposes as the leader: ' + history);
 			// change mode to proposal-opp
-			gameState.mode = 'proposal-opp';
+			gameState.mode = MODES.PROPOSAL_OPP;
 		} else {
 			// put context in proposal 2
 			gameState['proposal 2'] = helper.stringifyFunctions(context);
@@ -677,7 +884,7 @@ async function submitProposal(context) {
 			// add to history
 			await gameState.history.push(context.name + ' proposes as the opposition: ' + history);
 			// mode to vote
-			gameState.mode = 'vote';
+			gameState.mode = MODES.VOTE;
 			let l = gameState.history.length;
 			gameState.voting = {
 				country: country,
@@ -700,6 +907,12 @@ async function submitProposal(context) {
 	return 'done';
 }
 
+/**
+ * Fisher-Yates shuffle. Randomizes array in place.
+ * Used to break ties randomly in bid ordering and player ordering.
+ *
+ * @param {Array} array - Array to shuffle (mutated in place)
+ */
 function shuffle(array) {
 	for (let i = array.length - 1; i > 0; i--) {
 		let j = Math.floor(Math.random() * (i + 1));
@@ -709,7 +922,24 @@ function shuffle(array) {
 	}
 }
 
-// done, needs checking
+/**
+ * Handles the end of a bid/buy round when no more players can buy stock.
+ *
+ * If the country is NOT Russia and at least one player can afford stock ($2+),
+ * sets up a new bid round for the next country. Otherwise:
+ * 1. Clears all bids
+ * 2. Sets player order by wealth (richest first, ties broken randomly)
+ * 3. Assigns the investor card to the richest player
+ * 4. Sets up swiss banking for permanently eligible players
+ * 5. Advances to the next country (proposal mode)
+ *
+ * Special case: Russia is the last country in the initial bidding phase.
+ * After Russia, the game transitions from bidding to the proposal cycle.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {string} country - The country whose bid round just ended
+ */
 async function doneBuying(context, gameState, country) {
 	let players = Object.keys(gameState.playerInfo);
 	for (let i in players) {
@@ -735,7 +965,7 @@ async function doneBuying(context, gameState, country) {
 			let newCountry = countries[(index + 1) % countries.length];
 			gameState.countryUp = newCountry;
 			// bid mode
-			gameState.mode = 'bid';
+			gameState.mode = MODES.BID;
 			return;
 		}
 	}
@@ -762,6 +992,15 @@ async function doneBuying(context, gameState, country) {
 	await incrementCountry(gameState, context);
 }
 
+/**
+ * Sorts players who submitted bids in descending order by bid amount.
+ * Ties are broken randomly (via shuffle before sort). Sets gameState.bidBuyOrder
+ * and logs the bid order to history.
+ *
+ * Called when all players have submitted bids (mode transitions to BUY_BID).
+ *
+ * @param {GameState} gameState - Game state (mutated in place: sets bidBuyOrder, pushes history)
+ */
 async function setBidBuyOrder(gameState) {
 	let p = Object.keys(gameState.playerInfo);
 	shuffle(p);
@@ -778,7 +1017,14 @@ async function setBidBuyOrder(gameState) {
 	gameState.history.push('The ' + gameState.countryUp + ' bids in order were ' + s + '.');
 }
 
-// done, needs checking
+/**
+ * Finds the next player in bidBuyOrder who can afford stock, and makes it their turn.
+ * If no player can afford stock (getStockBelow returns 0), calls doneBuying() to end the round.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {string} country - The country being bid on
+ */
 async function setNextBuyer(context, gameState, country) {
 	let money = 0;
 	let player = '';
@@ -797,7 +1043,17 @@ async function setNextBuyer(context, gameState, country) {
 	}
 }
 
-// done, needs checking
+/**
+ * Highest bidder decides to buy or pass on the stock they bid on (mode === BUY_BID).
+ *
+ * If context.buyBid is true, buys the highest stock the player can afford
+ * (at their bid price) and recalculates leadership. Otherwise, logs a decline.
+ * Either way, removes the player from bidBuyOrder and finds the next buyer.
+ *
+ * Called from: BuyBidApp component when player clicks Buy or Pass.
+ *
+ * @param {Object} context - UserContext with { game, name, buyBid (boolean) }
+ */
 async function bidBuy(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -823,7 +1079,18 @@ async function bidBuy(context) {
 	finalizeSubmit(gameState, context.game, context);
 }
 
-// done, needs checking
+/**
+ * Submits a player's bid for the current country's stock (mode === BID).
+ *
+ * All players bid simultaneously. Each player's bid is stored on their playerInfo.
+ * When all players have bid (no one's myTurn is true), transitions to BUY_BID mode:
+ * sorts bids, and the highest bidder gets first choice.
+ *
+ * Called from: BidApp component when player submits their bid amount.
+ *
+ * @param {Object} context - UserContext with { game, name, bid (number) }
+ * @returns {Promise<string>} 'done' on success
+ */
 async function bid(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -843,7 +1110,7 @@ async function bid(context) {
 	gameState.sameTurn = true;
 	if (doneBidding) {
 		gameState.sameTurn = false;
-		gameState.mode = 'buy-bid';
+		gameState.mode = MODES.BUY_BID;
 		setBidBuyOrder(gameState);
 		await setNextBuyer(context, gameState, country);
 	}
@@ -853,7 +1120,27 @@ async function bid(context) {
 	return 'done';
 }
 
-// done, needs checking
+/**
+ * Creates a new game from the template, initializing all players and writing to Firebase.
+ *
+ * 1. Reads the 'template game' from Firebase
+ * 2. Calculates starting money: 61 / playerCount
+ * 3. Replaces the template 'player' entry with actual player names
+ * 4. Initializes timer if the game is timed
+ * 5. Writes the new game state to games/{newGameID}
+ *
+ * Called from: EnterApp when creating a new game.
+ *
+ * @param {Object} info - { newGameID: string, newGamePlayers: string[6] }
+ *                        newGamePlayers has up to 6 entries; empty strings are skipped
+ * @returns {Promise<string>} 'done' on success
+ *
+ * @bug Operator precedence: `61.0 / count.toFixed(2)` calls toFixed on count first,
+ *      producing a string, then divides. Should be `(61.0 / count).toFixed(2)`.
+ * @bug Shallow copy: All players share the same templatePlayer object reference.
+ *      Modifying one player's properties affects all players.
+ * @bug Uses `.on('value')` for server time offset (should be `.once('value')`).
+ */
 async function newGame(info) {
 	let gameState = await database.ref('template game').once('value');
 	gameState = gameState.val();
@@ -895,6 +1182,23 @@ async function newGame(info) {
 	return 'done';
 }
 
+/**
+ * Undoes the last turn by restoring the previous game state from history.
+ *
+ * 1. Reads the previous turnID (current - 1)
+ * 2. Loads the game state snapshot from game histories
+ * 3. Updates the timer's lastMove to current server time
+ * 4. Removes the history entry
+ * 5. Writes the restored state back to games/{gameID}
+ *
+ * Only the player who last submitted (gameState.undo === name) can undo.
+ * The undoable() check in turnAPI.js gates the UI.
+ *
+ * @param {Object} context - UserContext with { game, name }
+ * @returns {Promise<string>} 'done' on success
+ *
+ * @bug Uses `.on('value')` for server time offset (should be `.once('value')`).
+ */
 async function undo(context) {
 	let oldTurnID = await database.ref('games/' + context.game + '/turnID').once('value');
 	oldTurnID = oldTurnID.val() - 1;

@@ -2,11 +2,9 @@ import React from 'react';
 import './App.css';
 import { Input, Divider, Button } from 'antd';
 import UserContext from './UserContext.js';
-import * as submitAPI from './backendFiles/submitAPI.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
-import firebase from 'firebase';
 
 class LoginApp extends React.Component {
 	constructor(props) {
@@ -16,15 +14,17 @@ class LoginApp extends React.Component {
 
 	componentDidMount() {
 		this.doStuff();
-		database.ref('games/' + this.context.game + '/turnID').on('value', async (dataSnapshot) => {
+		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
+		this.turnRef.on('value', async (dataSnapshot) => {
 			this.doStuff();
 		});
-		database.ref('games/' + this.context.game + '/timer').on('child_changed', async (dataSnapshot) => {
+		this.timerRef = database.ref('games/' + this.context.game + '/timer');
+		this.timerRef.on('child_changed', async (dataSnapshot) => {
 			this.doStuff();
 		});
-		setInterval(
+		this.intervalId = setInterval(
 			function () {
-				database.ref('/.info/serverTimeOffset').on(
+				database.ref('/.info/serverTimeOffset').once(
 					'value',
 					function (offset) {
 						let offsetVal = offset.val() || 0;
@@ -35,6 +35,12 @@ class LoginApp extends React.Component {
 			}.bind(this),
 			500
 		);
+	}
+
+	componentWillUnmount() {
+		if (this.turnRef) this.turnRef.off();
+		if (this.timerRef) this.timerRef.off();
+		if (this.intervalId) clearInterval(this.intervalId);
 	}
 
 	async doStuff() {
@@ -165,9 +171,8 @@ class LoginApp extends React.Component {
 					<Input
 						placeholder="Name"
 						allowClear={true}
-						style={{ background: 'black' }}
+						style={{ background: 'black', width: 150 }}
 						onPressEnter={(e) => this.handleEnter(e)}
-						style={{ width: 150 }}
 					></Input>{' '}
 					&nbsp;
 					{this.buildExitGame()}

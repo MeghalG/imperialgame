@@ -5,17 +5,15 @@ import LoginApp from './LoginApp.js';
 import RulesApp from './RulesApp.js';
 import { Button, Space } from 'antd';
 import { Card } from 'antd';
-import { Divider } from 'antd';
 import { Layout } from 'antd';
 import { Tabs, Col, Row } from 'antd';
-import { Select, Input } from 'antd';
+import { Input } from 'antd';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { database } from './backendFiles/firebase.js';
 
-const { Header, Content, Footer } = Layout;
+const { Header, Content } = Layout;
 const { TabPane } = Tabs;
-const { Option } = Select;
 
 class EnterApp extends React.Component {
 	constructor(props) {
@@ -30,12 +28,19 @@ class EnterApp extends React.Component {
 	}
 
 	componentDidMount() {
-		database.ref('games').on('child_added', (dataSnapshot) => {
+		this.gamesRef = database.ref('games');
+		this.gamesRef.on('child_added', (dataSnapshot) => {
 			this.getChoices();
 		});
-		database.ref('games').on('child_removed', (dataSnapshot) => {
+		this.gamesRef.on('child_removed', (dataSnapshot) => {
 			this.getChoices();
 		});
+	}
+
+	componentWillUnmount() {
+		if (this.gamesRef) {
+			this.gamesRef.off();
+		}
 	}
 
 	async getChoices() {

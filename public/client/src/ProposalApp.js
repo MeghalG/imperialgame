@@ -9,7 +9,6 @@ import { ImportComponent } from './ComponentTemplates.js';
 import { CheckboxComponent, SimpleMessageComponent } from './ComponentTemplates.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
-import { unmountComponentAtNode } from 'react-dom';
 
 class ProposalApp extends ActionComponent {
 	constructor(props) {

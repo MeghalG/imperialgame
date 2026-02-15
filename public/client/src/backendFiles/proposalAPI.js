@@ -1,7 +1,20 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
+import { MODES, MANEUVER_ACTIONS } from '../gameConstants.js';
 
-// done, needs checking
+/**
+ * Retrieves the previous proposal message for the opposition leader or a maneuver continuation message.
+ * If the current player is the opposition leader and the mode is 'proposal', returns the last
+ * history entry (the leader's proposal). If the mode is 'continue-man', returns the current
+ * maneuver state. Otherwise returns an empty string.
+ *
+ * Called from: ProposalAppOpp to display what the leader proposed so the opposition can counter.
+ *
+ * @param {Object} context - UserContext with { game, name }
+ * @param {string} context.game - The Firebase game ID
+ * @param {string} context.name - The current player's name
+ * @returns {Promise<string|Object>} The previous proposal description, maneuver state, or empty string
+ */
 async function getPreviousProposalMessage(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -9,16 +22,28 @@ async function getPreviousProposalMessage(context) {
 	let opp = gameState.countryInfo[country].leadership[1];
 	let history = gameState.history;
 
-	if (opp === context.name && gameState.mode === 'proposal') {
+	if (opp === context.name && gameState.mode === MODES.PROPOSAL) {
 		return history[history.length - 1];
-	} else if (gameState.mode === 'continue-man') {
+	} else if (gameState.mode === MODES.CONTINUE_MAN) {
 		return gameState.currentManeuver;
 	} else {
 		return '';
 	}
 }
 
-// done, needs checking
+/**
+ * Returns the available wheel (rondel) positions for the current country.
+ * Free moves are 1-3 steps forward; steps 4-6 require the player to have enough money
+ * ($2 for step 4, $4 for step 5, $6 for step 6). If the country is at "center"
+ * (first move of the game), all rondel positions are available for free.
+ *
+ * Called from: ProposalApp to populate the wheel action dropdown.
+ *
+ * @param {Object} context - UserContext with { game, name }
+ * @param {string} context.game - The Firebase game ID
+ * @param {string} context.name - The current player's name
+ * @returns {Promise<string[]>} Array of available wheel action names (e.g. "Investor", "Taxation", etc.)
+ */
 async function getWheelOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -50,7 +75,17 @@ async function getWheelOptions(context) {
 	}
 }
 
-// done, needs checking
+/**
+ * Returns the territories where the current country can build a factory.
+ * A factory can be built on any home territory that is not currently occupied
+ * (sat on by a hostile army) and does not already have a factory.
+ *
+ * Called from: ProposalApp when the player selects the "Factory" wheel action.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {string} context.game - The Firebase game ID
+ * @returns {Promise<string[]>} Array of territory names eligible for factory placement
+ */
 async function getLocationOptions(context) {
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
@@ -73,7 +108,19 @@ async function getLocationOptions(context) {
 	return opts;
 }
 
-// done, needs checking
+/**
+ * Returns the territories where new fleets can be produced, along with the remaining fleet capacity.
+ * Only unsaturated (not occupied) factories that have a port can produce fleets.
+ * The limit is the country's fleet cap minus the number of existing fleets.
+ *
+ * Called from: ProposalApp when the player selects an "L-Produce" or "R-Produce" wheel action
+ * to populate the fleet production checkboxes.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {string} context.game - The Firebase game ID
+ * @returns {Promise<{items: string[], limit: number}>} Object with eligible port factory territory names
+ *   and the maximum number of new fleets that can be produced
+ */
 async function getFleetProduceOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -102,7 +149,19 @@ async function getFleetProduceOptions(context) {
 	};
 }
 
-// done, needs checking
+/**
+ * Returns the territories where new armies can be produced, along with the remaining army capacity.
+ * Only unsaturated (not occupied) factories that are NOT ports can produce armies.
+ * The limit is the country's army cap minus the number of existing armies.
+ *
+ * Called from: ProposalApp when the player selects an "L-Produce" or "R-Produce" wheel action
+ * to populate the army production checkboxes.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {string} context.game - The Firebase game ID
+ * @returns {Promise<{items: string[], limit: number}>} Object with eligible inland factory territory names
+ *   and the maximum number of new armies that can be produced
+ */
 async function getArmyProduceOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -131,7 +190,19 @@ async function getArmyProduceOptions(context) {
 	};
 }
 
-// done, needs checking
+/**
+ * Builds a human-readable message describing the investor payout for the current country.
+ * Calculates how much each player in the leadership chain will receive from the country's
+ * treasury based on their stock ownership.
+ *
+ * Called from: ProposalApp to display the investor payout preview when the "Investor" wheel
+ * action is selected.
+ *
+ * @param {Object} context - UserContext with { game, name }
+ * @param {string} context.game - The Firebase game ID
+ * @param {string} context.name - The current player's name
+ * @returns {Promise<string>} A message like "The investor will pay out $3 to Alice, $2 to Bob."
+ */
 async function getInvestorMessage(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -145,7 +216,19 @@ async function getInvestorMessage(context) {
 	return s;
 }
 
-// done, needs checking
+/**
+ * Builds a human-readable message describing the taxation outcome for the current country.
+ * Includes the points earned, money going into the treasury, and how greatness (tax split)
+ * is distributed among leadership players based on stock ownership.
+ *
+ * Called from: ProposalApp to display the taxation preview when the "Taxation" wheel action
+ * is selected.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {string} context.game - The Firebase game ID
+ * @returns {Promise<string>} A message like "Austria will tax for 3 points, and $2 into its
+ *   treasury. Greatness is distributed $1 to Alice, $1 to Bob."
+ */
 async function getTaxMessage(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -168,6 +251,17 @@ async function getTaxMessage(context) {
 	return s;
 }
 
+/**
+ * Returns the legal sea destinations for a fleet from its current position.
+ * If the fleet is on a port territory, it can move to its own territory or the adjacent sea.
+ * If on a sea territory, it can stay in place or move to any adjacent sea.
+ *
+ * Called from: getFleetOptions to compute movement choices for each fleet.
+ *
+ * @param {string} fleet - The territory name where the fleet currently is
+ * @param {Object} territorySetup - The territory configuration from the game setup
+ * @returns {string[]} Array of territory names the fleet can move to (includes current position)
+ */
 function getAdjacentSeas(fleet, territorySetup) {
 	if (territorySetup[fleet].port) {
 		return [fleet, territorySetup[fleet].port];
@@ -182,7 +276,20 @@ function getAdjacentSeas(fleet, territorySetup) {
 	return ans;
 }
 
-// fix
+/**
+ * Returns the movement options for all fleets of the current country.
+ * Each fleet gets a list of adjacent sea territories it can move to (including staying in place).
+ *
+ * Called from: ProposalApp when the player selects an "L-Maneuver" or "R-Maneuver" wheel action
+ * to populate the fleet movement dropdowns.
+ *
+ * @bug Marked as needing fixes (see "fix" comment in source).
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {string} context.game - The Firebase game ID
+ * @returns {Promise<Array<[string, string[]]>>} Array of [currentTerritory, destinationOptions] pairs,
+ *   one per fleet
+ */
 async function getFleetOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -201,7 +308,23 @@ async function getFleetOptions(context) {
 	return choices;
 }
 
-// fix
+/**
+ * Returns the war/peace action options available at each territory after fleets move.
+ * For each territory that contains hostile enemy units, the player can choose to declare
+ * war on a specific enemy unit or choose peace. Previously chosen war actions are removed
+ * from the available options to prevent duplicate selections.
+ *
+ * Called from: ProposalApp during maneuver to populate the fleet peace/war action dropdowns,
+ * and from allFleetsMoved to validate that all fleet actions are complete.
+ *
+ * @bug Marked as needing fixes (see "fix" comment in source).
+ *
+ * @param {Object} context - UserContext with { game, fleetMan }
+ * @param {string} context.game - The Firebase game ID
+ * @param {Array<ManeuverTuple>} context.fleetMan - Current fleet maneuver selections
+ * @returns {Promise<Object<string, string[]>>} Map of territory name to available actions
+ *   (e.g. { "North Sea": ["war France fleet", "peace"] })
+ */
 async function getFleetPeaceOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -233,12 +356,12 @@ async function getFleetPeaceOptions(context) {
 	for (let key in damage) {
 		if (damage[key].length !== 0) {
 			d[key] = damage[key].map((x) => 'war ' + x);
-			d[key].push('peace');
+			d[key].push(MANEUVER_ACTIONS.PEACE);
 		}
 	}
 	// remove chosen options
 	for (let i in context.fleetMan) {
-		if (context.fleetMan[i][1] && context.fleetMan[i][2] && context.fleetMan[i][2] !== 'peace') {
+		if (context.fleetMan[i][1] && context.fleetMan[i][2] && context.fleetMan[i][2] !== MANEUVER_ACTIONS.PEACE) {
 			d[context.fleetMan[i][1]].splice(d[context.fleetMan[i][1]].indexOf(context.fleetMan[i][2]), 1);
 		}
 	}
@@ -246,7 +369,19 @@ async function getFleetPeaceOptions(context) {
 	return d;
 }
 
-// the actions move all the fleets (so armies can be moved)
+/**
+ * Checks whether all fleets have been assigned a valid destination and, where required,
+ * a peace/war action. Returns true only if every fleet has a destination selected and
+ * any territory with more than one peace option has had one chosen.
+ *
+ * Called from: ProposalApp to determine if the fleet maneuver phase is complete and
+ * the army maneuver phase can begin.
+ *
+ * @param {Object} context - UserContext with { game, fleetMan }
+ * @param {string} context.game - The Firebase game ID
+ * @param {Array<ManeuverTuple>} context.fleetMan - Current fleet maneuver selections
+ * @returns {Promise<boolean>} True if all fleet movements and actions are fully specified
+ */
 async function allFleetsMoved(context) {
 	let peaceOptions = await getFleetPeaceOptions(context);
 	let legal = true;
@@ -263,7 +398,22 @@ async function allFleetsMoved(context) {
 	return legal;
 }
 
-// add adjacent seas
+/**
+ * Computes the "distance-0" reachable set from an army's position using BFS.
+ * An army can traverse freely through connected home territories and through
+ * friendly-controlled seas (where a fleet has chosen peace or move). This builds
+ * the set of territories reachable without crossing enemy lines.
+ *
+ * Called from: getAdjacentLands to determine the base reachable zone for army movement.
+ *
+ * @param {string} army - The starting territory name
+ * @param {Object} territorySetup - The territory configuration from the game setup
+ * @param {string} country - The country that owns the army
+ * @param {Object} context - UserContext with { fleetMan }
+ * @param {Array<ManeuverTuple>} context.fleetMan - Current fleet maneuver selections
+ *   (used to check if seas are controlled by friendly fleets)
+ * @returns {string[]} Array of territory names reachable at distance 0 (connected home + friendly seas)
+ */
 function getD0(army, territorySetup, country, context) {
 	let d0 = [army];
 	let q = [army];
@@ -275,7 +425,7 @@ function getD0(army, territorySetup, country, context) {
 			let sea = false;
 			if (territorySetup[adj].sea) {
 				for (let x of context.fleetMan) {
-					if (x[1] === adj && (x[2] === 'peace' || x[2] === '')) {
+					if (x[1] === adj && (x[2] === MANEUVER_ACTIONS.PEACE || x[2] === MANEUVER_ACTIONS.MOVE)) {
 						sea = true;
 					}
 				}
@@ -292,6 +442,21 @@ function getD0(army, territorySetup, country, context) {
 	return d0;
 }
 
+/**
+ * Returns all land territories an army can reach from its current position.
+ * Uses getD0 to compute the connected reachable zone, then expands one step
+ * outward from every territory in that zone to find adjacent lands (including
+ * through friendly-fleet-controlled seas). Deduplicates the result.
+ *
+ * Called from: getArmyOptions to determine the legal movement destinations for each army.
+ *
+ * @param {string} army - The territory name where the army currently is
+ * @param {Object} territorySetup - The territory configuration from the game setup
+ * @param {string} country - The country that owns the army
+ * @param {Object} context - UserContext with { fleetMan }
+ * @param {Array<ManeuverTuple>} context.fleetMan - Current fleet maneuver selections
+ * @returns {string[]} Array of unique land territory names the army can move to
+ */
 function getAdjacentLands(army, territorySetup, country, context) {
 	let d0 = getD0(army, territorySetup, country, context);
 	let ans = [];
@@ -313,7 +478,20 @@ function getAdjacentLands(army, territorySetup, country, context) {
 	return ans;
 }
 
-// done, needs checking
+/**
+ * Returns the movement options for all armies of the current country.
+ * Each army gets a list of reachable land territories it can move to, computed via
+ * getAdjacentLands which considers connected home territories and fleet-controlled seas.
+ *
+ * Called from: ProposalApp when the player selects an "L-Maneuver" or "R-Maneuver" wheel
+ * action to populate the army movement dropdowns (after fleets are moved).
+ *
+ * @param {Object} context - UserContext with { game, fleetMan }
+ * @param {string} context.game - The Firebase game ID
+ * @param {Array<ManeuverTuple>} context.fleetMan - Current fleet maneuver selections
+ * @returns {Promise<Array<[string, string[]]>>} Array of [currentTerritory, destinationOptions] pairs,
+ *   one per army
+ */
 async function getArmyOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -332,7 +510,27 @@ async function getArmyOptions(context) {
 	return choices;
 }
 
-// fix
+/**
+ * Returns the war/peace/hostile action options for each territory where armies have conflict potential.
+ * For each territory, builds a list of possible actions:
+ * - "war {country} {unitType}" for each enemy unit present
+ * - "peace" for entering peacefully
+ * - "hostile" if the territory belongs to another country
+ * - "blow up {country}" if the territory has an enemy factory
+ *
+ * Previously chosen actions from both fleetMan and armyMan are removed to prevent duplicates.
+ *
+ * Called from: ProposalApp during maneuver to populate army peace/war action dropdowns,
+ * and from allArmiesMoved to validate that all army actions are complete.
+ *
+ * @bug Marked as needing fixes (see "fix" comment in source).
+ *
+ * @param {Object} context - UserContext with { game, fleetMan, armyMan }
+ * @param {string} context.game - The Firebase game ID
+ * @param {Array<ManeuverTuple>} context.fleetMan - Current fleet maneuver selections
+ * @param {Array<ManeuverTuple>} context.armyMan - Current army maneuver selections
+ * @returns {Promise<Object<string, string[]>>} Map of territory name to available actions
+ */
 async function getArmyPeaceOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
@@ -359,10 +557,10 @@ async function getArmyPeaceOptions(context) {
 	let d = {};
 	for (let key in damage) {
 		d[key] = damage[key].map((x) => 'war ' + x);
-		d[key].push('peace');
+		d[key].push(MANEUVER_ACTIONS.PEACE);
 
 		if (territorySetup[key].country && territorySetup[key].country !== country) {
-			d[key].push('hostile');
+			d[key].push(MANEUVER_ACTIONS.HOSTILE);
 		}
 		if (
 			territorySetup[key].country &&
@@ -377,9 +575,9 @@ async function getArmyPeaceOptions(context) {
 		if (
 			context.fleetMan[i][1] &&
 			context.fleetMan[i][2] &&
-			context.fleetMan[i][2] !== 'peace' &&
-			context.fleetMan[i][2] !== 'hostile' &&
-			context.fleetMan[i][2].substring(0, 7) !== 'blow up'
+			context.fleetMan[i][2] !== MANEUVER_ACTIONS.PEACE &&
+			context.fleetMan[i][2] !== MANEUVER_ACTIONS.HOSTILE &&
+			context.fleetMan[i][2].substring(0, 7) !== MANEUVER_ACTIONS.BLOW_UP_PREFIX
 		) {
 			d[context.fleetMan[i][1]].splice(d[context.fleetMan[i][1]].indexOf(context.fleetMan[i][2]), 1);
 		}
@@ -388,9 +586,9 @@ async function getArmyPeaceOptions(context) {
 		if (
 			context.armyMan[i][1] &&
 			context.armyMan[i][2] &&
-			context.armyMan[i][2] !== 'peace' &&
-			context.armyMan[i][2] !== 'hostile' &&
-			context.armyMan[i][2].substring(0, 7) !== 'blow up'
+			context.armyMan[i][2] !== MANEUVER_ACTIONS.PEACE &&
+			context.armyMan[i][2] !== MANEUVER_ACTIONS.HOSTILE &&
+			context.armyMan[i][2].substring(0, 7) !== MANEUVER_ACTIONS.BLOW_UP_PREFIX
 		) {
 			d[context.armyMan[i][1]].splice(d[context.armyMan[i][1]].indexOf(context.armyMan[i][2]), 1);
 		}
@@ -399,7 +597,20 @@ async function getArmyPeaceOptions(context) {
 	return d;
 }
 
-// the actions move all the fleets without peace proposals (so armies can be moved)
+/**
+ * Checks whether all armies have been assigned a valid destination and, where required,
+ * a peace/war/hostile action. Returns true only if every army has a destination selected
+ * and any territory with more than one peace option has had one chosen.
+ *
+ * Called from: ProposalApp to determine if the army maneuver phase is complete and
+ * the proposal can be submitted.
+ *
+ * @param {Object} context - UserContext with { game, armyMan, fleetMan }
+ * @param {string} context.game - The Firebase game ID
+ * @param {Array<ManeuverTuple>} context.armyMan - Current army maneuver selections
+ * @param {Array<ManeuverTuple>} context.fleetMan - Current fleet maneuver selections
+ * @returns {Promise<boolean>} True if all army movements and actions are fully specified
+ */
 async function allArmiesMoved(context) {
 	let peaceOptions = await getArmyPeaceOptions(context);
 	let legal = true;
@@ -416,7 +627,27 @@ async function allArmiesMoved(context) {
 	return legal;
 }
 
-// fix
+/**
+ * Returns the available import options for the current country, including eligible territories
+ * for armies and fleets, and the remaining unit capacity for each type.
+ * Armies can be imported to unsaturated non-port home territories; fleets to port territories.
+ * Up to 3 units can be imported per Import action.
+ *
+ * Called from: ProposalApp when the player selects the "Import" wheel action to populate
+ * the import unit type and territory dropdowns.
+ *
+ * @bug Marked as needing fixes (see "fix" comment in source).
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {string} context.game - The Firebase game ID
+ * @returns {Promise<{labels: string[], options: {army: string[], fleet: string[]}, limits: {army: number, fleet: number}}>}
+ *   Object containing:
+ *   - labels: Display labels for the 3 import slots
+ *   - options.army: Territory names eligible for army imports
+ *   - options.fleet: Territory names eligible for fleet imports
+ *   - limits.army: Remaining army capacity
+ *   - limits.fleet: Remaining fleet capacity
+ */
 async function getImportOptions(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();

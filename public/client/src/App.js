@@ -1,13 +1,10 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
 import './App.css';
 
 import EnterApp from './EnterApp.js';
 import GameApp from './GameApp.js';
 
 import UserContext from './UserContext.js';
-import * as firebase from './backendFiles/firebase.js';
-import * as turnAPI from './backendFiles/turnAPI.js';
 
 class App extends React.Component {
 	constructor(props) {

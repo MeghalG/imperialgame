@@ -35,7 +35,8 @@ class TurnApp extends React.Component {
 
 	async componentDidMount() {
 		this.newTurn();
-		database.ref('games/' + this.context.game + '/turnID').on('value', async (dataSnapshot) => {
+		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
+		this.turnRef.on('value', async (dataSnapshot) => {
 			let sameTurn = await database.ref('games/' + this.context.game + '/sameTurn').once('value');
 			sameTurn = sameTurn.val();
 			let myTurn = await database
@@ -46,6 +47,12 @@ class TurnApp extends React.Component {
 				this.newTurn();
 			}
 		});
+	}
+
+	componentWillUnmount() {
+		if (this.turnRef) {
+			this.turnRef.off();
+		}
 	}
 
 	componentDidUpdate() {
@@ -71,7 +78,7 @@ class TurnApp extends React.Component {
 				cancelText="No"
 			>
 				<span style={{ float: 'right', fontSize: 14 }}>
-					<a href="#">Undo</a>
+					<span style={{ color: '#177ddc', cursor: 'pointer' }}>Undo</span>
 				</span>
 			</Popconfirm>
 		);
@@ -114,8 +121,9 @@ function DisplayMode(props) {
 			return null;
 		case 'game-over':
 			return null;
+		default:
+			return null;
 	}
-	return '';
 }
 TurnApp.contextType = UserContext;
 
