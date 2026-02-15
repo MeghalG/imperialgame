@@ -1,4 +1,4 @@
-import {database} from './firebase.js';
+import { database } from './firebase.js';
 import * as helper from './helper.js';
 
 async function getGameIDs() {
@@ -9,54 +9,54 @@ async function getGameIDs() {
 	}
 	ids = Object.keys(ids);
 	return ids;
-};
+}
 
 // done, needs checking
 async function getMoney(context) {
-	let money = await database.ref('games/'+context.game+'/playerInfo/'+context.name+'/money').once('value');
+	let money = await database.ref('games/' + context.game + '/playerInfo/' + context.name + '/money').once('value');
 	money = money.val();
-    return money;
+	return money;
 }
 async function getCountry(context) {
-	let country = await database.ref('games/'+context.game+'/countryUp').once('value');
+	let country = await database.ref('games/' + context.game + '/countryUp').once('value');
 	country = country.val();
-    return country;
+	return country;
 }
 
 // fix
 async function getBid(context) {
-	let bid = await database.ref('games/'+context.game+'/playerInfo/'+context.name+'/bid').once('value');
+	let bid = await database.ref('games/' + context.game + '/playerInfo/' + context.name + '/bid').once('value');
 	bid = bid.val();
-    return bid;
+	return bid;
 }
 
 // fix
 async function getStock(context) {
 	let t = {};
-	let countryInfo = await database.ref('games/'+context.game+'/countryInfo').once('value');
+	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
 	countryInfo = countryInfo.val();
-	let country = await database.ref('games/'+context.game+'/countryUp').once('value');
+	let country = await database.ref('games/' + context.game + '/countryUp').once('value');
 	country = country.val();
 	t['country'] = country;
-	let bid = await database.ref('games/'+context.game+'/playerInfo/'+context.name+'/bid').once('value');
+	let bid = await database.ref('games/' + context.game + '/playerInfo/' + context.name + '/bid').once('value');
 	bid = bid.val();
 	let value = await helper.getStockBelow(bid, countryInfo[country], context);
 	t['value'] = value;
-    return t;
+	return t;
 }
 
 // done
 async function getVoteOptions(context) {
-	let gameState = await database.ref('games/'+context.game).once('value');
+	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
-    return [gameState.voting['proposal 1'].proposal, gameState.voting['proposal 2'].proposal];
+	return [gameState.voting['proposal 1'].proposal, gameState.voting['proposal 2'].proposal];
 }
 
 // fix
 async function getGameState(context) {
-	let gameState = await database.ref('games/'+context.game).once('value');
+	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
-    return gameState;
+	return gameState;
 }
 
-export {getGameIDs, getMoney, getCountry, getBid, getStock, getVoteOptions, getGameState};
+export { getGameIDs, getMoney, getCountry, getBid, getStock, getVoteOptions, getGameState };
