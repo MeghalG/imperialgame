@@ -1,7 +1,0 @@
-21:28:49.533 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
-21:28:49.705 [main] INFO com.firebase.server.forge.App$ - Listening at localhost:9000
-21:32:12.824 [Thread-4] INFO com.firebase.server.forge.App$ - Attempting graceful shutdown.
-21:32:12.842 [NamespaceSystem-akka.actor.default-dispatcher-8] INFO com.firebase.core.namespace.Terminator$Terminator - 1 actors left to terminate: imperialgame-e8a12
-21:32:12.854 [NamespaceSystem-akka.actor.default-dispatcher-9] INFO com.firebase.core.namespace.NamespaceActor - Stopping namespace actor for imperialgame-e8a12
-21:32:12.855 [NamespaceSystem-akka.actor.default-dispatcher-9] INFO com.firebase.core.namespace.NamespaceActor - Gauges removed for imperialgame-e8a12
-21:32:12.862 [Thread-4] INFO com.firebase.server.forge.App$ - Graceful shutdown complete.

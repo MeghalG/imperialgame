@@ -1,10 +1,10 @@
 import firebase from 'firebase'
 
 var config = {
-	apiKey: "AIzaSyACA3o0NyzICYS4gFol3Emm9FGmpx-x7kA",
-	authDomain: "imperialgame-e8a12.firebaseapp.com",
-	databaseURL: "https://imperialgame-e8a12.firebaseio.com/",
-	storageBucket: "gs://imperialgame-e8a12.appspot.com",
+	apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+	authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+	databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
+	storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
 };
 firebase.initializeApp(config);
 var database = firebase.database();

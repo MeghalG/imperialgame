@@ -13,12 +13,12 @@ async function finalizeSubmit(gameState, gameID, context) {
 	for (let country in gameState.countryInfo) {
 		gameState.countryInfo[country].money = parseFloat(gameState.countryInfo[country].money.toFixed(2));
 	}
-	emailjs.init("user_LtdYJqSpNB9fCTzyFKxqQ");
+	emailjs.init(process.env.REACT_APP_EMAILJS_USER_ID);
 	for (let key in gameState.playerInfo) {
 		if (gameState.playerInfo[key].email && gameState.playerInfo[key].myTurn) {
 			emailjs.send(
-				'gmail', 
-				'template_u089jev', 
+				process.env.REACT_APP_EMAILJS_SERVICE_ID,
+				process.env.REACT_APP_EMAILJS_TEMPLATE_ID,
 				{to_name: key, to_email:gameState.playerInfo[key].email},
 			)
 		}
