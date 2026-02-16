@@ -22494,6 +22494,7 @@ tr.ant-table-expanded-row .ant-descriptions-view table {
 	flex: auto;
 	min-width: 0;
 	min-height: 0;
+	overflow: hidden;
 }
 .ant-tabs-content-animated {
 	transition: margin 0.3s;
@@ -22502,6 +22503,9 @@ tr.ant-table-expanded-row .ant-descriptions-view table {
 	flex: none;
 	width: 100%;
 	outline: none;
+}
+.ant-tabs-tabpane-hidden {
+	display: none;
 }
 .ant-tag {
 	box-sizing: border-box;
