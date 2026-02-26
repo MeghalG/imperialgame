@@ -32,8 +32,6 @@ import {
  * @param {string} gameID - The Firebase game ID
  * @param {Object} context - UserContext with at least { name, game }
  *
- * @bug Uses `.on('value')` for server time offset which returns a listener, not a promise.
- *      Should use `.once('value')` instead. The `await` on `.on()` doesn't wait for the value.
  * @bug Empty error handler on the `.set()` callback silently swallows write failures.
  */
 async function finalizeSubmit(gameState, gameID, context) {
@@ -58,11 +56,9 @@ async function finalizeSubmit(gameState, gameID, context) {
 	let timer = gameState.timer;
 	if (timer.timed) {
 		let time = 0;
-		await database.ref('/.info/serverTimeOffset').on('value', function (offset) {
-			let offsetVal = offset.val() || 0;
-			let serverTime = Date.now() + offsetVal;
-			time = serverTime;
-		});
+		let offset = await database.ref('/.info/serverTimeOffset').once('value');
+		let offsetVal = offset.val() || 0;
+		time = Date.now() + offsetVal;
 		if (!gameState.sameTurn) {
 			for (let key in oldState.playerInfo) {
 				if (oldState.playerInfo[key].myTurn) {
@@ -439,7 +435,7 @@ async function submitVote(context) {
 	}
 
 	gameState.undo = context.name;
-	finalizeSubmit(gameState, context.game, context);
+	await finalizeSubmit(gameState, context.game, context);
 	return 'done';
 }
 
@@ -465,7 +461,7 @@ async function submitNoCounter(context) {
 	await executeProposal(gameState, propContext);
 
 	gameState.undo = context.name;
-	finalizeSubmit(gameState, context.game, context);
+	await finalizeSubmit(gameState, context.game, context);
 
 	return 'done';
 }
@@ -903,7 +899,7 @@ async function submitProposal(context) {
 	}
 
 	gameState.undo = context.name;
-	finalizeSubmit(gameState, context.game, context);
+	await finalizeSubmit(gameState, context.game, context);
 	return 'done';
 }
 
@@ -1076,7 +1072,7 @@ async function bidBuy(context) {
 
 	await setNextBuyer(context, gameState, country);
 	gameState.undo = context.name;
-	finalizeSubmit(gameState, context.game, context);
+	await finalizeSubmit(gameState, context.game, context);
 }
 
 /**
@@ -1115,7 +1111,7 @@ async function bid(context) {
 		await setNextBuyer(context, gameState, country);
 	}
 	gameState.undo = context.name;
-	finalizeSubmit(gameState, context.game, context);
+	await finalizeSubmit(gameState, context.game, context);
 
 	return 'done';
 }
@@ -1134,12 +1130,6 @@ async function bid(context) {
  * @param {Object} info - { newGameID: string, newGamePlayers: string[6] }
  *                        newGamePlayers has up to 6 entries; empty strings are skipped
  * @returns {Promise<string>} 'done' on success
- *
- * @bug Operator precedence: `61.0 / count.toFixed(2)` calls toFixed on count first,
- *      producing a string, then divides. Should be `(61.0 / count).toFixed(2)`.
- * @bug Shallow copy: All players share the same templatePlayer object reference.
- *      Modifying one player's properties affects all players.
- * @bug Uses `.on('value')` for server time offset (should be `.once('value')`).
  */
 async function newGame(info) {
 	let gameState = await database.ref('template game').once('value');
@@ -1150,22 +1140,21 @@ async function newGame(info) {
 			count += 1;
 		}
 	}
-	let startingMoney = parseFloat(61.0 / count.toFixed(2));
+	let startingMoney = parseFloat((61.0 / count).toFixed(2));
 
 	let templatePlayer = gameState.playerInfo.player;
 	templatePlayer.money = startingMoney;
 	delete gameState.playerInfo.player;
 	let timer = gameState.timer;
 	if (timer.timed) {
-		await database.ref('/.info/serverTimeOffset').on('value', function (offset) {
-			let offsetVal = offset.val() || 0;
-			let serverTime = Date.now() + offsetVal;
-			timer.lastMove = serverTime;
-		});
+		let offset = await database.ref('/.info/serverTimeOffset').once('value');
+		let offsetVal = offset.val() || 0;
+		let serverTime = Date.now() + offsetVal;
+		timer.lastMove = serverTime;
 	}
 	for (let i in info.newGamePlayers) {
 		if (info.newGamePlayers[i]) {
-			gameState.playerInfo[info.newGamePlayers[i]] = templatePlayer;
+			gameState.playerInfo[info.newGamePlayers[i]] = { ...templatePlayer };
 			if (timer.timed) {
 				gameState.playerInfo[info.newGamePlayers[i]].banked = timer.banked;
 			}
@@ -1196,19 +1185,15 @@ async function newGame(info) {
  *
  * @param {Object} context - UserContext with { game, name }
  * @returns {Promise<string>} 'done' on success
- *
- * @bug Uses `.on('value')` for server time offset (should be `.once('value')`).
  */
 async function undo(context) {
 	let oldTurnID = await database.ref('games/' + context.game + '/turnID').once('value');
 	oldTurnID = oldTurnID.val() - 1;
 	let gameState = await database.ref('game histories/' + context.game + '/' + oldTurnID).once('value');
 	gameState = gameState.val();
-	await database.ref('/.info/serverTimeOffset').on('value', function (offset) {
-		let offsetVal = offset.val() || 0;
-		let serverTime = Date.now() + offsetVal;
-		gameState.timer.lastMove = serverTime;
-	});
+	let offset = await database.ref('/.info/serverTimeOffset').once('value');
+	let offsetVal = offset.val() || 0;
+	gameState.timer.lastMove = Date.now() + offsetVal;
 
 	await database.ref('game histories/' + context.game + '/' + oldTurnID).remove();
 	await database.ref('games/' + context.game).set(gameState, async (error) => {

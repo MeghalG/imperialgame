@@ -200,8 +200,5 @@ Run: `npm test -- --watchAll=false --ci`
 - `ContinueManeuverApp.js` is entirely commented out (continue-man mode is a stub)
 - No server-side game logic validation (all logic runs in browser)
 - Firebase SDK is v8 (current is v10+)
-- `submitAPI.js` has 3 instances of `.on('value')` where `.once('value')` should be used (lines 30, 878, 908)
-- `newGame()` has a shallow copy bug (all players share one object) and an operator precedence bug in startingMoney calculation
-- `submitVote()` and `submitNoCounter()` don't await `finalizeSubmit()`
 - `proposalAPI.js` has several unused functions
 - `stateAPI.getCashValue()` is a stub that always returns 5

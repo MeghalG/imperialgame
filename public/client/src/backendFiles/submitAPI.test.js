@@ -797,7 +797,7 @@ describe('newGame', () => {
 		expect(written.playerInfo.Alice.money).toBe(30.5);
 	});
 
-	test('starting money with 6 players demonstrates the operator-precedence bug', async () => {
+	test('starting money with 6 players is correctly rounded to 2 decimal places', async () => {
 		mockDbData = {
 			'template game': {
 				mode: 'bid',
@@ -834,11 +834,9 @@ describe('newGame', () => {
 		await newGame(info);
 
 		const written = mockSetData['games/game1'];
-		// With 6 players: parseFloat(61.0 / (6).toFixed(2))
-		// = parseFloat(61.0 / "6.00")
-		// = parseFloat(61 / 6) = parseFloat(10.1666...) = 10.166666...
-		const expectedMoney = parseFloat(61.0 / (6).toFixed(2));
-		expect(written.playerInfo.A.money).toBeCloseTo(expectedMoney, 5);
+		// With 6 players: parseFloat((61.0 / 6).toFixed(2)) = 10.17
+		const expectedMoney = parseFloat((61.0 / 6).toFixed(2));
+		expect(written.playerInfo.A.money).toBe(expectedMoney);
 	});
 
 	test('initializes history with a game start message listing players', async () => {
