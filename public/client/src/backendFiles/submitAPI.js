@@ -1205,4 +1205,20 @@ async function undo(context) {
 	return 'done';
 }
 
-export { submitBuy, submitVote, submitNoCounter, submitManeuver, submitProposal, bidBuy, bid, newGame, undo };
+export {
+	submitBuy,
+	submitVote,
+	submitNoCounter,
+	submitManeuver,
+	submitProposal,
+	bidBuy,
+	bid,
+	newGame,
+	undo,
+	// Internal functions exported for testing
+	buyStock,
+	returnStock,
+	changeLeadership,
+	incrementCountry,
+	adjustTime,
+};
