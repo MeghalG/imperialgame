@@ -44,9 +44,7 @@ class TurnApp extends React.Component {
 		this.turnRef.on('value', async (dataSnapshot) => {
 			let [sameTurn, myTurn] = await Promise.all([
 				database.ref('games/' + this.context.game + '/sameTurn').once('value'),
-				database
-					.ref('games/' + this.context.game + '/playerInfo/' + this.context.name + '/myTurn')
-					.once('value'),
+				database.ref('games/' + this.context.game + '/playerInfo/' + this.context.name + '/myTurn').once('value'),
 			]);
 			sameTurn = sameTurn.val();
 			myTurn = myTurn.val();

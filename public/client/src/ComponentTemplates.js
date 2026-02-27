@@ -49,6 +49,7 @@ class ImportComponent extends React.Component {
 						style={{ marginLeft: 20, marginRight: 10, width: '100%' }}
 						defaultValue={this.state.keyValues[i]}
 						onChange={(value) => this.sendKeyValue(i, value)}
+						getPopupContainer={(trigger) => trigger.parentNode}
 					>
 						{' '}
 						{keyOpt}{' '}
@@ -61,6 +62,7 @@ class ImportComponent extends React.Component {
 						style={{ marginLeft: 20, marginRight: 10, width: '100%' }}
 						defaultValue={this.state.keyValues[i]}
 						onChange={(value) => this.sendKeyValue(i, value)}
+						getPopupContainer={(trigger) => trigger.parentNode}
 					>
 						{' '}
 						{disKeyOpt}{' '}
@@ -76,6 +78,7 @@ class ImportComponent extends React.Component {
 						key={i + this.state.keyValues[i]}
 						defaultValue={''}
 						onChange={(value) => this.sendValue(i, value)}
+						getPopupContainer={(trigger) => trigger.parentNode}
 					>
 						{' '}
 						{this.state.valueOptions[this.state.keyValues[i]]}{' '}
@@ -207,6 +210,7 @@ class MultiOptionComponent extends React.Component {
 					style={{ marginLeft: 30, width: '100%' }}
 					value={this.state.values[i][1]}
 					onChange={(value) => this.sendValue(i, value)}
+					getPopupContainer={(trigger) => trigger.parentNode}
 				>
 					{' '}
 					{t}{' '}
@@ -237,6 +241,7 @@ class MultiOptionComponent extends React.Component {
 							style={{ marginLeft: 200, width: '100%' }}
 							value={this.state.values[i][2]}
 							onChange={(value) => this.sendPeaceValue(i, value)}
+							getPopupContainer={(trigger) => trigger.parentNode}
 						>
 							{' '}
 							{pt}{' '}
@@ -393,7 +398,13 @@ class OptionComponent extends React.Component {
 		return (
 			<div style={{ marginBottom: 30, display: 'flex' }}>
 				<label style={{ paddingRight: '50px', whiteSpace: 'nowrap' }}> {this.state.message} </label>
-				<Select allowClear={true} style={{ width: '100%' }} placeholder="" onChange={(value) => this.sendValue(value)}>
+				<Select
+					allowClear={true}
+					style={{ width: '100%' }}
+					placeholder=""
+					onChange={(value) => this.sendValue(value)}
+					getPopupContainer={(trigger) => trigger.parentNode}
+				>
 					{this.makeOptions()}
 				</Select>
 			</div>
