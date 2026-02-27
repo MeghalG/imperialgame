@@ -74,6 +74,7 @@ async function finalizeSubmit(gameState, gameID, context) {
 	await database.ref('game histories/' + gameID + '/' + oldState.turnID).set(oldState);
 	await database.ref('games/' + gameID).set(gameState, async (error) => {
 		if (error) {
+			console.error('Firebase write failed in finalizeSubmit:', error);
 		} else {
 			await database.ref('games/' + gameID + '/turnID').set(gameState.turnID + 1);
 		}
@@ -169,7 +170,10 @@ function buyStock(gameState, player, stock, price, context) {
 	}
 	gameState.playerInfo[player].stock.push(stock);
 	let availStock = gameState.countryInfo[stock.country].availStock;
-	availStock.splice(availStock.indexOf(stock.stock), 1);
+	let idx = availStock.indexOf(stock.stock);
+	if (idx !== -1) {
+		availStock.splice(idx, 1);
+	}
 	gameState.playerInfo[player].money -= price;
 	gameState.countryInfo[stock.country].money += price;
 	helper.sortStock(gameState.playerInfo[player].stock, context);
@@ -467,16 +471,495 @@ async function submitNoCounter(context) {
 }
 
 /**
- * Submits a continued maneuver action (mode === CONTINUE_MAN).
+ * Initializes step-by-step maneuver mode. Called from submitProposal when
+ * the selected wheel action is L/R-Maneuver.
  *
- * STUB: Not implemented. Currently returns 'done' without doing anything.
- * This is intended for multi-step maneuvers where the player continues
- * moving units across multiple turns.
+ * Sets up currentManeuver with pending fleet/army lists, charges the wheel
+ * spin cost, and switches mode to CONTINUE_MAN.
  *
- * @param {Object} context - UserContext
- * @returns {string} 'done'
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {Object} context - UserContext with { name, game, wheelSpot }
  */
-function submitManeuver(context) {
+async function enterManeuver(gameState, context) {
+	let country = gameState.countryUp;
+	let fleets = gameState.countryInfo[country].fleets || [];
+	let armies = gameState.countryInfo[country].armies || [];
+
+	// Determine return mode and proposal slot
+	let gov = gameState.countryInfo[country].gov;
+	let returnMode, proposalSlot;
+	if (gov === GOV_TYPES.DICTATORSHIP) {
+		returnMode = 'execute';
+		proposalSlot = 0;
+	} else if (gameState.mode === MODES.PROPOSAL) {
+		returnMode = MODES.PROPOSAL_OPP;
+		proposalSlot = 1;
+	} else {
+		returnMode = MODES.VOTE;
+		proposalSlot = 2;
+	}
+
+	// Set up currentManeuver
+	gameState.currentManeuver = {
+		country: country,
+		player: context.name,
+		wheelSpot: context.wheelSpot,
+		phase: fleets.length > 0 ? 'fleet' : 'army',
+		unitIndex: 0,
+		pendingFleets: JSON.parse(JSON.stringify(fleets)),
+		pendingArmies: JSON.parse(JSON.stringify(armies)),
+		completedFleetMoves: [],
+		completedArmyMoves: [],
+		returnMode: returnMode,
+		proposalSlot: proposalSlot,
+		pendingPeace: null,
+	};
+
+	// If no units at all, skip directly to completion
+	if (fleets.length === 0 && armies.length === 0) {
+		await completeManeuver(gameState, context);
+		return;
+	}
+
+	gameState.mode = MODES.CONTINUE_MAN;
+	for (let key in gameState.playerInfo) {
+		gameState.playerInfo[key].myTurn = false;
+	}
+	gameState.playerInfo[context.name].myTurn = true;
+}
+
+/**
+ * Completes the step-by-step maneuver after all units have been moved.
+ * Assembles full fleetMan/armyMan arrays and either executes immediately
+ * (dictatorship) or stores as a proposal (democracy).
+ *
+ * @param {GameState} gameState - Game state (mutated in place)
+ * @param {Object} context - UserContext with { name, game }
+ */
+async function completeManeuver(gameState, context) {
+	let cm = gameState.currentManeuver;
+	let fullContext = {
+		name: cm.player,
+		game: context.game,
+		wheelSpot: cm.wheelSpot,
+		fleetMan: cm.completedFleetMoves || [],
+		armyMan: cm.completedArmyMoves || [],
+	};
+
+	if (cm.returnMode === 'execute') {
+		// Dictatorship: execute immediately
+		await executeProposal(gameState, fullContext);
+	} else if (cm.returnMode === MODES.PROPOSAL_OPP) {
+		// Democracy leader: store as proposal 1
+		let history = await makeHistory(gameState, fullContext);
+		gameState.history.push(cm.player + ' proposes as the leader: ' + history);
+		gameState['proposal 1'] = helper.stringifyFunctions(fullContext);
+		gameState.mode = MODES.PROPOSAL_OPP;
+		let country = cm.country;
+		let opposition = gameState.countryInfo[country].leadership[1];
+		for (let key in gameState.playerInfo) {
+			gameState.playerInfo[key].myTurn = false;
+		}
+		gameState.playerInfo[opposition].myTurn = true;
+	} else if (cm.returnMode === MODES.VOTE) {
+		// Democracy opposition: store as proposal 2
+		let history = await makeHistory(gameState, fullContext);
+		gameState.history.push(cm.player + ' proposes as the opposition: ' + history);
+		gameState['proposal 2'] = helper.stringifyFunctions(fullContext);
+		let country = cm.country;
+		let leadership = gameState.countryInfo[country].leadership;
+		for (let player of leadership) {
+			gameState.playerInfo[player].myTurn = true;
+		}
+		gameState.mode = MODES.VOTE;
+		let l = gameState.history.length;
+		gameState.voting = {
+			country: country,
+			'proposal 1': {
+				proposal: gameState.history[l - 2],
+				votes: 0,
+				voters: [],
+			},
+			'proposal 2': {
+				proposal: gameState.history[l - 1],
+				votes: 0,
+				voters: [],
+			},
+		};
+	}
+	gameState.currentManeuver = null;
+}
+
+/**
+ * Submits one unit's movement in the step-by-step maneuver flow.
+ * Processes the current unit's destination and action, handles peace
+ * offer detection, and advances to the next unit or completes the maneuver.
+ *
+ * @param {Object} context - UserContext with { game, name, maneuverDest, maneuverAction }
+ * @returns {Promise<string>} 'done' on success
+ */
+async function submitManeuver(context) {
+	let gameState = await database.ref('games/' + context.game).once('value');
+	gameState = gameState.val();
+	let cm = gameState.currentManeuver;
+	if (!cm) return 'done';
+
+	let setup = await database.ref('games/' + context.game + '/setup').once('value');
+	setup = setup.val();
+	let territorySetup = await database.ref(setup + '/territories').once('value');
+	territorySetup = territorySetup.val();
+
+	gameState.sameTurn = true;
+
+	// Get current unit info
+	let phase = cm.phase;
+	let unitIndex = cm.unitIndex;
+	let pendingUnits = phase === 'fleet' ? cm.pendingFleets : cm.pendingArmies;
+	let currentUnit = pendingUnits[unitIndex];
+	let origin = currentUnit.territory;
+	let dest = context.maneuverDest;
+	let action = context.maneuverAction || '';
+
+	// Build ManeuverTuple
+	let tuple = [origin, dest, action];
+
+	// Check if this is a peace offer to foreign territory
+	let split = action.split(' ');
+	if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
+		let destCountry = territorySetup[dest].country;
+		// Peace is only meaningful when entering another country's territory
+		if (destCountry && destCountry !== cm.country) {
+			let targetGov = gameState.countryInfo[destCountry].gov;
+			if (targetGov === GOV_TYPES.DICTATORSHIP) {
+				// Dictatorship: dictator decides
+				let dictator = gameState.countryInfo[destCountry].leadership[0];
+				cm.pendingPeace = {
+					origin: origin,
+					destination: dest,
+					targetCountry: destCountry,
+					unitType: phase,
+					tuple: tuple,
+				};
+				for (let key in gameState.playerInfo) {
+					gameState.playerInfo[key].myTurn = false;
+				}
+				gameState.playerInfo[dictator].myTurn = true;
+				// Stay in continue-man mode; the dictator sees accept/reject
+				gameState.undo = context.name;
+				await finalizeSubmit(gameState, context.game, context);
+				return 'done';
+			} else {
+				// Democracy: all stockholders of target country vote
+				let leadership = gameState.countryInfo[destCountry].leadership;
+				let totalStock = 0;
+				for (let player of leadership) {
+					for (let s of gameState.playerInfo[player].stock || []) {
+						if (s.country === destCountry) {
+							totalStock += s.stock;
+						}
+					}
+				}
+				gameState.peaceVote = {
+					movingCountry: cm.country,
+					targetCountry: destCountry,
+					unitType: phase,
+					origin: origin,
+					destination: dest,
+					acceptVotes: 0,
+					rejectVotes: 0,
+					voters: [],
+					totalStock: totalStock,
+					tuple: tuple,
+				};
+				gameState.mode = MODES.PEACE_VOTE;
+				for (let key in gameState.playerInfo) {
+					gameState.playerInfo[key].myTurn = false;
+				}
+				// Exclude players from the proposing country's leadership
+				for (let player of leadership) {
+					// Only target country stockholders vote, not the proposing player
+					// (though the proposing player might own stock in the target country,
+					// they are the one making the peace offer so they don't vote)
+					if (player !== cm.player) {
+						gameState.playerInfo[player].myTurn = true;
+					}
+				}
+				gameState.undo = context.name;
+				await finalizeSubmit(gameState, context.game, context);
+				return 'done';
+			}
+		}
+	}
+
+	// Normal move (not a peace offer to foreign territory): add tuple and advance
+	if (phase === 'fleet') {
+		if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
+		cm.completedFleetMoves.push(tuple);
+	} else {
+		if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
+		cm.completedArmyMoves.push(tuple);
+	}
+	cm.unitIndex++;
+
+	// Check phase transition
+	if (phase === 'fleet' && cm.unitIndex >= (cm.pendingFleets || []).length) {
+		cm.phase = 'army';
+		cm.unitIndex = 0;
+	}
+
+	// Check completion
+	if (cm.phase === 'army' && cm.unitIndex >= (cm.pendingArmies || []).length) {
+		await completeManeuver(gameState, context);
+		gameState.sameTurn = false;
+		gameState.undo = context.name;
+		await finalizeSubmit(gameState, context.game, context);
+		return 'done';
+	}
+
+	// More units to move — stay in continue-man
+	for (let key in gameState.playerInfo) {
+		gameState.playerInfo[key].myTurn = false;
+	}
+	gameState.playerInfo[cm.player].myTurn = true;
+	gameState.undo = context.name;
+	await finalizeSubmit(gameState, context.game, context);
+	return 'done';
+}
+
+/**
+ * Handles a dictator's accept/reject decision on a peace offer.
+ * Called when the target country is a dictatorship and a unit wants to enter peacefully.
+ *
+ * @param {Object} context - UserContext with { game, name, peaceVoteChoice } where choice is 'accept' or 'reject'
+ * @returns {Promise<string>} 'done' on success
+ */
+async function submitDictatorPeaceVote(context) {
+	let gameState = await database.ref('games/' + context.game).once('value');
+	gameState = gameState.val();
+	let cm = gameState.currentManeuver;
+	if (!cm || !cm.pendingPeace) return 'done';
+
+	gameState.sameTurn = true;
+
+	let peace = cm.pendingPeace;
+	let tuple;
+	if (context.peaceVoteChoice === 'accept') {
+		tuple = [peace.origin, peace.destination, MANEUVER_ACTIONS.PEACE];
+		gameState.history.push(
+			context.name + ' accepts the peace offer from ' + cm.country + ' at ' + peace.destination + '.'
+		);
+	} else {
+		// Rejected: find an enemy unit at the destination to make it a war
+		let targetCountry = peace.targetCountry;
+		// Find the first enemy unit at destination
+		let virtualFleets = gameState.countryInfo[targetCountry].fleets || [];
+		let virtualArmies = gameState.countryInfo[targetCountry].armies || [];
+		let foundUnit = null;
+		for (let f of virtualFleets) {
+			if (f.territory === peace.destination) {
+				foundUnit = targetCountry + ' fleet';
+				break;
+			}
+		}
+		if (!foundUnit) {
+			for (let a of virtualArmies) {
+				if (a.territory === peace.destination) {
+					foundUnit = targetCountry + ' army';
+					break;
+				}
+			}
+		}
+		if (foundUnit) {
+			tuple = [peace.origin, peace.destination, 'war ' + foundUnit];
+		} else {
+			// No enemy unit found; treat as hostile entry instead
+			tuple = [peace.origin, peace.destination, MANEUVER_ACTIONS.HOSTILE];
+		}
+		gameState.history.push(
+			context.name + ' rejects the peace offer from ' + cm.country + ' at ' + peace.destination + '.'
+		);
+	}
+
+	// Add the resolved tuple
+	if (cm.phase === 'fleet') {
+		if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
+		cm.completedFleetMoves.push(tuple);
+	} else {
+		if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
+		cm.completedArmyMoves.push(tuple);
+	}
+	cm.pendingPeace = null;
+	cm.unitIndex++;
+
+	// Check phase transition
+	if (cm.phase === 'fleet' && cm.unitIndex >= (cm.pendingFleets || []).length) {
+		cm.phase = 'army';
+		cm.unitIndex = 0;
+	}
+
+	// Check completion
+	if (cm.phase === 'army' && cm.unitIndex >= (cm.pendingArmies || []).length) {
+		await completeManeuver(gameState, context);
+		gameState.sameTurn = false;
+		gameState.undo = context.name;
+		await finalizeSubmit(gameState, context.game, context);
+		return 'done';
+	}
+
+	// More units to move
+	for (let key in gameState.playerInfo) {
+		gameState.playerInfo[key].myTurn = false;
+	}
+	gameState.playerInfo[cm.player].myTurn = true;
+	gameState.undo = context.name;
+	await finalizeSubmit(gameState, context.game, context);
+	return 'done';
+}
+
+/**
+ * Submits a stockholder's vote on a peace offer (mode === PEACE_VOTE).
+ * Target country is a democracy; stockholders vote weighted by stock denomination.
+ *
+ * @param {Object} context - UserContext with { game, name, peaceVoteChoice } where choice is 'accept' or 'reject'
+ * @returns {Promise<string>} 'done' on success
+ */
+async function submitPeaceVote(context) {
+	let gameState = await database.ref('games/' + context.game).once('value');
+	gameState = gameState.val();
+	let pv = gameState.peaceVote;
+	if (!pv) return 'done';
+	let cm = gameState.currentManeuver;
+	if (!cm) return 'done';
+
+	gameState.sameTurn = true;
+	gameState.playerInfo[context.name].myTurn = false;
+
+	// Calculate voter's stock weight
+	let targetCountry = pv.targetCountry;
+	let leadership = gameState.countryInfo[targetCountry].leadership;
+	let voterWeight = 0;
+	for (let s of gameState.playerInfo[context.name].stock || []) {
+		if (s.country === targetCountry) {
+			voterWeight += s.stock;
+		}
+	}
+	// Leader tiebreak bonus
+	if (leadership[0] === context.name) {
+		voterWeight += 0.1;
+	}
+
+	if (context.peaceVoteChoice === 'accept') {
+		pv.acceptVotes += voterWeight;
+	} else {
+		pv.rejectVotes += voterWeight;
+	}
+	if (!pv.voters) pv.voters = [];
+	pv.voters.push(context.name);
+
+	let threshold = (pv.totalStock + 0.01) / 2.0;
+
+	if (pv.acceptVotes > threshold) {
+		// Accepted
+		let tuple = [pv.origin, pv.destination, MANEUVER_ACTIONS.PEACE];
+		if (cm.phase === 'fleet') {
+			if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
+			cm.completedFleetMoves.push(tuple);
+		} else {
+			if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
+			cm.completedArmyMoves.push(tuple);
+		}
+		gameState.history.push(
+			pv.targetCountry + ' stockholders accept the peace offer from ' + pv.movingCountry + ' at ' + pv.destination + '.'
+		);
+		gameState.peaceVote = null;
+		cm.unitIndex++;
+
+		// Check phase transition
+		if (cm.phase === 'fleet' && cm.unitIndex >= (cm.pendingFleets || []).length) {
+			cm.phase = 'army';
+			cm.unitIndex = 0;
+		}
+
+		// Check completion
+		if (cm.phase === 'army' && cm.unitIndex >= (cm.pendingArmies || []).length) {
+			await completeManeuver(gameState, context);
+			gameState.sameTurn = false;
+			gameState.undo = context.name;
+			await finalizeSubmit(gameState, context.game, context);
+			return 'done';
+		}
+
+		// Return to continue-man
+		gameState.mode = MODES.CONTINUE_MAN;
+		for (let key in gameState.playerInfo) {
+			gameState.playerInfo[key].myTurn = false;
+		}
+		gameState.playerInfo[cm.player].myTurn = true;
+	} else if (pv.rejectVotes > threshold) {
+		// Rejected — becomes war
+		let foundUnit = null;
+		let virtualFleets = gameState.countryInfo[targetCountry].fleets || [];
+		let virtualArmies = gameState.countryInfo[targetCountry].armies || [];
+		for (let f of virtualFleets) {
+			if (f.territory === pv.destination) {
+				foundUnit = targetCountry + ' fleet';
+				break;
+			}
+		}
+		if (!foundUnit) {
+			for (let a of virtualArmies) {
+				if (a.territory === pv.destination) {
+					foundUnit = targetCountry + ' army';
+					break;
+				}
+			}
+		}
+		let tuple;
+		if (foundUnit) {
+			tuple = [pv.origin, pv.destination, 'war ' + foundUnit];
+		} else {
+			tuple = [pv.origin, pv.destination, MANEUVER_ACTIONS.HOSTILE];
+		}
+
+		if (cm.phase === 'fleet') {
+			if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
+			cm.completedFleetMoves.push(tuple);
+		} else {
+			if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
+			cm.completedArmyMoves.push(tuple);
+		}
+		gameState.history.push(
+			pv.targetCountry + ' stockholders reject the peace offer from ' + pv.movingCountry + ' at ' + pv.destination + '.'
+		);
+		gameState.peaceVote = null;
+		cm.unitIndex++;
+
+		// Check phase transition
+		if (cm.phase === 'fleet' && cm.unitIndex >= (cm.pendingFleets || []).length) {
+			cm.phase = 'army';
+			cm.unitIndex = 0;
+		}
+
+		// Check completion
+		if (cm.phase === 'army' && cm.unitIndex >= (cm.pendingArmies || []).length) {
+			await completeManeuver(gameState, context);
+			gameState.sameTurn = false;
+			gameState.undo = context.name;
+			await finalizeSubmit(gameState, context.game, context);
+			return 'done';
+		}
+
+		// Return to continue-man
+		gameState.mode = MODES.CONTINUE_MAN;
+		for (let key in gameState.playerInfo) {
+			gameState.playerInfo[key].myTurn = false;
+		}
+		gameState.playerInfo[cm.player].myTurn = true;
+	}
+	// Else: more votes needed, stay in peace-vote mode
+
+	gameState.undo = context.name;
+	await finalizeSubmit(gameState, context.game, context);
 	return 'done';
 }
 
@@ -649,7 +1132,24 @@ async function executeProposal(gameState, context) {
 			}
 			if (gameState.countryInfo[country].points === WIN_POINTS) {
 				gameState.mode = MODES.GAME_OVER;
-				break;
+				// Early return so incrementCountry does not overwrite game-over mode.
+				// Still clean up proposals, pay spin cost, and update wheelSpot.
+				gameState['proposal 1'] = null;
+				gameState['proposal 2'] = null;
+				let winDiff = 0;
+				if (gameState.countryInfo[country].wheelSpot !== WHEEL_CENTER) {
+					winDiff =
+						(wheel.indexOf(context.wheelSpot) -
+							wheel.indexOf(gameState.countryInfo[country].wheelSpot) +
+							wheel.length) %
+						wheel.length;
+				}
+				if (winDiff > FREE_RONDEL_STEPS) {
+					gameState.playerInfo[context.name].money -= RONDEL_STEP_COST * (winDiff - FREE_RONDEL_STEPS);
+				}
+				gameState.countryInfo[country].wheelSpot = context.wheelSpot;
+				gameState.currentManeuver = null;
+				return;
 			}
 			break;
 		case WHEEL_ACTIONS.FACTORY:
@@ -856,6 +1356,31 @@ async function submitProposal(context) {
 	gameState.sameTurn = false;
 
 	gameState.playerInfo[context.name].myTurn = false;
+
+	// For maneuver actions, enter step-by-step mode instead of the normal flow
+	if (context.wheelSpot === WHEEL_ACTIONS.L_MANEUVER || context.wheelSpot === WHEEL_ACTIONS.R_MANEUVER) {
+		// Pay spin cost and update wheel position before entering maneuver
+		let setup = await database.ref('games/' + context.game + '/setup').once('value');
+		setup = setup.val();
+		let wheel = await database.ref(setup + '/wheel').once('value');
+		wheel = wheel.val();
+		let diff = 0;
+		if (gameState.countryInfo[country].wheelSpot !== WHEEL_CENTER) {
+			diff =
+				(wheel.indexOf(context.wheelSpot) - wheel.indexOf(gameState.countryInfo[country].wheelSpot) + wheel.length) %
+				wheel.length;
+		}
+		if (diff > FREE_RONDEL_STEPS) {
+			gameState.playerInfo[context.name].money -= RONDEL_STEP_COST * (diff - FREE_RONDEL_STEPS);
+		}
+		gameState.countryInfo[country].wheelSpot = context.wheelSpot;
+
+		await enterManeuver(gameState, context);
+		gameState.undo = context.name;
+		await finalizeSubmit(gameState, context.game, context);
+		return 'done';
+	}
+
 	let history = await makeHistory(gameState, context);
 	if (gameState.countryInfo[country].gov === GOV_TYPES.DICTATORSHIP) {
 		await executeProposal(gameState, context);
@@ -1164,6 +1689,7 @@ async function newGame(info) {
 	gameState.history = ['The game has begun with players ' + p + '.'];
 	await database.ref('games/' + info.newGameID).set(gameState, async (error) => {
 		if (error) {
+			console.error('Firebase write failed in newGame:', error);
 		} else {
 			await database.ref('games/' + info.newGameID + '/turnID').set(gameState.turnID + 1);
 		}
@@ -1198,6 +1724,7 @@ async function undo(context) {
 	await database.ref('game histories/' + context.game + '/' + oldTurnID).remove();
 	await database.ref('games/' + context.game).set(gameState, async (error) => {
 		if (error) {
+			console.error('Firebase write failed in undo:', error);
 		} else {
 			await database.ref('games/' + context.game + '/turnID').set(oldTurnID);
 		}
@@ -1210,6 +1737,8 @@ export {
 	submitVote,
 	submitNoCounter,
 	submitManeuver,
+	submitDictatorPeaceVote,
+	submitPeaceVote,
 	submitProposal,
 	bidBuy,
 	bid,
@@ -1221,4 +1750,7 @@ export {
 	changeLeadership,
 	incrementCountry,
 	adjustTime,
+	enterManeuver,
+	completeManeuver,
+	executeProposal,
 };

@@ -45,8 +45,11 @@ games/{gameID}/
   # Swiss banking
   swissSet: string[] | null    # Players who chose "Punt Buy" this investor round. Null when not in use.
 
-  # Maneuver (stub, not fully implemented)
-  currentManeuver: object | null  # Current maneuver state for continue-man mode
+  # Step-by-step maneuver state (only present during continue-man mode)
+  currentManeuver: CurrentManeuver | null  # Tracks unit-by-unit movement progress (see Current Maneuver)
+
+  # Peace vote state (only present during peace-vote mode)
+  peaceVote: PeaceVote | null    # Tracks stockholder vote on a peace offer (see Peace Vote)
 
   # Timer
   timer: TimerState            # Timer configuration and state (see Timer State)
@@ -70,7 +73,8 @@ The `mode` field drives the entire UI and game flow. `TurnApp.js` switches on th
 | `"proposal"`    | Country leader makes a proposal (chooses wheel action)         | Leader (leadership[0])       |
 | `"proposal-opp"`| Opposition leader counter-proposes                             | Opposition (leadership[1])   |
 | `"vote"`        | Stockholders vote on leader vs opposition proposal             | All players in leadership[]  |
-| `"continue-man"`| Multi-step maneuver continuation (NOT FULLY IMPLEMENTED)       | Current player               |
+| `"continue-man"`| Step-by-step maneuver: move one unit at a time                 | Player building the maneuver |
+| `"peace-vote"`  | Stockholders vote on a peace offer from another country        | Target country's stockholders|
 | `"game-over"`   | A country reached 25 points; game ends                         | Nobody (display only)        |
 
 ---
@@ -194,6 +198,70 @@ voting/
 ### Vote Threshold
 
 A proposal wins when `votes > (totalStock + 0.01) / 2.0`. The leader gets a +0.1 bonus to their vote (tiebreak advantage). `totalStock` is the sum of all stock denominations owned by all players in leadership[].
+
+---
+
+## `games/{gameID}/currentManeuver/` - Current Maneuver State
+
+Only exists during `mode === "continue-man"`. Set to `null` when the maneuver completes. Tracks the step-by-step progress of moving units one at a time.
+
+```
+currentManeuver/
+  country: string                  # Country being maneuvered (e.g. "Austria")
+  player: string                   # Player building the proposal
+  wheelSpot: string                # "L-Maneuver" or "R-Maneuver"
+  phase: string                    # Current phase: "fleet" or "army"
+  unitIndex: number                # Index into pendingFleets (fleet phase) or pendingArmies (army phase)
+  pendingFleets: FleetUnit[]       # Original fleet positions at maneuver start
+  pendingArmies: ArmyUnit[]        # Original army positions at maneuver start
+  completedFleetMoves: ManeuverTuple[]  # Resolved fleet ManeuverTuples (accumulated as fleets move)
+  completedArmyMoves: ManeuverTuple[]   # Resolved army ManeuverTuples (accumulated as armies move)
+  returnMode: string               # Where to go after all units done:
+                                   #   "execute" → dictatorship, execute immediately
+                                   #   "proposal-opp" → democracy leader, store as proposal 1
+                                   #   "vote" → democracy opposition, store as proposal 2
+  proposalSlot: number             # Which proposal slot to fill (0=none/execute, 1=proposal 1, 2=proposal 2)
+
+  # Peace vote pending (only present when a dictator must decide on a peace offer)
+  pendingPeace: object | null      # If set, a peace vote is awaiting the dictator's decision
+    origin: string                 # Territory the unit is coming from
+    destination: string            # Territory being entered
+    targetCountry: string          # Country that owns the destination territory
+    unitType: string               # "fleet" or "army"
+    tuple: ManeuverTuple           # The original [origin, dest, "peace"] tuple
+```
+
+**Phase transitions:**
+- Starts in "fleet" phase if the country has fleets, otherwise "army"
+- When `unitIndex >= pendingFleets.length`, switches to "army" phase (unitIndex resets to 0)
+- When `unitIndex >= pendingArmies.length` in army phase, maneuver is complete
+
+---
+
+## `games/{gameID}/peaceVote/` - Peace Vote State
+
+Only exists during `mode === "peace-vote"`. Set to `null` when the vote resolves. Tracks a democracy stockholder vote on whether to accept or reject a peace offer.
+
+```
+peaceVote/
+  movingCountry: string            # Country making the peace offer
+  targetCountry: string            # Country that owns the territory (voters are this country's stockholders)
+  unitType: string                 # Type of moving unit: "fleet" or "army"
+  origin: string                   # Territory the unit is coming from
+  destination: string              # Territory being entered
+  acceptVotes: number              # Weighted accept vote total (stock denominations)
+  rejectVotes: number              # Weighted reject vote total (stock denominations)
+  voters: string[]                 # Player names who have already voted
+  totalStock: number               # Sum of all stock denominations for threshold calculation
+  tuple: ManeuverTuple             # The original [origin, dest, "peace"] tuple
+```
+
+**Vote resolution:**
+- Threshold: `votes > (totalStock + 0.01) / 2.0`
+- Target country leader gets +0.1 tiebreak bonus to their vote weight
+- If accept wins: ManeuverTuple action stays "peace" (unit enters non-hostilely)
+- If reject wins: ManeuverTuple action becomes `"war {targetCountry} {unitType}"` (both units destroyed)
+- The proposing country's players never vote on their own peace offers
 
 ---
 

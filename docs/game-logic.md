@@ -80,15 +80,23 @@ This is the core loop that repeats for the rest of the game:
 | `bid` | `buy-bid` | All players submitted bids | `bid()` line ~850 |
 | `buy-bid` | `bid` | More countries to bid on, players can afford | `doneBuying()` line ~743 |
 | `buy-bid` | `proposal` | Last bid country done or no one can afford | `doneBuying()` → `incrementCountry()` line ~102 |
-| `proposal` | (executes) | Dictatorship: leader's proposal runs immediately | `submitProposal()` line ~662 |
-| `proposal` | `proposal-opp` | Democracy: leader submitted, opposition's turn | `submitProposal()` line ~674 |
+| `proposal` | `continue-man` | L/R-Maneuver selected (any gov type) | `submitProposal()` → `enterManeuver()` |
+| `proposal` | (executes) | Dictatorship: non-maneuver proposal runs immediately | `submitProposal()` |
+| `proposal` | `proposal-opp` | Democracy: non-maneuver leader submitted | `submitProposal()` |
+| `proposal-opp` | `continue-man` | Opposition selects L/R-Maneuver | `submitProposal()` → `enterManeuver()` |
 | `proposal-opp` | (executes) | Opposition agreed (no counter) | `submitNoCounter()` |
-| `proposal-opp` | `vote` | Opposition counter-proposed | `submitProposal()` line ~685 |
+| `proposal-opp` | `vote` | Opposition counter-proposed (non-maneuver) | `submitProposal()` |
+| `continue-man` | `continue-man` | Unit moved, more units remain | `submitManeuver()` |
+| `continue-man` | `peace-vote` | Peace offer to democracy target | `submitManeuver()` |
+| `continue-man` | (executes) | All units done, dictatorship | `completeManeuver()` → `executeProposal()` |
+| `continue-man` | `proposal-opp` | All units done, democracy leader | `completeManeuver()` |
+| `continue-man` | `vote` | All units done, democracy opposition | `completeManeuver()` |
+| `peace-vote` | `continue-man` | Peace vote threshold reached | `submitPeaceVote()` / `submitDictatorPeaceVote()` |
 | `vote` | (executes) | A proposal got majority votes | `submitVote()` line ~315 |
-| (post-execute) | `buy` | Investor slot was passed on the rondel | `executeProposal()` line ~632 |
+| (post-execute) | `buy` | Investor slot was passed on the rondel | `executeProposal()` |
 | (post-execute) | `proposal` | Investor not passed, next country | `executeProposal()` → `incrementCountry()` |
 | `buy` | `proposal` | All buy/swiss actions complete | `submitBuy()` → `incrementCountry()` |
-| (any taxation) | `game-over` | A country reached 25 points | `executeProposal()` Taxation case line ~473 |
+| (any taxation) | `game-over` | A country reached 25 points | `executeProposal()` Taxation case |
 
 ---
 
@@ -177,19 +185,56 @@ After every stock purchase, `changeLeadership()` recalculates:
 
 ## Maneuver System
 
-Maneuvers move ALL of a country's military units. Each unit has a ManeuverTuple: `[origin, destination, actionCode]`.
+Maneuvers move a country's military units **one at a time** in a step-by-step interactive flow. Each unit's movement generates a ManeuverTuple: `[origin, destination, actionCode]`.
+
+### Step-by-Step Movement (Continue-Man Mode)
+
+When a player selects L-Maneuver or R-Maneuver on the rondel, the game enters `continue-man` mode instead of collecting all moves at once:
+
+1. **Fleet phase first**: Each fleet is presented one at a time. The player selects a destination and action for each.
+2. **Army phase second**: After all fleets are done, each army is presented one at a time.
+3. **Virtual state**: Moves are tracked in `currentManeuver` but NOT applied to `gameState.countryInfo` until the maneuver is fully complete. Movement options for each unit are computed from the virtual board state (original positions + completed moves).
+4. **Completion**: After all units are processed, the full maneuver is assembled with resolved ManeuverTuples and either executed (dictatorship) or stored as a proposal (democracy).
+
+### Peace Vote Mechanics
+
+When a unit declares "peace" entering foreign territory, the target country must vote:
+
+- **Target is dictatorship**: The dictator (leadership[0]) alone votes accept/reject.
+- **Target is democracy**: Full stockholder vote among the target country's stockholders, weighted by stock denomination. The target country's leader gets a +0.1 tiebreak bonus. Threshold: `votes > (totalStock + 0.01) / 2.0`.
+- **If accepted**: ManeuverTuple action stays `"peace"` (unit enters with `hostile: false`).
+- **If rejected**: ManeuverTuple action becomes `"war {targetCountry} {unitType}"` (both units destroyed).
+- The proposing country never votes on its own peace offers.
+- Peace votes happen during proposal **building**, before the proposal enters the democracy flow.
+
+### Mode Transitions for Maneuvers
+
+```
+proposal → (select L/R-Maneuver) → continue-man
+
+During continue-man:
+  (move unit, no conflict) → continue-man (next unit)
+  (unit peace to dictatorship target) → dictator sees accept/reject in continue-man
+  (unit peace to democracy target) → peace-vote mode → stockholders vote → continue-man
+  (all fleets done) → switch to army phase → continue-man
+  (all units done, dictatorship) → executeProposal → buy/next
+  (all units done, democracy leader) → store proposal 1 → proposal-opp
+  (all units done, democracy opposition) → store proposal 2 → vote
+```
 
 ### Action Codes
 
 | Code | Meaning | Effect |
 |------|---------|--------|
 | `""` (empty) | Normal move | Unit moves. Places tax chip on neutral territory. |
-| `"peace"` | Peaceful entry | Army enters foreign territory non-hostilely (`hostile: false`) |
+| `"peace"` | Peaceful entry | Army enters foreign territory non-hostilely (`hostile: false`). Triggers peace vote. |
 | `"hostile"` | Hostile entry | Army enters foreign territory hostilely |
 | `"war {country} {unitType}"` | Attack | Destroys one enemy unit at the destination. Attacking unit is also removed. |
 | `"blow up {country}"` | Destroy factory | Army destroys a factory at the destination. Army is removed. |
 
-### Processing Order
+### Processing Order (executeProposal)
+
+When the maneuver proposal is finally executed (after all moves collected and proposal accepted):
 
 1. **Fleets first**: All fleets are moved/resolved before armies
 2. **Armies sorted**: Sorted by action code (wars processed before peaceful moves)
@@ -201,6 +246,7 @@ Maneuvers move ALL of a country's military units. Each unit has a ManeuverTuple:
 
 - **Fleets** move between sea territories and ports. Movement options come from adjacencies.
 - **Armies** can reach any land territory connected through friendly territory and/or friendly fleets (fleets that moved to `"peace"` provide sea transport). Uses BFS in `getD0()` and `getAdjacentLands()`.
+- During step-by-step mode, `getCurrentUnitOptions()` computes destinations from the virtual board state (accounting for completed moves).
 
 ---
 

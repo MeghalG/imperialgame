@@ -59,7 +59,24 @@ async function getTitle(context) {
 			s += 'votes.';
 			break;
 		case MODES.CONTINUE_MAN:
-			s += 'continuing the ' + country + ' maneuver.';
+			if (gameState.currentManeuver && gameState.currentManeuver.pendingPeace) {
+				let peace = gameState.currentManeuver.pendingPeace;
+				s += 'a peace decision on ' + peace.targetCountry + ' territory (' + peace.destination + ').';
+			} else {
+				s += 'continuing the ' + country + ' maneuver.';
+			}
+			break;
+		case MODES.PEACE_VOTE:
+			if (gameState.peaceVote) {
+				s +=
+					'voting on a peace offer from ' +
+					gameState.peaceVote.movingCountry +
+					' at ' +
+					gameState.peaceVote.destination +
+					'.';
+			} else {
+				s += 'a peace vote.';
+			}
 			break;
 		case MODES.GAME_OVER:
 			s = helper.getWinner(gameState) + ' has won.';

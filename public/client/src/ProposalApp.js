@@ -32,8 +32,8 @@ class ProposalApp extends ActionComponent {
 						'R-Produce': ProduceApp,
 						Investor: InvestorApp,
 						'L-Produce': ProduceApp,
-						'R-Maneuver': ManeuverApp,
-						'L-Maneuver': ManeuverApp,
+						'R-Maneuver': ManeuverStartApp,
+						'L-Maneuver': ManeuverStartApp,
 						Taxation: TaxApp,
 						Import: ImportApp,
 					},
@@ -218,6 +218,17 @@ class TaxMessage extends MessageComponent {
 	}
 }
 
+class ManeuverStartApp extends SimpleMessageComponent {
+	constructor(props) {
+		super(props);
+		this.state = {
+			object: 'move',
+			message: 'Submit to begin moving units one at a time.',
+		};
+	}
+}
+
+// eslint-disable-next-line no-unused-vars
 class ManeuverApp extends ActionComponent {
 	constructor(props) {
 		super(props);

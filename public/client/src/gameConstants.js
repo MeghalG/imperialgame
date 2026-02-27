@@ -25,8 +25,10 @@ export const MODES = {
 	PROPOSAL_OPP: 'proposal-opp',
 	/** Stockholders vote on leader vs opposition proposal */
 	VOTE: 'vote',
-	/** Multi-step maneuver continuation (NOT FULLY IMPLEMENTED) */
+	/** Multi-step maneuver continuation — units move one at a time */
 	CONTINUE_MAN: 'continue-man',
+	/** Peace vote — target country stockholders vote on a peace offer */
+	PEACE_VOTE: 'peace-vote',
 	/** A country reached 25 points; game over */
 	GAME_OVER: 'game-over',
 };
@@ -295,4 +297,39 @@ export const STARTING_MONEY_POOL = 61;
  * @property {number[]} unitCoords - [x, y] pixel coordinates for drawing units
  * @property {number[]} factoryCoords - [x, y] pixel coordinates for drawing factories
  * @property {number[]} taxChipCoords - [x, y] pixel coordinates for drawing tax chips
+ */
+
+/**
+ * Tracks step-by-step maneuver progress during continue-man mode.
+ * Stored at games/{gameID}/currentManeuver in Firebase.
+ *
+ * @typedef {Object} CurrentManeuver
+ * @property {string} country - Country being maneuvered (e.g. "Austria")
+ * @property {string} player - Player building the proposal
+ * @property {string} wheelSpot - "L-Maneuver" or "R-Maneuver"
+ * @property {"fleet"|"army"} phase - Current phase
+ * @property {number} unitIndex - Index into pendingFleets or pendingArmies
+ * @property {FleetUnit[]} pendingFleets - Original fleet positions
+ * @property {ArmyUnit[]} pendingArmies - Original army positions
+ * @property {ManeuverTuple[]} completedFleetMoves - Resolved fleet ManeuverTuples
+ * @property {ManeuverTuple[]} completedArmyMoves - Resolved army ManeuverTuples
+ * @property {string} returnMode - Where to go after all units done ("execute", "proposal-opp", "vote")
+ * @property {number} proposalSlot - Which proposal slot to fill (0=execute, 1=leader, 2=opposition)
+ * @property {Object|null} [pendingPeace] - Pending dictatorship peace vote info
+ */
+
+/**
+ * Peace vote state for democracy target countries.
+ * Stored at games/{gameID}/peaceVote in Firebase during peace-vote mode.
+ *
+ * @typedef {Object} PeaceVote
+ * @property {string} movingCountry - Country making the peace offer
+ * @property {string} targetCountry - Country that owns the territory
+ * @property {"fleet"|"army"} unitType - Type of moving unit
+ * @property {string} origin - Where the unit is coming from
+ * @property {string} destination - Territory being entered
+ * @property {number} acceptVotes - Weighted accept vote total
+ * @property {number} rejectVotes - Weighted reject vote total
+ * @property {string[]} voters - Player names who have voted
+ * @property {number} totalStock - Sum of all stock denominations for threshold
  */

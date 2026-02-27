@@ -33,6 +33,12 @@ const UserContext = React.createContext({
 	setArmyMan: () => {},
 	import: '',
 	setImport: () => {},
+	maneuverDest: '',
+	setManeuverDest: () => {},
+	maneuverAction: '',
+	setManeuverAction: () => {},
+	peaceVoteChoice: '',
+	setPeaceVoteChoice: () => {},
 });
 
 export default UserContext;

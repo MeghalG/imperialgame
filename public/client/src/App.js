@@ -74,6 +74,18 @@ class App extends React.Component {
 			setImport: (x) => {
 				this.setState({ import: x });
 			},
+			maneuverDest: '',
+			setManeuverDest: (x) => {
+				this.setState({ maneuverDest: x });
+			},
+			maneuverAction: '',
+			setManeuverAction: (x) => {
+				this.setState({ maneuverAction: x });
+			},
+			peaceVoteChoice: '',
+			setPeaceVoteChoice: (x) => {
+				this.setState({ peaceVoteChoice: x });
+			},
 			title: '',
 		};
 	}
@@ -92,6 +104,9 @@ class App extends React.Component {
 			fleetMan: '',
 			armyMan: '',
 			import: '',
+			maneuverDest: '',
+			maneuverAction: '',
+			peaceVoteChoice: '',
 		});
 	}
 
