@@ -186,12 +186,7 @@ class ContinueManeuverApp extends React.Component {
 					</p>
 					<div style={{ marginBottom: 16 }}>
 						<label style={{ marginRight: 8 }}>Destination:</label>
-						<Select
-							style={{ width: 200 }}
-							placeholder="Select destination"
-							onChange={(v) => this.onDestChange(v)}
-							getPopupContainer={(trigger) => trigger.parentNode}
-						>
+						<Select style={{ width: 200 }} placeholder="Select destination" onChange={(v) => this.onDestChange(v)}>
 							{this.state.destinations.map((d) => (
 								<Option key={d} value={d}>
 									{d}
@@ -208,7 +203,6 @@ class ContinueManeuverApp extends React.Component {
 								placeholder="Select action (optional)"
 								allowClear
 								onChange={(v) => this.onActionChange(v || '')}
-								getPopupContainer={(trigger) => trigger.parentNode}
 							>
 								{this.state.actionOptions.map((a) => (
 									<Option key={a} value={a}>

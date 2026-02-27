@@ -32,3 +32,130 @@
 		transform: rotate(360deg);
 	}
 }
+
+/*
+ * Fix: Ant Design 4.13+ uses "ant-" prefixed transition class names
+ * (e.g. ant-slide-up-leave) but the extracted dark theme CSS only has
+ * unprefixed names (slide-up-leave). Without these rules, dropdown
+ * open/close animations never play and the dropdown stays stuck visible.
+ */
+
+/* Slide Up */
+.ant-slide-up-enter,
+.ant-slide-up-appear {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	opacity: 0;
+	animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.ant-slide-up-enter.ant-slide-up-enter-active,
+.ant-slide-up-appear.ant-slide-up-appear-active {
+	animation-name: antSlideUpIn;
+	animation-play-state: running;
+}
+.ant-slide-up-leave {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+}
+.ant-slide-up-leave.ant-slide-up-leave-active {
+	animation-name: antSlideUpOut;
+	animation-play-state: running;
+	pointer-events: none;
+}
+
+/* Slide Down */
+.ant-slide-down-enter,
+.ant-slide-down-appear {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	opacity: 0;
+	animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.ant-slide-down-enter.ant-slide-down-enter-active,
+.ant-slide-down-appear.ant-slide-down-appear-active {
+	animation-name: antSlideDownIn;
+	animation-play-state: running;
+}
+.ant-slide-down-leave {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+}
+.ant-slide-down-leave.ant-slide-down-leave-active {
+	animation-name: antSlideDownOut;
+	animation-play-state: running;
+	pointer-events: none;
+}
+
+/* Select dropdown specific overrides */
+.ant-select-dropdown.ant-slide-up-enter.ant-slide-up-enter-active.ant-select-dropdown-placement-bottomLeft,
+.ant-select-dropdown.ant-slide-up-appear.ant-slide-up-appear-active.ant-select-dropdown-placement-bottomLeft {
+	animation-name: antSlideUpIn;
+}
+.ant-select-dropdown.ant-slide-up-enter.ant-slide-up-enter-active.ant-select-dropdown-placement-topLeft,
+.ant-select-dropdown.ant-slide-up-appear.ant-slide-up-appear-active.ant-select-dropdown-placement-topLeft {
+	animation-name: antSlideDownIn;
+}
+.ant-select-dropdown.ant-slide-up-leave.ant-slide-up-leave-active.ant-select-dropdown-placement-bottomLeft {
+	animation-name: antSlideUpOut;
+}
+.ant-select-dropdown.ant-slide-up-leave.ant-slide-up-leave-active.ant-select-dropdown-placement-topLeft {
+	animation-name: antSlideDownOut;
+}
+
+/* Move (for Popconfirm, Tooltip, etc.) */
+.ant-move-up-enter,
+.ant-move-up-appear {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	opacity: 0;
+	animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.ant-move-up-enter.ant-move-up-enter-active,
+.ant-move-up-appear.ant-move-up-appear-active {
+	animation-name: antMoveUpIn;
+	animation-play-state: running;
+}
+.ant-move-up-leave {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+}
+.ant-move-up-leave.ant-move-up-leave-active {
+	animation-name: antMoveUpOut;
+	animation-play-state: running;
+	pointer-events: none;
+}
+
+/* Zoom (for Modal, Popover) */
+.ant-zoom-enter,
+.ant-zoom-appear {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	opacity: 0;
+	animation-timing-function: cubic-bezier(0.08, 0.82, 0.17, 1);
+}
+.ant-zoom-enter.ant-zoom-enter-active,
+.ant-zoom-appear.ant-zoom-appear-active {
+	animation-name: antZoomIn;
+	animation-play-state: running;
+}
+.ant-zoom-leave {
+	animation-duration: 0.2s;
+	animation-fill-mode: both;
+	animation-play-state: paused;
+	animation-timing-function: cubic-bezier(0.78, 0.14, 0.15, 0.86);
+}
+.ant-zoom-leave.ant-zoom-leave-active {
+	animation-name: antZoomOut;
+	animation-play-state: running;
+	pointer-events: none;
+}
