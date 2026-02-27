@@ -29,10 +29,12 @@ class TurnApp extends React.Component {
 	}
 
 	async newTurn() {
-		let turnTitle = await turnAPI.getTurnTitle(this.context);
-		let mode = await turnAPI.getMode(this.context);
-		let undoable = await turnAPI.undoable(this.context);
-		let turnID = await turnAPI.getTurnID(this.context);
+		let [turnTitle, mode, undoable, turnID] = await Promise.all([
+			turnAPI.getTurnTitle(this.context),
+			turnAPI.getMode(this.context),
+			turnAPI.undoable(this.context),
+			turnAPI.getTurnID(this.context),
+		]);
 		this.setState({ turnTitle: turnTitle, mode: mode, undoable: undoable, turnID: turnID });
 	}
 
@@ -40,11 +42,13 @@ class TurnApp extends React.Component {
 		this.newTurn();
 		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
 		this.turnRef.on('value', async (dataSnapshot) => {
-			let sameTurn = await database.ref('games/' + this.context.game + '/sameTurn').once('value');
+			let [sameTurn, myTurn] = await Promise.all([
+				database.ref('games/' + this.context.game + '/sameTurn').once('value'),
+				database
+					.ref('games/' + this.context.game + '/playerInfo/' + this.context.name + '/myTurn')
+					.once('value'),
+			]);
 			sameTurn = sameTurn.val();
-			let myTurn = await database
-				.ref('games/' + this.context.game + '/playerInfo/' + this.context.name + '/myTurn')
-				.once('value');
 			myTurn = myTurn.val();
 			if (!sameTurn || !myTurn) {
 				this.newTurn();

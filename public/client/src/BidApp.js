@@ -9,21 +9,20 @@ class BidApp extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
+			loaded: false,
 			maxMoney: -1,
 		};
 	}
 
 	componentDidMount() {
-		this.getInfo();
+		this.loadData();
 		this.record(0);
 	}
 
-	async getInfo() {
-		let money = await miscAPI.getMoney(this.context);
+	async loadData() {
+		let [money, country] = await Promise.all([miscAPI.getMoney(this.context), miscAPI.getCountry(this.context)]);
 		money = parseFloat(money).toFixed(2);
-		let country = await miscAPI.getCountry(this.context);
-
-		this.setState({ maxMoney: money, country: country });
+		this.setState({ maxMoney: money, country: country, loaded: true });
 	}
 
 	async submit() {
@@ -52,6 +51,9 @@ class BidApp extends React.Component {
 	}
 
 	render() {
+		if (!this.state.loaded) {
+			return null;
+		}
 		return (
 			<div>
 				<div style={{ marginBottom: 30 }}>

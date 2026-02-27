@@ -28,7 +28,6 @@ class GameApp extends React.Component {
 		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
 		this.turnRef.on('value', (dataSnapshot) => {
 			this.makeTitle();
-			this.context.resetValues();
 		});
 	}
 

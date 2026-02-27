@@ -11,24 +11,19 @@ class BuyBidApp extends React.Component {
 		super(props);
 		this.state = {
 			chosen: false,
+			loaded: false,
 			bid: 0,
 			stock: { country: '', value: 0 },
 		};
 	}
 
 	componentDidMount() {
-		this.getBid();
-		this.getStock();
+		this.loadData();
 	}
 
-	async getBid() {
-		let res = await miscAPI.getBid(this.context);
-		this.setState({ bid: res });
-	}
-
-	async getStock() {
-		let res = await miscAPI.getStock(this.context);
-		this.setState({ stock: res });
+	async loadData() {
+		let [bid, stock] = await Promise.all([miscAPI.getBid(this.context), miscAPI.getStock(this.context)]);
+		this.setState({ bid: bid, stock: stock, loaded: true });
 	}
 
 	submit() {
@@ -41,6 +36,9 @@ class BuyBidApp extends React.Component {
 	}
 
 	render() {
+		if (!this.state.loaded) {
+			return null;
+		}
 		return (
 			<div>
 				<div style={{ marginBottom: 30 }}>
