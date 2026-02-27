@@ -44,12 +44,12 @@ class LoginApp extends React.Component {
 	}
 
 	async doStuff() {
-		let res = await helper.getPlayersInOrder(this.context);
-		this.setState({ validNames: res });
-		let timer = await helper.getTimer(this.context);
-		this.setState({ timer: timer });
-		let myTurn = await turnAPI.getMyTurn(this.context);
-		this.setState({ myTurn: myTurn });
+		let [res, timer, myTurn] = await Promise.all([
+			helper.getPlayersInOrder(this.context),
+			helper.getTimer(this.context),
+			turnAPI.getMyTurn(this.context),
+		]);
+		this.setState({ validNames: res, timer: timer, myTurn: myTurn });
 	}
 
 	handleEnter(e) {

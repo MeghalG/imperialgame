@@ -155,19 +155,17 @@ class ContinueManeuverApp extends React.Component {
 		this.context.setManeuverDest(value);
 		// Reset action when destination changes
 		this.context.setManeuverAction('');
+		this.setState({ actionOptions: [] });
 		// Fetch action options for the selected destination
-		// Need a small delay for context to update
-		setTimeout(async () => {
-			let actionOptions = await proposalAPI.getCurrentUnitActionOptions({
-				...this.context,
-				maneuverDest: value,
-			});
-			this.setState({ actionOptions: actionOptions });
-			// Auto-select if only one option
-			if (actionOptions.length === 1) {
-				this.context.setManeuverAction(actionOptions[0]);
-			}
-		}, 0);
+		let actionOptions = await proposalAPI.getCurrentUnitActionOptions({
+			...this.context,
+			maneuverDest: value,
+		});
+		this.setState({ actionOptions: actionOptions });
+		// Auto-select if only one option
+		if (actionOptions.length === 1) {
+			this.context.setManeuverAction(actionOptions[0]);
+		}
 	}
 
 	onActionChange(e) {

@@ -66,26 +66,30 @@ class MapApp extends React.Component {
 		}
 	}
 	async getMapItems() {
-		let sea = await mapAPI.getSeaFactories(this.context);
-		this.setState({ seaFactories: sea });
-		let land = await mapAPI.getLandFactories(this.context);
-		this.setState({ landFactories: land });
-		let units = await mapAPI.getUnits(this.context);
-		this.setState({ units: units });
-		let rondel = await mapAPI.getRondel(this.context);
-		this.setState({ rondel: rondel });
-		let tax = await mapAPI.getTaxChips(this.context);
-		this.setState({ taxChips: tax });
-		let points = await mapAPI.getPoints(this.context);
-		this.setState({ points: points });
-		let money = await mapAPI.getMoney(this.context);
-		this.setState({ money: money });
-		let availStock = await mapAPI.getAvailStock(this.context);
-		this.setState({ availStock: availStock });
-		let lastTax = await mapAPI.getLastTax(this.context);
-		this.setState({ lastTax: lastTax });
-		let currentTax = await mapAPI.getCurrentTax(this.context);
-		this.setState({ currentTax: currentTax });
+		let [sea, land, units, rondel, tax, points, money, availStock, lastTax, currentTax] = await Promise.all([
+			mapAPI.getSeaFactories(this.context),
+			mapAPI.getLandFactories(this.context),
+			mapAPI.getUnits(this.context),
+			mapAPI.getRondel(this.context),
+			mapAPI.getTaxChips(this.context),
+			mapAPI.getPoints(this.context),
+			mapAPI.getMoney(this.context),
+			mapAPI.getAvailStock(this.context),
+			mapAPI.getLastTax(this.context),
+			mapAPI.getCurrentTax(this.context),
+		]);
+		this.setState({
+			seaFactories: sea,
+			landFactories: land,
+			units: units,
+			rondel: rondel,
+			taxChips: tax,
+			points: points,
+			money: money,
+			availStock: availStock,
+			lastTax: lastTax,
+			currentTax: currentTax,
+		});
 	}
 	buildComponents = () => {
 		let table = [];

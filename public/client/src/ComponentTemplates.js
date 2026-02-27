@@ -557,12 +557,33 @@ SimpleMessageComponent.contextType = UserContext;
 class Submit extends React.Component {
 	constructor(props) {
 		super(props);
-		this.state = {};
+		this.state = { loading: false };
+	}
+	async handleClick() {
+		this.setState({ loading: true });
+		try {
+			await this.props.data();
+		} finally {
+			if (this._mounted) {
+				this.setState({ loading: false });
+			}
+		}
+	}
+	componentDidMount() {
+		this._mounted = true;
+	}
+	componentWillUnmount() {
+		this._mounted = false;
 	}
 	render() {
 		return (
 			<div style={{ textAlign: 'center' }}>
-				<Button type="primary" onClick={() => this.props.data()} disabled={this.props.disabled}>
+				<Button
+					type="primary"
+					onClick={() => this.handleClick()}
+					disabled={this.props.disabled}
+					loading={this.state.loading}
+				>
 					Submit
 				</Button>
 			</div>
