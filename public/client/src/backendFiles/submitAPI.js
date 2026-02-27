@@ -620,6 +620,12 @@ async function submitManeuver(context) {
 	let dest = context.maneuverDest;
 	let action = context.maneuverAction || '';
 
+	// Validate: armies cannot move to sea territories
+	if (phase === 'army' && territorySetup[dest] && territorySetup[dest].sea) {
+		console.error('Invalid army move: armies cannot move to sea territory "' + dest + '"');
+		return 'done';
+	}
+
 	// Build ManeuverTuple
 	let tuple = [origin, dest, action];
 
@@ -1233,7 +1239,14 @@ async function executeProposal(gameState, context) {
 			gameState.countryInfo[country].fleets = fleets;
 
 			let armies = [];
-			let sortedArmyMan = [...context.armyMan].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
+			let sortedArmyMan = [...context.armyMan].sort((a, b) => {
+				// Sort order: war > blow up > peace > hostile > normal move
+				// War actions ('w') need to execute first so destroyed units are removed
+				// before peace/hostile units are placed.
+				let aCode = a[2] ? a[2].charCodeAt(0) : 0;
+				let bCode = b[2] ? b[2].charCodeAt(0) : 0;
+				return bCode - aCode;
+			});
 			for (let army of sortedArmyMan) {
 				let hostile = true;
 				let split = army[2].split(' ');
@@ -1357,24 +1370,11 @@ async function submitProposal(context) {
 
 	gameState.playerInfo[context.name].myTurn = false;
 
-	// For maneuver actions, enter step-by-step mode instead of the normal flow
+	// For maneuver actions, enter step-by-step mode instead of the normal flow.
+	// NOTE: We do NOT update wheelSpot or charge spin cost here. That happens
+	// later in executeProposal() (called from completeManeuver) so that the
+	// investor-passed check sees the correct old→new wheel transition.
 	if (context.wheelSpot === WHEEL_ACTIONS.L_MANEUVER || context.wheelSpot === WHEEL_ACTIONS.R_MANEUVER) {
-		// Pay spin cost and update wheel position before entering maneuver
-		let setup = await database.ref('games/' + context.game + '/setup').once('value');
-		setup = setup.val();
-		let wheel = await database.ref(setup + '/wheel').once('value');
-		wheel = wheel.val();
-		let diff = 0;
-		if (gameState.countryInfo[country].wheelSpot !== WHEEL_CENTER) {
-			diff =
-				(wheel.indexOf(context.wheelSpot) - wheel.indexOf(gameState.countryInfo[country].wheelSpot) + wheel.length) %
-				wheel.length;
-		}
-		if (diff > FREE_RONDEL_STEPS) {
-			gameState.playerInfo[context.name].money -= RONDEL_STEP_COST * (diff - FREE_RONDEL_STEPS);
-		}
-		gameState.countryInfo[country].wheelSpot = context.wheelSpot;
-
 		await enterManeuver(gameState, context);
 		gameState.undo = context.name;
 		await finalizeSubmit(gameState, context.game, context);

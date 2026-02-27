@@ -2305,7 +2305,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		expect(written.currentManeuver.proposalSlot).toBe(1);
 	});
 
-	test('pays wheel spin cost before entering maneuver', async () => {
+	test('defers wheel spin cost to executeProposal (not charged during enterManeuver)', async () => {
 		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
@@ -2329,9 +2329,10 @@ describe('enterManeuver (via submitProposal)', () => {
 		await flushPromises();
 
 		const written = mockSetData['games/testGame'];
-		// diff=2 is within free 3 steps, so no cost
+		// Spin cost and wheelSpot update are deferred to executeProposal (after maneuver completes).
+		// During the maneuver, the old wheelSpot is preserved so investorPassed check works correctly.
 		expect(written.playerInfo.Alice.money).toBe(20);
-		expect(written.countryInfo.Austria.wheelSpot).toBe('L-Maneuver');
+		expect(written.countryInfo.Austria.wheelSpot).toBe('Factory');
 	});
 });
 
@@ -3342,5 +3343,302 @@ describe('adjustTime', () => {
 		await adjustTime('Alice', gs, 999999);
 
 		expect(gs.playerInfo.Alice.banked).toBe(58);
+	});
+});
+
+// ===========================================================================
+// Army-to-sea validation in submitManeuver
+// ===========================================================================
+describe('submitManeuver — army-to-sea validation', () => {
+	function addTerritorySetup(territories) {
+		mockDbData['setups/standard'].territories = territories;
+		mockDbData.setups.standard.territories = territories;
+	}
+
+	test('rejects army move to a sea territory', async () => {
+		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.currentManeuver = {
+			country: 'Austria',
+			player: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			phase: 'army',
+			unitIndex: 0,
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			completedFleetMoves: [],
+			completedArmyMoves: [],
+			returnMode: 'execute',
+			proposalSlot: 0,
+			pendingPeace: null,
+		};
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			'Adriatic Sea': { sea: true },
+		});
+
+		const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+		const result = await submitManeuver({
+			game: 'testGame',
+			name: 'Alice',
+			maneuverDest: 'Adriatic Sea',
+			maneuverAction: '',
+		});
+		expect(result).toBe('done');
+		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('armies cannot move to sea'));
+		// The move should NOT have been recorded
+		const saved = mockSetData['games/testGame'];
+		expect(saved).toBeUndefined();
+		consoleSpy.mockRestore();
+	});
+
+	test('allows army move to a land territory', async () => {
+		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.fleets = [];
+		gs.currentManeuver = {
+			country: 'Austria',
+			player: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			phase: 'army',
+			unitIndex: 0,
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			completedFleetMoves: [],
+			completedArmyMoves: [],
+			returnMode: 'execute',
+			proposalSlot: 0,
+			pendingPeace: null,
+		};
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+		});
+
+		const result = await submitManeuver({
+			game: 'testGame',
+			name: 'Alice',
+			maneuverDest: 'Budapest',
+			maneuverAction: '',
+		});
+		expect(result).toBe('done');
+		// The move should have been recorded and finalizeSubmit called
+		const saved = mockSetData['games/testGame'];
+		expect(saved).toBeDefined();
+	});
+
+	test('allows fleet move to a sea territory (validation only blocks armies)', async () => {
+		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.armies = [];
+		gs.currentManeuver = {
+			country: 'Austria',
+			player: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			phase: 'fleet',
+			unitIndex: 0,
+			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingArmies: [],
+			completedFleetMoves: [],
+			completedArmyMoves: [],
+			returnMode: 'execute',
+			proposalSlot: 0,
+			pendingPeace: null,
+		};
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			'Adriatic Sea': { sea: true },
+			'Ionian Sea': { sea: true },
+		});
+
+		const result = await submitManeuver({
+			game: 'testGame',
+			name: 'Alice',
+			maneuverDest: 'Ionian Sea',
+			maneuverAction: '',
+		});
+		expect(result).toBe('done');
+		// Fleet move to sea should work
+		const saved = mockSetData['games/testGame'];
+		expect(saved).toBeDefined();
+	});
+});
+
+// ===========================================================================
+// executeProposal — army sort order
+// ===========================================================================
+describe('executeProposal — army sort order', () => {
+	function addTerritorySetup(territories) {
+		mockDbData['setups/standard'].territories = territories;
+		mockDbData.setups.standard.territories = territories;
+	}
+
+	test('sorts war actions before peace/normal moves', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+		];
+		// Italy has an army at Venice
+		gs.countryInfo.Italy.armies = [{ territory: 'Venice', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Venice: { country: 'Italy' },
+			Trieste: { country: 'Austria' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			// The war action should be sorted to execute first so the enemy army
+			// is removed before the second army places into that territory.
+			armyMan: [
+				['Vienna', 'Trieste', ''],
+				['Budapest', 'Venice', 'war Italy army'],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// Italy's army at Venice should be destroyed (war executed first)
+		expect(gs.countryInfo.Italy.armies).toEqual([]);
+		// Austria's surviving army at Trieste should remain
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Trieste', hostile: true }]);
+	});
+
+	test('handles empty action strings in sort without NaN errors', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+		];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Trieste: { country: 'Austria' },
+			Zagreb: { country: 'Austria' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			// Both moves have empty action strings (normal moves)
+			armyMan: [
+				['Vienna', 'Trieste', ''],
+				['Budapest', 'Zagreb', ''],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// Both armies should end up at their destinations
+		const territories = gs.countryInfo.Austria.armies.map((a) => a.territory).sort();
+		expect(territories).toEqual(['Trieste', 'Zagreb']);
+	});
+});
+
+// ===========================================================================
+// submitProposal — maneuver wheel cost deferred to executeProposal
+// ===========================================================================
+describe('submitProposal — maneuver wheel cost', () => {
+	function addTerritorySetup(territories) {
+		mockDbData['setups/standard'].territories = territories;
+		mockDbData.setups.standard.territories = territories;
+	}
+
+	test('does NOT update wheelSpot during maneuver (deferred to executeProposal)', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		// wheelSpot starts at Factory (index 0 in the wheel array)
+		gs.countryInfo.Austria.wheelSpot = 'Factory';
+		// Has units so maneuver doesn't complete immediately
+		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.armies = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({ 'Adriatic Sea': { sea: true } });
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+		};
+
+		await submitProposal(context);
+		await flushPromises();
+
+		const saved = mockSetData['games/testGame'];
+		// wheelSpot stays at Factory during the maneuver (deferred to executeProposal)
+		expect(saved.countryInfo.Austria.wheelSpot).toBe('Factory');
+		// Money should NOT have been deducted for spin cost
+		expect(saved.playerInfo.Alice.money).toBe(20);
+		// currentManeuver should have the target wheelSpot for later
+		expect(saved.currentManeuver.wheelSpot).toBe('L-Maneuver');
+	});
+
+	test('does NOT charge spin cost when entering maneuver', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		// Set wheelSpot to Factory (index 0). L-Maneuver is index 2.
+		// That's 2 steps, which is within the free 3 steps, so no cost.
+		// But let's test with a position that WOULD cost: R-Maneuver is index 7.
+		// From Factory (0) to R-Maneuver (7) is 7 steps, 4 over free = $8 cost.
+		gs.countryInfo.Austria.wheelSpot = 'Factory';
+		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.armies = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({ 'Adriatic Sea': { sea: true } });
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'R-Maneuver',
+		};
+
+		await submitProposal(context);
+		await flushPromises();
+
+		const saved = mockSetData['games/testGame'];
+		// Money should NOT be deducted yet (deferred to executeProposal)
+		expect(saved.playerInfo.Alice.money).toBe(20);
 	});
 });
