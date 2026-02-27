@@ -911,20 +911,20 @@ async function getCurrentUnitActionOptions(context) {
 			actions.push(MANEUVER_ACTIONS.PEACE);
 		}
 	} else {
-		// Armies can war, peace, hostile, or blow up
-		if (actions.length > 0 || (territorySetup[dest].country && territorySetup[dest].country !== country)) {
+		// Armies: when enemy units present → war + peace only
+		// When no enemy units but foreign territory → peace + hostile + blow up
+		let isForeign = territorySetup[dest].country && territorySetup[dest].country !== country;
+		if (actions.length > 0) {
+			// Enemy units present: can declare war or peace
 			actions.push(MANEUVER_ACTIONS.PEACE);
-		}
-		if (territorySetup[dest].country && territorySetup[dest].country !== country) {
+		} else if (isForeign) {
+			// No enemy units but foreign territory: peace, hostile, or blow up
+			actions.push(MANEUVER_ACTIONS.PEACE);
 			actions.push(MANEUVER_ACTIONS.HOSTILE);
-		}
-		// Blow up factory
-		if (
-			territorySetup[dest].country &&
-			territorySetup[dest].country !== country &&
-			virtualCountryInfo[territorySetup[dest].country].factories.includes(dest)
-		) {
-			actions.push('blow up ' + territorySetup[dest].country);
+			// Blow up factory
+			if (virtualCountryInfo[territorySetup[dest].country].factories.includes(dest)) {
+				actions.push('blow up ' + territorySetup[dest].country);
+			}
 		}
 	}
 

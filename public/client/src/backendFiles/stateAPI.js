@@ -1,4 +1,5 @@
 import { database } from './firebase.js';
+import * as helper from './helper.js';
 
 /**
  * Retrieves the country info object for all countries from Firebase.
@@ -18,24 +19,11 @@ async function getCountryInfo(context) {
 }
 
 /**
- * Computes the cash value multiplier for a player's portfolio. Currently hardcoded to
- * return 5 regardless of input.
- *
- * Called from: getPlayerInfo to attach a cashValue field to each player's info.
- *
- * @bug Always returns 5 -- this is a placeholder that needs to be implemented with
- *   actual cash value calculation logic.
- *
- * @param {PlayerInfo} info - The player info object (currently unused)
- * @returns {number} Always returns 5
- */
-function getCashValue(info) {
-	return 5;
-}
-
-/**
  * Retrieves the player info for all players from Firebase, augmented with a computed
  * cashValue field for each player. Contains each player's money, stock, turn status, etc.
+ *
+ * Also fetches countryInfo to compute each player's cash value using helper.computeCash(),
+ * which values each stock at $2 per denomination unit plus the player's cash on hand.
  *
  * Called from: StateApp to render player status cards showing money, stocks, scores,
  * and investor status for every player.
@@ -48,8 +36,10 @@ function getCashValue(info) {
 async function getPlayerInfo(context) {
 	let playerInfo = await database.ref('games/' + context.game + '/playerInfo').once('value');
 	playerInfo = playerInfo.val();
+	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
+	countryInfo = countryInfo.val();
 	for (let key in playerInfo) {
-		playerInfo[key]['cashValue'] = getCashValue(playerInfo[key]);
+		playerInfo[key]['cashValue'] = helper.computeCash(playerInfo[key], countryInfo);
 	}
 	return playerInfo;
 }

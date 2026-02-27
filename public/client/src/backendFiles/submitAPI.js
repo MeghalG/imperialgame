@@ -650,6 +650,8 @@ async function submitManeuver(context) {
 					gameState.playerInfo[key].myTurn = false;
 				}
 				gameState.playerInfo[dictator].myTurn = true;
+				// Active player is changing — force TurnApp refresh for the dictator
+				gameState.sameTurn = false;
 				// Stay in continue-man mode; the dictator sees accept/reject
 				gameState.undo = context.name;
 				await finalizeSubmit(gameState, context.game, context);
@@ -681,15 +683,13 @@ async function submitManeuver(context) {
 				for (let key in gameState.playerInfo) {
 					gameState.playerInfo[key].myTurn = false;
 				}
-				// Exclude players from the proposing country's leadership
+				// All stockholders of the target country vote, including the proposer
+				// (they may own stock in the target country)
 				for (let player of leadership) {
-					// Only target country stockholders vote, not the proposing player
-					// (though the proposing player might own stock in the target country,
-					// they are the one making the peace offer so they don't vote)
-					if (player !== cm.player) {
-						gameState.playerInfo[player].myTurn = true;
-					}
+					gameState.playerInfo[player].myTurn = true;
 				}
+				// Active players are changing — force TurnApp refresh for all voters
+				gameState.sameTurn = false;
 				gameState.undo = context.name;
 				await finalizeSubmit(gameState, context.game, context);
 				return 'done';
@@ -812,11 +812,13 @@ async function submitDictatorPeaceVote(context) {
 		return 'done';
 	}
 
-	// More units to move
+	// More units to move — return control to the proposer
 	for (let key in gameState.playerInfo) {
 		gameState.playerInfo[key].myTurn = false;
 	}
 	gameState.playerInfo[cm.player].myTurn = true;
+	// Active player is changing back to proposer — force TurnApp refresh
+	gameState.sameTurn = false;
 	gameState.undo = context.name;
 	await finalizeSubmit(gameState, context.game, context);
 	return 'done';
@@ -895,12 +897,13 @@ async function submitPeaceVote(context) {
 			return 'done';
 		}
 
-		// Return to continue-man
+		// Return to continue-man — active player changing to proposer
 		gameState.mode = MODES.CONTINUE_MAN;
 		for (let key in gameState.playerInfo) {
 			gameState.playerInfo[key].myTurn = false;
 		}
 		gameState.playerInfo[cm.player].myTurn = true;
+		gameState.sameTurn = false;
 	} else if (pv.rejectVotes > threshold) {
 		// Rejected — becomes war
 		let foundUnit = null;
@@ -955,12 +958,13 @@ async function submitPeaceVote(context) {
 			return 'done';
 		}
 
-		// Return to continue-man
+		// Return to continue-man — active player changing to proposer
 		gameState.mode = MODES.CONTINUE_MAN;
 		for (let key in gameState.playerInfo) {
 			gameState.playerInfo[key].myTurn = false;
 		}
 		gameState.playerInfo[cm.player].myTurn = true;
+		gameState.sameTurn = false;
 	}
 	// Else: more votes needed, stay in peace-vote mode
 
@@ -1721,6 +1725,8 @@ async function undo(context) {
 	let offsetVal = offset.val() || 0;
 	gameState.timer.lastMove = Date.now() + offsetVal;
 
+	// Force TurnApp refresh for all players after undo
+	gameState.sameTurn = false;
 	await database.ref('game histories/' + context.game + '/' + oldTurnID).remove();
 	await database.ref('games/' + context.game).set(gameState, async (error) => {
 		if (error) {

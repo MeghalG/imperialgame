@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.css';
-import { Select, Button, Card, List, Tag } from 'antd';
+import { Select, Button, Card, List, Tag, Radio } from 'antd';
 import UserContext from './UserContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
@@ -9,10 +9,63 @@ import { database } from './backendFiles/firebase.js';
 const { Option } = Select;
 
 /**
+ * Converts a raw action code (e.g. "war Italy fleet") to a human-readable label
+ * (e.g. "Declare war on Italian fleet").
+ *
+ * @param {string} action - Raw action string from getCurrentUnitActionOptions
+ * @returns {string} Human-readable display label
+ */
+function formatActionLabel(action) {
+	if (!action) return '';
+	if (action === 'peace') {
+		return 'Enter peacefully';
+	}
+	if (action === 'hostile') {
+		return 'Enter as hostile occupier';
+	}
+	let parts = action.split(' ');
+	if (parts[0] === 'war') {
+		// "war Italy fleet" → "Declare war on Italian fleet"
+		let country = parts.slice(1, parts.length - 1).join(' ');
+		let unitType = parts[parts.length - 1];
+		return 'Declare war on ' + country + ' ' + unitType;
+	}
+	if (parts[0] === 'blow' && parts[1] === 'up') {
+		// "blow up Italy" → "Destroy Italian factory"
+		let country = parts.slice(2).join(' ');
+		return 'Destroy ' + country + ' factory';
+	}
+	return action;
+}
+
+/**
+ * Converts a raw action code into a shorter label for the completed moves list.
+ *
+ * @param {string} action - Raw action string
+ * @returns {string} Short display label
+ */
+function formatCompletedAction(action) {
+	if (!action) return '';
+	if (action === 'peace') return 'peace';
+	if (action === 'hostile') return 'hostile';
+	let parts = action.split(' ');
+	if (parts[0] === 'war') {
+		let country = parts.slice(1, parts.length - 1).join(' ');
+		let unitType = parts[parts.length - 1];
+		return 'war on ' + country + ' ' + unitType;
+	}
+	if (parts[0] === 'blow' && parts[1] === 'up') {
+		let country = parts.slice(2).join(' ');
+		return 'destroy ' + country + ' factory';
+	}
+	return action;
+}
+
+/**
  * UI for step-by-step maneuver movement (mode === 'continue-man').
  *
- * Shows the current unit to move, a destination dropdown, an action dropdown
- * (for peace/war/hostile/blow-up when applicable), and a submit button.
+ * Shows the current unit to move, a destination dropdown, radio buttons for
+ * action selection (peace/war/hostile/blow-up when applicable), and a submit button.
  * Also displays already-completed moves as a read-only list.
  *
  * When a dictatorship peace vote is pending, the dictator sees accept/reject buttons.
@@ -28,6 +81,7 @@ class ContinueManeuverApp extends React.Component {
 			completedMoves: [],
 			currentUnit: null,
 			pendingPeace: null,
+			submitting: false,
 		};
 	}
 
@@ -84,14 +138,14 @@ class ContinueManeuverApp extends React.Component {
 		let moves = [];
 		for (let i = 0; i < (cm.completedFleetMoves || []).length; i++) {
 			let m = cm.completedFleetMoves[i];
-			let desc = 'Fleet: ' + m[0] + ' → ' + m[1];
-			if (m[2]) desc += ' (' + m[2] + ')';
+			let desc = 'Fleet: ' + m[0] + ' \u2192 ' + m[1];
+			if (m[2]) desc += ' (' + formatCompletedAction(m[2]) + ')';
 			moves.push(desc);
 		}
 		for (let i = 0; i < (cm.completedArmyMoves || []).length; i++) {
 			let m = cm.completedArmyMoves[i];
-			let desc = 'Army: ' + m[0] + ' → ' + m[1];
-			if (m[2]) desc += ' (' + m[2] + ')';
+			let desc = 'Army: ' + m[0] + ' \u2192 ' + m[1];
+			if (m[2]) desc += ' (' + formatCompletedAction(m[2]) + ')';
 			moves.push(desc);
 		}
 		return moves;
@@ -99,6 +153,8 @@ class ContinueManeuverApp extends React.Component {
 
 	async onDestChange(value) {
 		this.context.setManeuverDest(value);
+		// Reset action when destination changes
+		this.context.setManeuverAction('');
 		// Fetch action options for the selected destination
 		// Need a small delay for context to update
 		setTimeout(async () => {
@@ -107,25 +163,37 @@ class ContinueManeuverApp extends React.Component {
 				maneuverDest: value,
 			});
 			this.setState({ actionOptions: actionOptions });
+			// Auto-select if only one option
+			if (actionOptions.length === 1) {
+				this.context.setManeuverAction(actionOptions[0]);
+			}
 		}, 0);
 	}
 
-	onActionChange(value) {
-		this.context.setManeuverAction(value);
+	onActionChange(e) {
+		this.context.setManeuverAction(e.target.value);
 	}
 
 	async submitMove() {
-		await submitAPI.submitManeuver(this.context);
+		this.setState({ submitting: true });
+		try {
+			await submitAPI.submitManeuver(this.context);
+		} finally {
+			this.setState({ submitting: false });
+		}
 	}
 
 	async submitDictatorVote(choice) {
-		this.context.setPeaceVoteChoice(choice);
-		setTimeout(async () => {
+		this.setState({ submitting: true });
+		try {
+			this.context.setPeaceVoteChoice(choice);
 			await submitAPI.submitDictatorPeaceVote({
 				...this.context,
 				peaceVoteChoice: choice,
 			});
-		}, 0);
+		} finally {
+			this.setState({ submitting: false });
+		}
 	}
 
 	render() {
@@ -147,10 +215,15 @@ class ContinueManeuverApp extends React.Component {
 							<strong>{peace.unitType}</strong> from {peace.origin} into <strong>{peace.destination}</strong>{' '}
 							peacefully.
 						</p>
-						<Button type="primary" style={{ marginRight: 10 }} onClick={() => this.submitDictatorVote('accept')}>
+						<Button
+							type="primary"
+							style={{ marginRight: 10 }}
+							loading={this.state.submitting}
+							onClick={() => this.submitDictatorVote('accept')}
+						>
 							Accept
 						</Button>
-						<Button danger onClick={() => this.submitDictatorVote('reject')}>
+						<Button danger loading={this.state.submitting} onClick={() => this.submitDictatorVote('reject')}>
 							Reject
 						</Button>
 					</Card>
@@ -197,23 +270,18 @@ class ContinueManeuverApp extends React.Component {
 
 					{this.state.actionOptions.length > 0 && (
 						<div style={{ marginBottom: 16 }}>
-							<label style={{ marginRight: 8 }}>Action:</label>
-							<Select
-								style={{ width: 250 }}
-								placeholder="Select action (optional)"
-								allowClear
-								onChange={(v) => this.onActionChange(v || '')}
-							>
+							<label style={{ display: 'block', marginBottom: 8 }}>Action:</label>
+							<Radio.Group onChange={(e) => this.onActionChange(e)} value={this.context.maneuverAction}>
 								{this.state.actionOptions.map((a) => (
-									<Option key={a} value={a}>
-										{a}
-									</Option>
+									<Radio key={a} value={a} style={{ display: 'block', marginBottom: 6 }}>
+										{formatActionLabel(a)}
+									</Radio>
 								))}
-							</Select>
+							</Radio.Group>
 						</div>
 					)}
 
-					<Button type="primary" onClick={() => this.submitMove()}>
+					<Button type="primary" loading={this.state.submitting} onClick={() => this.submitMove()}>
 						Submit Move
 					</Button>
 				</Card>

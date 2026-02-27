@@ -1009,6 +1009,30 @@ describe('undo', () => {
 		expect(written).toBeDefined();
 		expect(written.mode).toBe('proposal');
 	});
+
+	test('sets sameTurn to false to force all clients to refresh', async () => {
+		const oldState = createMockGameState({ turnID: 4, mode: 'proposal' });
+		oldState.sameTurn = true; // might have been true in old state
+		mockDbData = {
+			games: {
+				testGame: {
+					turnID: 5,
+				},
+			},
+			'game histories': {
+				testGame: {
+					4: oldState,
+				},
+			},
+		};
+
+		const context = { game: 'testGame', name: 'Alice' };
+		await undo(context);
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		expect(written.sameTurn).toBe(false);
+	});
 });
 
 // ===========================================================================
@@ -2468,6 +2492,8 @@ describe('submitManeuver — full maneuver flow', () => {
 		expect(written.playerInfo.Bob.myTurn).toBe(true);
 		expect(written.playerInfo.Alice.myTurn).toBe(false);
 		expect(written.mode).toBe('continue-man');
+		// sameTurn must be false so the dictator's TurnApp refreshes
+		expect(written.sameTurn).toBe(false);
 	});
 
 	test('peace offer to democracy creates peace-vote mode', async () => {
@@ -2514,9 +2540,11 @@ describe('submitManeuver — full maneuver flow', () => {
 		expect(written.peaceVote.movingCountry).toBe('Austria');
 		expect(written.peaceVote.targetCountry).toBe('Italy');
 		expect(written.peaceVote.totalStock).toBe(5);
-		// Bob votes (stockholder of target), Alice doesn't (she's the proposer)
+		// All stockholders of target country vote, including Alice (the proposer)
 		expect(written.playerInfo.Bob.myTurn).toBe(true);
-		expect(written.playerInfo.Alice.myTurn).toBe(false);
+		expect(written.playerInfo.Alice.myTurn).toBe(true);
+		// sameTurn must be false so all voters' TurnApp refreshes
+		expect(written.sameTurn).toBe(false);
 	});
 });
 
@@ -2582,6 +2610,8 @@ describe('submitDictatorPeaceVote', () => {
 		expect(written.currentManeuver.unitIndex).toBe(1);
 		// Alice gets myTurn back
 		expect(written.playerInfo.Alice.myTurn).toBe(true);
+		// sameTurn must be false so proposer's TurnApp refreshes
+		expect(written.sameTurn).toBe(false);
 	});
 
 	test('reject peace offer makes it a war action', async () => {
@@ -2697,6 +2727,8 @@ describe('submitPeaceVote', () => {
 		expect(written.mode).toBe('continue-man');
 		expect(written.currentManeuver.completedArmyMoves).toEqual([['Vienna', 'Rome', 'peace']]);
 		expect(written.currentManeuver.unitIndex).toBe(1);
+		// sameTurn must be false so proposer's TurnApp refreshes
+		expect(written.sameTurn).toBe(false);
 	});
 
 	test('reject vote exceeding threshold converts to war', async () => {
@@ -2752,6 +2784,8 @@ describe('submitPeaceVote', () => {
 		expect(written.peaceVote).toBeNull();
 		expect(written.currentManeuver.completedArmyMoves[0][2]).toContain('war');
 		expect(written.currentManeuver.unitIndex).toBe(1);
+		// sameTurn must be false so proposer's TurnApp refreshes
+		expect(written.sameTurn).toBe(false);
 	});
 
 	test('vote below threshold stays in peace-vote mode', async () => {

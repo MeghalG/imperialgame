@@ -64,7 +64,14 @@ imperialgame/
         miscAPI.js           # Misc readers (game IDs, money, country, bid, vote options)
         helper.js            # Shared pure-ish utilities (stock math, tax calc, scoring, stringify)
         helper.test.js       # 59 tests for helper.js
+        submitAPI.test.js    # 200+ tests for submitAPI.js
+        turnAPI.test.js      # Tests for turnAPI.js
+        buyAPI.test.js       # Tests for buyAPI.js
+        proposalAPI.test.js  # Tests for proposalAPI.js
+        stateAPI.test.js     # Tests for stateAPI.js
+        miscAPI.test.js      # Tests for miscAPI.js
       App.test.js            # 2 smoke tests for App.js
+      GameOverApp.test.js    # Tests for GameOverApp.js
   functions/                 # Firebase Cloud Functions (empty skeleton, unused)
 ```
 
@@ -73,10 +80,20 @@ All commands run from `public/client/`:
 ```bash
 npm start             # Dev server at localhost:3000
 npm run build         # Production build to build/ (zero warnings)
-npm test              # Jest tests (61 tests across 2 suites)
+npm test              # Jest tests (370 tests across 9 suites)
 npm run format        # Format all source with Prettier
 npm run format:check  # Check formatting without writing
+bash verify.sh        # Pre-push verification (mirrors CI pipeline)
 ```
+
+## Before Pushing
+**Always run `bash verify.sh` before `git push`.** It catches:
+1. Untracked source files that are imported by tracked code (build will fail on CI)
+2. Prettier formatting violations
+3. Test failures
+4. Build errors
+
+If you create a new `.js` file, `git add` it before pushing.
 
 ## Environment Variables
 Configured via `public/client/.env` (copy from `.env.example`):

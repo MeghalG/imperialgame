@@ -18,6 +18,7 @@ class PeaceVoteApp extends React.Component {
 		this.state = {
 			loaded: false,
 			peaceVote: null,
+			submitting: false,
 		};
 	}
 
@@ -42,10 +43,15 @@ class PeaceVoteApp extends React.Component {
 	}
 
 	async submitVote(choice) {
-		await submitAPI.submitPeaceVote({
-			...this.context,
-			peaceVoteChoice: choice,
-		});
+		this.setState({ submitting: true });
+		try {
+			await submitAPI.submitPeaceVote({
+				...this.context,
+				peaceVoteChoice: choice,
+			});
+		} finally {
+			this.setState({ submitting: false });
+		}
 	}
 
 	render() {
@@ -94,10 +100,15 @@ class PeaceVoteApp extends React.Component {
 						</p>
 					) : (
 						<div>
-							<Button type="primary" style={{ marginRight: 10 }} onClick={() => this.submitVote('accept')}>
+							<Button
+								type="primary"
+								style={{ marginRight: 10 }}
+								loading={this.state.submitting}
+								onClick={() => this.submitVote('accept')}
+							>
 								Accept Peace
 							</Button>
-							<Button danger onClick={() => this.submitVote('reject')}>
+							<Button danger loading={this.state.submitting} onClick={() => this.submitVote('reject')}>
 								Reject (War)
 							</Button>
 						</div>

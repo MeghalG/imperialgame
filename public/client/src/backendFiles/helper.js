@@ -441,21 +441,32 @@ async function investorPassed(oldWheel, newWheel, context) {
  * Determines the winning player by finding the one with the highest victory score.
  * Uses computeScore to calculate each player's total score.
  *
- * Called from: turnAPI.getTitle when the game is over to display the winner.
+ * Tiebreaking: if two players have the same score, the one with higher cash value
+ * (computeCash) wins. If still tied, the one with more raw money wins.
+ * If all tiebreakers are equal, the first player found wins (iteration order).
  *
- * @bug Tiebreaking logic is not implemented (see "add tiebreaks" comment in source).
- *   If multiple players have the same score, the last one iterated wins.
+ * Called from: turnAPI.getTitle when the game is over to display the winner.
  *
  * @param {GameState} gameState - The complete game state
  * @returns {string} The name of the winning player
  */
 function getWinner(gameState) {
-	let maxScore = 0;
+	let maxScore = -Infinity;
+	let maxCash = -Infinity;
+	let maxMoney = -Infinity;
 	let player = '';
 	for (let key in gameState.playerInfo) {
 		let score = computeScore(gameState.playerInfo[key], gameState.countryInfo);
-		if (score > maxScore) {
+		let cash = computeCash(gameState.playerInfo[key], gameState.countryInfo);
+		let money = gameState.playerInfo[key].money;
+		if (
+			score > maxScore ||
+			(score === maxScore && cash > maxCash) ||
+			(score === maxScore && cash === maxCash && money > maxMoney)
+		) {
 			maxScore = score;
+			maxCash = cash;
+			maxMoney = money;
 			player = key;
 		}
 	}
