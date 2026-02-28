@@ -1,5 +1,5 @@
 import { database } from './firebase.js';
-import { readGameState } from './stateCache.js';
+import { readGameState, readSetup } from './stateCache.js';
 
 /**
  * Retrieves the list of countries for the current game, ordered by their setup order (1-6).
@@ -17,8 +17,7 @@ import { readGameState } from './stateCache.js';
 async function getCountries(context) {
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
-	let countries = await database.ref(setup + '/countries').once('value');
-	countries = countries.val();
+	let countries = await readSetup(setup + '/countries');
 	let t = [null, null, null, null, null, null];
 	for (let key in countries) {
 		t[countries[key].order - 1] = key;
@@ -145,8 +144,7 @@ function getUnsatFactories(countryInfo, country) {
 async function getUnsatTerritories(countryInfo, country, portsOnly, context) {
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
-	let allTerritories = await database.ref(setup + '/territories').once('value');
-	allTerritories = allTerritories.val();
+	let allTerritories = await readSetup(setup + '/territories');
 	let sat = getSat(countryInfo, country);
 
 	let territories = [];
@@ -297,8 +295,7 @@ async function getTaxInfo(countryInfo, playerInfo, country) {
 async function getStockBelow(price, countryInfo, context) {
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
-	let stockCosts = await database.ref(setup + '/stockCosts').once('value');
-	stockCosts = stockCosts.val();
+	let stockCosts = await readSetup(setup + '/stockCosts');
 	let availStock = countryInfo['availStock'];
 	let i = 0;
 	if (price < stockCosts[1]) {
@@ -426,8 +423,7 @@ function getPermSwiss(gameState) {
 async function investorPassed(oldWheel, newWheel, context) {
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
-	let wheel = await database.ref(setup + '/wheel').once('value');
-	wheel = wheel.val();
+	let wheel = await readSetup(setup + '/wheel');
 	if (oldWheel === 'center') {
 		return newWheel === 'Investor';
 	}

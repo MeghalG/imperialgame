@@ -1,6 +1,5 @@
-import { database } from './firebase.js';
 import * as helper from './helper.js';
-import { readGameState } from './stateCache.js';
+import { readGameState, readSetup } from './stateCache.js';
 import { MODES, MANEUVER_ACTIONS } from '../gameConstants.js';
 
 /**
@@ -49,8 +48,7 @@ async function getWheelOptions(context) {
 	let country = gameState.countryUp;
 	let currentPos = gameState.countryInfo[country].wheelSpot;
 	let money = gameState.playerInfo[context.name].money;
-	let wheel = await database.ref(gameState.setup + '/wheel').once('value');
-	wheel = wheel.val();
+	let wheel = await readSetup(gameState.setup + '/wheel');
 	if (currentPos === 'center') {
 		return wheel;
 	} else {
@@ -87,8 +85,7 @@ async function getLocationOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
 	let countryInfo = gameState.countryInfo;
-	let territories = await database.ref(gameState.setup + '/territories').once('value');
-	territories = territories.val();
+	let territories = await readSetup(gameState.setup + '/territories');
 	let factories = countryInfo[country].factories;
 	let opts = [];
 	let sat = helper.getSat(countryInfo, country);
@@ -118,10 +115,8 @@ async function getLocationOptions(context) {
 async function getFleetProduceOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territories = await database.ref(gameState.setup + '/territories').once('value');
-	territories = territories.val();
-	let countrysetup = await database.ref(gameState.setup + '/countries').once('value');
-	countrysetup = countrysetup.val();
+	let territories = await readSetup(gameState.setup + '/territories');
+	let countrysetup = await readSetup(gameState.setup + '/countries');
 	let fleets = gameState.countryInfo[country].fleets;
 	if (!fleets) {
 		fleets = [];
@@ -156,10 +151,8 @@ async function getFleetProduceOptions(context) {
 async function getArmyProduceOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territories = await database.ref(gameState.setup + '/territories').once('value');
-	territories = territories.val();
-	let countrysetup = await database.ref(gameState.setup + '/countries').once('value');
-	countrysetup = countrysetup.val();
+	let territories = await readSetup(gameState.setup + '/territories');
+	let countrysetup = await readSetup(gameState.setup + '/countries');
 	let armies = gameState.countryInfo[country].armies;
 	if (!armies) {
 		armies = [];
@@ -279,8 +272,7 @@ function getAdjacentSeas(fleet, territorySetup) {
 async function getFleetOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	let choices = [];
 	for (let fleet of gameState.countryInfo[country].fleets || []) {
@@ -311,8 +303,7 @@ async function getFleetOptions(context) {
 async function getFleetPeaceOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 	let damage = {};
 
 	for (let territory in territorySetup) {
@@ -475,8 +466,7 @@ function getAdjacentLands(army, territorySetup, country, context) {
 async function getArmyOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	let choices = [];
 	for (let army of gameState.countryInfo[country].armies || []) {
@@ -511,8 +501,7 @@ async function getArmyOptions(context) {
 async function getArmyPeaceOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 	let damage = {};
 
 	for (let territory in territorySetup) {
@@ -625,8 +614,7 @@ async function allArmiesMoved(context) {
 async function getImportOptions(context) {
 	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let countrysetup = await database.ref(gameState.setup + '/countries').once('value');
-	countrysetup = countrysetup.val();
+	let countrysetup = await readSetup(gameState.setup + '/countries');
 
 	let armyLocs = await helper.getUnsatTerritories(gameState.countryInfo, country, false, context);
 	let fleetLocs = await helper.getUnsatTerritories(gameState.countryInfo, country, true, context);
@@ -774,8 +762,7 @@ async function getCurrentUnitOptions(context) {
 	let cm = gameState.currentManeuver;
 	if (!cm) return [];
 
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	let virtualCountryInfo = getVirtualState(gameState);
 
@@ -846,8 +833,7 @@ async function getCurrentUnitActionOptions(context) {
 	let cm = gameState.currentManeuver;
 	if (!cm || !context.maneuverDest) return [];
 
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	let virtualCountryInfo = getVirtualState(gameState);
 	let country = cm.country;

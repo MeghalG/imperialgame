@@ -1,6 +1,5 @@
-import { database } from './firebase.js';
 import * as helper from './helper.js';
-import { readGameState } from './stateCache.js';
+import { readGameState, readSetup } from './stateCache.js';
 
 /**
  * Retrieves all military units (fleets and armies) across every country and returns them
@@ -21,8 +20,7 @@ async function getUnits(context) {
 	let countries = await helper.getCountries(context);
 	let gameState = await readGameState(context);
 	let countryInfo = gameState.countryInfo;
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	let t = {};
 	for (let i = 0; i < countries.length; i++) {
@@ -79,8 +77,7 @@ async function getSeaFactories(context) {
 	let gameState = await readGameState(context);
 	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	for (let key of countries) {
 		let t = [];
@@ -114,8 +111,7 @@ async function getLandFactories(context) {
 	let gameState = await readGameState(context);
 	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	for (let key of countries) {
 		let t = [];
@@ -152,8 +148,7 @@ async function getTaxChips(context) {
 	let gameState = await readGameState(context);
 	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
-	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(gameState.setup + '/territories');
 
 	for (let key of countries) {
 		let t = [];
@@ -301,8 +296,7 @@ async function getRondel(context) {
 	let w = {};
 	let gameState = await readGameState(context);
 	let countryInfo = gameState.countryInfo;
-	let wheelCoords = await database.ref(gameState.setup + '/wheelCoords').once('value');
-	wheelCoords = wheelCoords.val();
+	let wheelCoords = await readSetup(gameState.setup + '/wheelCoords');
 
 	for (let key in countryInfo) {
 		let position = countryInfo[key].wheelSpot;

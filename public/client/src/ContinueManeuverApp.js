@@ -161,8 +161,10 @@ class ContinueManeuverApp extends React.Component {
 			maneuverDest: value,
 		});
 		this.setState({ actionOptions: actionOptions });
-		// Auto-select if only one option
-		if (actionOptions.length === 1) {
+		// Auto-select: default to hostile if available, otherwise first option if only one
+		if (actionOptions.includes('hostile')) {
+			this.context.setManeuverAction('hostile');
+		} else if (actionOptions.length === 1) {
 			this.context.setManeuverAction(actionOptions[0]);
 		}
 	}

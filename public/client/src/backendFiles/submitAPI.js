@@ -1,6 +1,6 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
-import { setCachedState } from './stateCache.js';
+import { setCachedState, readSetup } from './stateCache.js';
 import emailjs from 'emailjs-com';
 import {
 	MODES,
@@ -73,17 +73,13 @@ async function finalizeSubmit(gameState, gameID, context) {
 		timer.pause = 0;
 	}
 	await database.ref('game histories/' + gameID + '/' + oldState.turnID).set(oldState);
-	// Cache the new state so that the turnID listener on this client can read it
-	// instantly without a Firebase round-trip. The turnID will be incremented to
-	// gameState.turnID + 1, so cache with that value.
-	setCachedState(gameID, gameState.turnID + 1, gameState);
-	await database.ref('games/' + gameID).set(gameState, async (error) => {
-		if (error) {
-			console.error('Firebase write failed in finalizeSubmit:', error);
-		} else {
-			await database.ref('games/' + gameID + '/turnID').set(gameState.turnID + 1);
-		}
-	});
+	// Increment turnID before caching and writing so that:
+	// 1. The cached state has the correct new turnID
+	// 2. The Firebase write includes the new turnID, triggering turnID listeners
+	// 3. invalidateIfStale sees matching turnID → cache preserved for submitter
+	gameState.turnID = gameState.turnID + 1;
+	setCachedState(gameID, gameState.turnID, gameState);
+	await database.ref('games/' + gameID).set(gameState);
 }
 
 /**
@@ -284,8 +280,7 @@ async function submitBuy(context) {
 		}
 		gameState.swissSet.push(context.name);
 	} else {
-		let costs = await database.ref(setup + '/stockCosts').once('value');
-		costs = costs.val();
+		let costs = await readSetup(setup + '/stockCosts');
 		let price = costs[context.buyStock];
 		if (!context.returnStock || context.returnStock === 'None') {
 			context.returnStock = 0;
@@ -611,8 +606,7 @@ async function submitManeuver(context) {
 
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let territorySetup = await readSetup(setup + '/territories');
 
 	gameState.sameTurn = true;
 
@@ -1113,10 +1107,8 @@ async function executeProposal(gameState, context) {
 	let country = gameState.countryUp;
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();
-	let wheel = await database.ref(setup + '/wheel').once('value');
-	wheel = wheel.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
-	territorySetup = territorySetup.val();
+	let wheel = await readSetup(setup + '/wheel');
+	let territorySetup = await readSetup(setup + '/territories');
 	let history = await makeHistory(gameState, context);
 	gameState.history.push(context.name + "'s proposal occurs: " + history);
 	switch (context.wheelSpot) {
@@ -1749,15 +1741,10 @@ async function undo(context) {
 	// Force TurnApp refresh for all players after undo
 	gameState.sameTurn = false;
 	await database.ref('game histories/' + context.game + '/' + oldTurnID).remove();
-	// Cache the restored state so turnID listener reads it instantly
-	setCachedState(context.game, oldTurnID, gameState);
-	await database.ref('games/' + context.game).set(gameState, async (error) => {
-		if (error) {
-			console.error('Firebase write failed in undo:', error);
-		} else {
-			await database.ref('games/' + context.game + '/turnID').set(oldTurnID);
-		}
-	});
+	// Cache the restored state so turnID listener reads it instantly.
+	// gameState.turnID already equals oldTurnID (from the history snapshot).
+	setCachedState(context.game, gameState.turnID, gameState);
+	await database.ref('games/' + context.game).set(gameState);
 	return 'done';
 }
 

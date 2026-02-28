@@ -92,6 +92,43 @@ function readGameState(context) {
 }
 
 /**
+ * In-memory cache for static setup data (territories, wheel, countries, stockCosts).
+ * Setup data never changes during a game, so it's cached permanently per path.
+ * Keyed by Firebase path (e.g. "setups/standard/territories").
+ */
+let setupCache = {};
+let pendingSetupReads = {};
+
+/**
+ * Read static setup data from Firebase, with permanent caching.
+ * Setup data (territories, wheel, countries, stockCosts) never changes during a game,
+ * so it only needs to be fetched once per path.
+ *
+ * @param {string} path - The Firebase path (e.g. "setups/standard/territories")
+ * @returns {Promise<Object>} The setup data at that path
+ */
+function readSetup(path) {
+	if (setupCache[path]) {
+		return Promise.resolve(setupCache[path]);
+	}
+	if (pendingSetupReads[path]) {
+		return pendingSetupReads[path];
+	}
+	pendingSetupReads[path] = database
+		.ref(path)
+		.once('value')
+		.then((snap) => {
+			let val = snap.val();
+			if (val) {
+				setupCache[path] = val;
+			}
+			delete pendingSetupReads[path];
+			return val;
+		});
+	return pendingSetupReads[path];
+}
+
+/**
  * Clear the cache entirely. Called when switching games or logging out.
  */
 function clearCache() {
@@ -99,6 +136,8 @@ function clearCache() {
 	cachedTurnID = null;
 	cachedState = null;
 	pendingRead = null;
+	setupCache = {};
+	pendingSetupReads = {};
 }
 
-export { setCachedState, readGameState, invalidateIfStale, clearCache };
+export { setCachedState, readGameState, invalidateIfStale, clearCache, readSetup };

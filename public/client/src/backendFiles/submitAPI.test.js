@@ -3069,15 +3069,14 @@ describe('buyStock', () => {
 });
 
 // ===========================================================================
-// finalizeSubmit — error logging (bug fix #6)
+// finalizeSubmit — error propagation
 // ===========================================================================
-describe('finalizeSubmit — error logging', () => {
-	test('logs error when Firebase write fails in finalizeSubmit', async () => {
+describe('finalizeSubmit — error propagation', () => {
+	test('rejects when Firebase write fails in finalizeSubmit', async () => {
 		const gs = createMockGameState({ mode: 'bid', countryUp: 'Austria' });
 		setupMockDb(gs);
 
-		// Override the set mock for 'games/testGame' to invoke callback with an error.
-		// We need to intercept just the set call, not the entire ref chain.
+		// Override the set mock for 'games/testGame' to reject with an error.
 		const { database } = require('./firebase.js');
 		const savedImpl = database.ref.getMockImplementation();
 
@@ -3097,13 +3096,11 @@ describe('finalizeSubmit — error logging', () => {
 					}
 				}),
 				off: jest.fn(),
-				set: jest.fn((data, callback) => {
+				set: jest.fn((data) => {
 					mockSetData[path] = JSON.parse(JSON.stringify(data));
-					// Inject error only for the games/ path with a callback
-					if (path === 'games/testGame' && callback) {
-						callback(new Error('Permission denied'));
-					} else if (callback) {
-						callback(null);
+					// Reject for the games/ path to simulate a Firebase write failure
+					if (path === 'games/testGame') {
+						return Promise.reject(new Error('Permission denied'));
 					}
 					return Promise.resolve();
 				}),
@@ -3112,15 +3109,9 @@ describe('finalizeSubmit — error logging', () => {
 			return refObj;
 		});
 
-		const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
 		const context = { game: 'testGame', name: 'Alice', bid: 5 };
-		await bid(context);
-		await flushPromises();
+		await expect(bid(context)).rejects.toThrow('Permission denied');
 
-		expect(consoleSpy).toHaveBeenCalledWith('Firebase write failed in finalizeSubmit:', expect.any(Error));
-
-		consoleSpy.mockRestore();
 		// Restore the original mock implementation
 		if (savedImpl) {
 			database.ref.mockImplementation(savedImpl);

@@ -1,6 +1,5 @@
-import { database } from './firebase.js';
 import * as helper from './helper.js';
-import { readGameState } from './stateCache.js';
+import { readGameState, readSetup } from './stateCache.js';
 
 /**
  * Computes which stock denominations a player can actually afford to buy, factoring in
@@ -45,8 +44,7 @@ async function getCountryOptions(context) {
 	let gameState = await readGameState(context);
 	let countries = await helper.getCountries(context);
 	let opts = [];
-	let costs = await database.ref(gameState.setup + '/stockCosts').once('value');
-	costs = costs.val();
+	let costs = await readSetup(gameState.setup + '/stockCosts');
 
 	for (let i in countries) {
 		let info = gameState.countryInfo[countries[i]];
@@ -104,8 +102,7 @@ async function getReturnStockOptions(context) {
 	let owned = gameState.playerInfo[context.name].stock;
 	let availStock = gameState.countryInfo[country].availStock;
 	let money = gameState.playerInfo[context.name].money;
-	let costs = await database.ref(gameState.setup + '/stockCosts').once('value');
-	costs = costs.val();
+	let costs = await readSetup(gameState.setup + '/stockCosts');
 
 	let opts = [];
 	if (realStockOpts(availStock, money, 0, costs).length > 0) {
@@ -144,8 +141,7 @@ async function getStockOptions(context) {
 		return [];
 	}
 	let availStock = gameState.countryInfo[country].availStock;
-	let costs = await database.ref(gameState.setup + '/stockCosts').once('value');
-	costs = costs.val();
+	let costs = await readSetup(gameState.setup + '/stockCosts');
 	if (!availStock) {
 		availStock = [];
 	}
