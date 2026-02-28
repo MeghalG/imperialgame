@@ -1,4 +1,3 @@
-import { database } from './firebase.js';
 import { readGameState, readSetup } from './stateCache.js';
 
 /**
@@ -15,9 +14,8 @@ import { readGameState, readSetup } from './stateCache.js';
  *   indexed by (order - 1)
  */
 async function getCountries(context) {
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let countries = await readSetup(setup + '/countries');
+	let gameState = await readGameState(context);
+	let countries = await readSetup(gameState.setup + '/countries');
 	let t = [null, null, null, null, null, null];
 	for (let key in countries) {
 		t[countries[key].order - 1] = key;
@@ -142,9 +140,8 @@ function getUnsatFactories(countryInfo, country) {
  * @returns {Promise<string[]>} Array of unoccupied home territory names
  */
 async function getUnsatTerritories(countryInfo, country, portsOnly, context) {
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let allTerritories = await readSetup(setup + '/territories');
+	let gameState = await readGameState(context);
+	let allTerritories = await readSetup(gameState.setup + '/territories');
 	let sat = getSat(countryInfo, country);
 
 	let territories = [];
@@ -293,9 +290,8 @@ async function getTaxInfo(countryInfo, playerInfo, country) {
  * @returns {Promise<number>} The stock denomination (index) the price covers, or 0 if none affordable
  */
 async function getStockBelow(price, countryInfo, context) {
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let stockCosts = await readSetup(setup + '/stockCosts');
+	let gameState = await readGameState(context);
+	let stockCosts = await readSetup(gameState.setup + '/stockCosts');
 	let availStock = countryInfo['availStock'];
 	let i = 0;
 	if (price < stockCosts[1]) {
@@ -421,9 +417,8 @@ function getPermSwiss(gameState) {
  * @returns {Promise<boolean>} True if the Investor position was passed or landed on
  */
 async function investorPassed(oldWheel, newWheel, context) {
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let wheel = await readSetup(setup + '/wheel');
+	let gameState = await readGameState(context);
+	let wheel = await readSetup(gameState.setup + '/wheel');
 	if (oldWheel === 'center') {
 		return newWheel === 'Investor';
 	}

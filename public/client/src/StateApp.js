@@ -53,14 +53,13 @@ class StateApp extends React.Component {
 	}
 
 	reinitialize = async () => {
-		let countries = await helper.getCountries(this.context);
-		this.setState({ countries: countries });
-		let country = await stateAPI.getCountryInfo(this.context);
-		this.setState({ countryInfo: country });
-		let player = await stateAPI.getPlayerInfo(this.context);
-		this.setState({ playerInfo: player });
-		let order = await helper.getPlayersInOrder(this.context);
-		this.setState({ playersOrdered: order });
+		let [countries, countryInfo, playerInfo, playersOrdered] = await Promise.all([
+			helper.getCountries(this.context),
+			stateAPI.getCountryInfo(this.context),
+			stateAPI.getPlayerInfo(this.context),
+			helper.getPlayersInOrder(this.context),
+		]);
+		this.setState({ countries, countryInfo, playerInfo, playersOrdered });
 	};
 
 	order(d) {
