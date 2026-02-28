@@ -5,7 +5,7 @@ import { LockOutlined, ArrowUpOutlined, ArrowDownOutlined, SwapOutlined, CheckCi
 import UserContext from './UserContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
-import { readGameState } from './backendFiles/stateCache.js';
+import { readGameState, readSetup } from './backendFiles/stateCache.js';
 
 const { Option } = Select;
 
@@ -97,6 +97,9 @@ class ManeuverPlannerApp extends React.Component {
 			// Committed moves from a previous peace vote round (read-only)
 			priorCompleted: [],
 
+			// Territory setup data for peace vote detection
+			territorySetup: {},
+
 			// Pending peace vote for dictator
 			pendingPeace: null,
 		};
@@ -125,6 +128,8 @@ class ManeuverPlannerApp extends React.Component {
 			let gameState = await readGameState(this.context);
 			let cm = gameState.currentManeuver;
 			if (!cm) return;
+
+			let territorySetup = await readSetup(gameState.setup + '/territories');
 
 			// Check if there's a pending peace vote for dictator
 			if (cm.pendingPeace) {
@@ -193,6 +198,7 @@ class ManeuverPlannerApp extends React.Component {
 					loaded: true,
 					currentManeuver: cm,
 					country: cm.country,
+					territorySetup,
 					fleetPlans,
 					armyPlans,
 					priorCompleted,
@@ -278,23 +284,54 @@ class ManeuverPlannerApp extends React.Component {
 	}
 
 	/**
+	 * Checks whether a planned move would trigger a peace vote.
+	 * Mirrors the logic in submitBatchManeuver: peace vote only happens when
+	 * action is 'peace', dest != origin, territory is foreign, AND there are
+	 * enemy units at the destination (inferred from actionOptions containing war options).
+	 */
+	wouldTriggerPeaceVote(plan) {
+		if (!plan.dest || plan.dest === plan.origin) return false;
+		if (!isPeaceAction(plan.action) && !this.hasJsonPeaceAction(plan.action)) return false;
+
+		// Check territory ownership
+		let ts = this.state.territorySetup;
+		let destCountry = ts[plan.dest] && ts[plan.dest].country;
+		if (!destCountry || destCountry === this.state.country) return false;
+
+		// Check if action options indicate enemy units at destination
+		// (war options only appear when there are enemy units)
+		let opts = plan.actionOptions;
+		if (Array.isArray(opts)) {
+			return opts.some((a) => a.startsWith('war '));
+		}
+		if (opts && opts.countries) {
+			return true; // multi-country breakdown means enemies are present
+		}
+		return false;
+	}
+
+	/**
+	 * Checks if a JSON-encoded action string contains any peace entries.
+	 */
+	hasJsonPeaceAction(action) {
+		if (!action) return false;
+		try {
+			let parsed = JSON.parse(action);
+			if (Array.isArray(parsed)) {
+				return parsed.some((e) => e.action === 'peace');
+			}
+		} catch (e) {
+			// Not JSON
+		}
+		return false;
+	}
+
+	/**
 	 * Scans all planned moves and marks any that would trigger peace votes.
 	 */
 	detectPeaceVotes() {
-		let fleetPlans = this.state.fleetPlans.map((p) => ({ ...p, peaceVote: false }));
-		let armyPlans = this.state.armyPlans.map((p) => ({ ...p, peaceVote: false }));
-
-		for (let i = 0; i < fleetPlans.length; i++) {
-			if (fleetPlans[i].dest && fleetPlans[i].dest !== fleetPlans[i].origin && isPeaceAction(fleetPlans[i].action)) {
-				fleetPlans[i].peaceVote = true;
-			}
-		}
-		for (let i = 0; i < armyPlans.length; i++) {
-			if (armyPlans[i].dest && armyPlans[i].dest !== armyPlans[i].origin && isPeaceAction(armyPlans[i].action)) {
-				armyPlans[i].peaceVote = true;
-			}
-		}
-
+		let fleetPlans = this.state.fleetPlans.map((p) => ({ ...p, peaceVote: this.wouldTriggerPeaceVote(p) }));
+		let armyPlans = this.state.armyPlans.map((p) => ({ ...p, peaceVote: this.wouldTriggerPeaceVote(p) }));
 		this.setState({ fleetPlans, armyPlans });
 	}
 
@@ -362,26 +399,24 @@ class ManeuverPlannerApp extends React.Component {
 		let plans = phase === 'fleet' ? [...this.state.fleetPlans] : [...this.state.armyPlans];
 		if (toIndex < 0 || toIndex >= plans.length) return;
 
-		// Swap units
+		// Swap units, preserving their planned dest/action
 		let temp = plans[fromIndex];
 		plans[fromIndex] = plans[toIndex];
 		plans[toIndex] = temp;
 
-		// Clear dest/action for moved unit and all after it (virtual state invalidated)
-		let clearFrom = Math.min(fromIndex, toIndex);
-		for (let i = clearFrom; i < plans.length; i++) {
-			plans[i] = { ...plans[i], dest: '', action: '', destOptions: [], actionOptions: [], peaceVote: false };
-		}
-
-		if (phase === 'fleet') {
-			this.setState({ fleetPlans: plans, activePhase: phase, activeIndex: clearFrom }, async () => {
-				await this.computeOptionsForUnit(phase, clearFrom);
-			});
-		} else {
-			this.setState({ armyPlans: plans, activePhase: phase, activeIndex: clearFrom }, async () => {
-				await this.computeOptionsForUnit(phase, clearFrom);
-			});
-		}
+		let stateKey = phase === 'fleet' ? 'fleetPlans' : 'armyPlans';
+		this.setState({ [stateKey]: plans }, async () => {
+			// Recompute destOptions/actionOptions for affected units in the background
+			let startFrom = Math.min(fromIndex, toIndex);
+			for (let i = startFrom; i < plans.length; i++) {
+				await this.computeOptionsForUnit(phase, i);
+				let current = phase === 'fleet' ? this.state.fleetPlans : this.state.armyPlans;
+				if (current[i] && current[i].dest) {
+					await this.computeActionOptionsForUnit(phase, i, current[i].dest);
+				}
+			}
+			this.detectPeaceVotes();
+		});
 	}
 
 	/**
@@ -645,13 +680,13 @@ class ManeuverPlannerApp extends React.Component {
 					</span>
 
 					{/* Edit button for non-active planned units */}
-					{!isActive && isPlanned && !afterPeaceStop && (
+					{!isActive && isPlanned && (
 						<Button type="link" size="small" onClick={() => this.onEditMove(phase, index)}>
 							Edit
 						</Button>
 					)}
 					{/* Activate button for non-active unplanned units */}
-					{!isActive && !isPlanned && !afterPeaceStop && (
+					{!isActive && !isPlanned && (
 						<Button type="link" size="small" onClick={() => this.onEditMove(phase, index)}>
 							Plan
 						</Button>
