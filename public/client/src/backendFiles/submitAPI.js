@@ -1256,6 +1256,7 @@ async function executeProposal(gameState, context) {
 			gameState.countryInfo[country].fleets = fleets;
 
 			let armies = [];
+			let blowUpConsumed = {};
 			let sortedArmyMan = [...context.armyMan].sort((a, b) => {
 				// Sort order: war > blow up > peace > hostile > normal move
 				// War actions ('w') need to execute first so destroyed units are removed
@@ -1265,6 +1266,11 @@ async function executeProposal(gameState, context) {
 				return bCode - aCode;
 			});
 			for (let army of sortedArmyMan) {
+				// Check if this army is consumed by a previous blow-up at this territory
+				if (blowUpConsumed[army[1]] && blowUpConsumed[army[1]] > 0) {
+					blowUpConsumed[army[1]]--;
+					continue;
+				}
 				let hostile = true;
 				let split = army[2].split(' ');
 				if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX) {
@@ -1312,6 +1318,8 @@ async function executeProposal(gameState, context) {
 							1
 						);
 					}
+					// Mark 2 more armies at this territory for consumption (3 total destroyed)
+					blowUpConsumed[army[1]] = (blowUpConsumed[army[1]] || 0) + 2;
 					continue;
 				}
 				armies.push({ territory: army[1], hostile: hostile });

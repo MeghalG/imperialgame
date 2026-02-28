@@ -2095,6 +2095,92 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		// Italy's fleet at West Med should be destroyed
 		expect(gs.countryInfo.Italy.fleets).toEqual([]);
 	});
+
+	test('blow up factory consumes 3 armies and removes factory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+			{ territory: 'Vienna', hostile: true },
+		];
+		gs.countryInfo.Italy.factories = ['Rome', 'Naples'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Trieste: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Vienna: { country: 'Austria' },
+			Rome: { country: 'Italy' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [
+				['Trieste', 'Rome', 'blow up Italy'],
+				['Budapest', 'Rome', ''],
+				['Vienna', 'Rome', ''],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// All 3 armies destroyed (1 blow-up attacker + 2 consumed)
+		expect(gs.countryInfo.Austria.armies).toEqual([]);
+		// Factory at Rome removed, Naples remains
+		expect(gs.countryInfo.Italy.factories).toEqual(['Naples']);
+	});
+
+	test('blow up factory only consumes armies at target territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Galicia', hostile: true },
+		];
+		gs.countryInfo.Italy.factories = ['Rome', 'Naples'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Trieste: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Vienna: { country: 'Austria' },
+			Galicia: { country: 'Austria' },
+			Rome: { country: 'Italy' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [
+				['Trieste', 'Rome', 'blow up Italy'],
+				['Budapest', 'Rome', ''],
+				['Vienna', 'Rome', ''],
+				['Galicia', 'Budapest', ''],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// 3 armies at Rome destroyed, 1 army at Budapest survives
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Budapest', hostile: true }]);
+		expect(gs.countryInfo.Italy.factories).toEqual(['Naples']);
+	});
 });
 
 // ===========================================================================

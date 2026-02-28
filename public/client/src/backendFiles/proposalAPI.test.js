@@ -1003,11 +1003,23 @@ describe('getArmyPeaceOptions', () => {
 		expect(result['Rome']).toContain('war Italy army');
 	});
 
-	test('includes blow up option for territory with enemy factory', async () => {
-		// Rome has an Italian factory and belongs to Italy (not Austria)
+	test('includes blow up option for territory with enemy factory when 3+ armies', async () => {
+		// Rome has an Italian factory. Need 3 armies: 2 already assigned + current = 3
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: false },
+			{ territory: 'Rome', hostile: true },
+			{ territory: 'Rome', hostile: true },
+		];
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
 		expect(result['Rome']).toContain('blow up Italy');
+	});
+
+	test('does not include blow up option when fewer than 3 armies at territory', async () => {
+		// Only 1 army assigned to Rome (the current one) — not enough
+		const context = { game: 'g1', fleetMan: [], armyMan: [] };
+		const result = await getArmyPeaceOptions(context);
+		expect(result['Rome']).not.toContain('blow up Italy');
 	});
 
 	test('does not include blow up option when territory has no enemy factory', async () => {
@@ -1053,13 +1065,21 @@ describe('getArmyPeaceOptions', () => {
 	});
 
 	test('does not remove blow up actions from chosen armyMan', async () => {
+		// Need enough armies for blow up to be offered (3 total at Rome)
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: false },
+			{ territory: 'Rome', hostile: true },
+		];
 		const context = {
 			game: 'g1',
 			fleetMan: [],
-			armyMan: [['Vienna', 'Rome', 'blow up Italy']],
+			armyMan: [
+				['Vienna', 'Rome', 'blow up Italy'],
+				['Trieste', 'Rome', ''],
+			],
 		};
 		const result = await getArmyPeaceOptions(context);
-		// blow up should NOT be removed
+		// blow up should NOT be removed (code skips peace/hostile/blow up from removal)
 		expect(result['Rome']).toContain('blow up Italy');
 	});
 });
@@ -1106,14 +1126,14 @@ describe('allArmiesMoved', () => {
 
 	test('returns false when army at territory with multiple peace options has no action', async () => {
 		// Italy army at Rome (not hostile), but armyPeaceOptions for Rome will have
-		// peace + hostile + blow up Italy + war Italy army => >1 options
+		// peace + hostile + war Italy army => >1 options
 		const context = {
 			game: 'g1',
 			fleetMan: [],
 			armyMan: [['Vienna', 'Rome', '']], // no action selected
 		};
 		const result = await allArmiesMoved(context);
-		// peaceOptions for Rome should be >1 (peace, hostile, war Italy army, blow up Italy)
+		// peaceOptions for Rome should be >1 (peace, hostile, war Italy army)
 		expect(result).toBe(false);
 	});
 
@@ -1606,12 +1626,16 @@ describe('getVirtualState', () => {
 		expect(result.Italy.armies).toEqual([]);
 	});
 
-	test('handles blow up factory action', () => {
+	test('handles blow up factory action — destroys 3 armies and factory', () => {
 		const gameState = {
 			countryInfo: {
 				Austria: {
 					fleets: [],
-					armies: [{ territory: 'Trieste', hostile: true }],
+					armies: [
+						{ territory: 'Trieste', hostile: true },
+						{ territory: 'Rome', hostile: true },
+						{ territory: 'Rome', hostile: true },
+					],
 				},
 				Italy: {
 					fleets: [],
@@ -1622,15 +1646,65 @@ describe('getVirtualState', () => {
 			currentManeuver: {
 				country: 'Austria',
 				pendingFleets: [],
-				pendingArmies: [{ territory: 'Trieste', hostile: true }],
+				pendingArmies: [
+					{ territory: 'Trieste', hostile: true },
+					{ territory: 'Rome', hostile: true },
+					{ territory: 'Rome', hostile: true },
+				],
 				completedFleetMoves: [],
-				completedArmyMoves: [['Trieste', 'Rome', 'blow up Italy']],
+				completedArmyMoves: [
+					['Trieste', 'Rome', 'blow up Italy'],
+					['Rome', 'Rome', ''],
+					['Rome', 'Rome', ''],
+				],
 			},
 		};
 		const result = getVirtualState(gameState);
-		// Austrian army destroyed
+		// All 3 Austrian armies destroyed (1 attacker + 2 consumed)
 		expect(result.Austria.armies).toEqual([]);
 		// Italian factory at Rome removed
+		expect(result.Italy.factories).toEqual(['Naples']);
+	});
+
+	test('blow up factory — only 2 extra armies consumed, others survive', () => {
+		const gameState = {
+			countryInfo: {
+				Austria: {
+					fleets: [],
+					armies: [
+						{ territory: 'Trieste', hostile: true },
+						{ territory: 'Rome', hostile: true },
+						{ territory: 'Rome', hostile: true },
+						{ territory: 'Budapest', hostile: false },
+					],
+				},
+				Italy: {
+					fleets: [],
+					armies: [],
+					factories: ['Rome', 'Naples'],
+				},
+			},
+			currentManeuver: {
+				country: 'Austria',
+				pendingFleets: [],
+				pendingArmies: [
+					{ territory: 'Trieste', hostile: true },
+					{ territory: 'Rome', hostile: true },
+					{ territory: 'Rome', hostile: true },
+					{ territory: 'Budapest', hostile: false },
+				],
+				completedFleetMoves: [],
+				completedArmyMoves: [
+					['Trieste', 'Rome', 'blow up Italy'],
+					['Rome', 'Rome', ''],
+					['Rome', 'Rome', ''],
+					['Budapest', 'Vienna', ''],
+				],
+			},
+		};
+		const result = getVirtualState(gameState);
+		// 3 armies destroyed for blow-up, 1 survives (moved to Vienna)
+		expect(result.Austria.armies).toEqual([{ territory: 'Vienna', hostile: true }]);
 		expect(result.Italy.factories).toEqual(['Naples']);
 	});
 
@@ -1957,8 +2031,38 @@ describe('getCurrentUnitActionOptions — action choices at destination', () => 
 		expect(result).not.toContain('blow up Italy');
 	});
 
-	test('army: returns peace + hostile + blow up when foreign territory has NO enemy units', async () => {
+	test('army: returns peace + hostile + blow up when 3+ armies and foreign territory with factory', async () => {
 		// No Italian units at Rome, but Rome is Italy's territory with a factory
+		// Need 2 friendly armies already at Rome + current = 3
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [];
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Trieste', hostile: false },
+			{ territory: 'Rome', hostile: true },
+			{ territory: 'Rome', hostile: true },
+		];
+		mockDbData.games.g1.currentManeuver = {
+			country: 'Austria',
+			phase: 'army',
+			unitIndex: 0,
+			pendingArmies: [
+				{ territory: 'Trieste', hostile: false },
+				{ territory: 'Rome', hostile: true },
+				{ territory: 'Rome', hostile: true },
+			],
+			completedFleetMoves: [],
+			completedArmyMoves: [],
+		};
+		const result = await getCurrentUnitActionOptions({ game: 'g1', maneuverDest: 'Rome' });
+		expect(result).toContain('peace');
+		expect(result).toContain('hostile');
+		expect(result).toContain('blow up Italy');
+		// Should NOT have any war options
+		expect(result.filter((a) => a.startsWith('war'))).toEqual([]);
+	});
+
+	test('army: returns peace + hostile but NO blow up when < 3 armies at foreign territory with factory', async () => {
+		// No Italian units at Rome, Rome has factory, but only 1 army (current) → no blow up
 		mockDbData.games.g1.countryInfo.Italy.armies = [];
 		mockDbData.games.g1.countryInfo.Italy.fleets = [];
 		mockDbData.games.g1.currentManeuver = {
@@ -1972,9 +2076,7 @@ describe('getCurrentUnitActionOptions — action choices at destination', () => 
 		const result = await getCurrentUnitActionOptions({ game: 'g1', maneuverDest: 'Rome' });
 		expect(result).toContain('peace');
 		expect(result).toContain('hostile');
-		expect(result).toContain('blow up Italy');
-		// Should NOT have any war options
-		expect(result.filter((a) => a.startsWith('war'))).toEqual([]);
+		expect(result).not.toContain('blow up Italy');
 	});
 
 	test('army: returns peace + hostile but no blow up when no factory at destination', async () => {
@@ -2025,10 +2127,10 @@ describe('getCurrentUnitActionOptions — action choices at destination', () => 
 		const result = await getCurrentUnitActionOptions({ game: 'g1', maneuverDest: 'Rome' });
 		// No war options since fleet is non-hostile
 		expect(result).not.toContain('war Italy fleet');
-		// Foreign territory with no hostile enemy units → peace + hostile + blow up
+		// Foreign territory with no hostile enemy units → peace + hostile (no blow up, only 1 army)
 		expect(result).toContain('peace');
 		expect(result).toContain('hostile');
-		expect(result).toContain('blow up Italy');
+		expect(result).not.toContain('blow up Italy');
 	});
 
 	test('army: multiple enemy unit types at destination', async () => {

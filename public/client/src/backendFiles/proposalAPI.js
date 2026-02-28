@@ -530,7 +530,12 @@ async function getArmyPeaceOptions(context) {
 			territorySetup[key].country !== country &&
 			gameState.countryInfo[territorySetup[key].country].factories.includes(key)
 		) {
-			d[key].push('blow up ' + territorySetup[key].country);
+			// Blow up requires 3 armies at the territory
+			let armiesAssigned = (context.armyMan || []).filter((m) => m[1] === key).length;
+			let ownArmiesThere = (gameState.countryInfo[country].armies || []).filter((a) => a.territory === key).length;
+			if (armiesAssigned + ownArmiesThere + 1 >= 3) {
+				d[key].push('blow up ' + territorySetup[key].country);
+			}
 		}
 	}
 	// remove chosen options
@@ -723,14 +728,15 @@ function getVirtualState(gameState) {
 				}
 				// Attacking army is destroyed
 			} else if (split[0] === 'blow') {
-				// Blow up factory: army removed, factory removed
+				// Blow up factory: attacker destroyed, factory removed
+				// (2 additional armies consumed in post-processing below)
 				let targetCountry = split[2];
 				let factories = countryInfo[targetCountry].factories || [];
 				let idx = factories.indexOf(move[1]);
 				if (idx !== -1) {
 					factories.splice(idx, 1);
 				}
-				// Army is destroyed
+				// Attacking army is destroyed (not added to virtualArmies)
 			} else {
 				// Normal move, peace, or hostile — army survives
 				let hostile = true;
@@ -742,6 +748,19 @@ function getVirtualState(gameState) {
 		} else {
 			// Not yet moved — keep at original position
 			virtualArmies.push({ ...cm.pendingArmies[i] });
+		}
+	}
+	// Post-processing: blow-up consumes 2 additional armies at each blow-up territory
+	for (let move of cm.completedArmyMoves || []) {
+		let split = (move[2] || '').split(' ');
+		if (split[0] === 'blow') {
+			let destroyed = 0;
+			for (let j = virtualArmies.length - 1; j >= 0 && destroyed < 2; j--) {
+				if (virtualArmies[j].territory === move[1]) {
+					virtualArmies.splice(j, 1);
+					destroyed++;
+				}
+			}
 		}
 	}
 	countryInfo[country].armies = virtualArmies;
@@ -872,9 +891,14 @@ async function getCurrentUnitActionOptions(context) {
 			// No enemy units but foreign territory: peace, hostile, or blow up
 			actions.push(MANEUVER_ACTIONS.PEACE);
 			actions.push(MANEUVER_ACTIONS.HOSTILE);
-			// Blow up factory
+			// Blow up factory (requires 3 armies: current + 2 already at destination)
 			if (virtualCountryInfo[territorySetup[dest].country].factories.includes(dest)) {
-				actions.push('blow up ' + territorySetup[dest].country);
+				let friendlyArmiesAtDest = (virtualCountryInfo[country].armies || []).filter(
+					(a) => a.territory === dest
+				).length;
+				if (friendlyArmiesAtDest + 1 >= 3) {
+					actions.push('blow up ' + territorySetup[dest].country);
+				}
 			}
 		}
 	}
