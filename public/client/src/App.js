@@ -5,6 +5,7 @@ import EnterApp from './EnterApp.js';
 import GameApp from './GameApp.js';
 
 import UserContext from './UserContext.js';
+import { clearCache } from './backendFiles/stateCache.js';
 
 class App extends React.Component {
 	constructor(props) {
@@ -13,6 +14,9 @@ class App extends React.Component {
 			host: 'localhost:9001',
 			game: '',
 			setGame: (x) => {
+				if (this.state.game !== x) {
+					clearCache();
+				}
 				this.setState({ game: x });
 			},
 			name: '',
