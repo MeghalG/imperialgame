@@ -316,6 +316,8 @@ export const STARTING_MONEY_POOL = 61;
  * @property {string} returnMode - Where to go after all units done ("execute", "proposal-opp", "vote")
  * @property {number} proposalSlot - Which proposal slot to fill (0=execute, 1=leader, 2=opposition)
  * @property {Object|null} [pendingPeace] - Pending dictatorship peace vote info
+ * @property {ManeuverTuple[]} [remainingFleetPlans] - Remaining fleet plans after peace vote pause
+ * @property {ManeuverTuple[]} [remainingArmyPlans] - Remaining army plans after peace vote pause
  */
 
 /**

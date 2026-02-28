@@ -906,6 +906,331 @@ async function getCurrentUnitActionOptions(context) {
 	return actions;
 }
 
+// ---------------------------------------------------------------------------
+// Plan-based virtual state functions (for ManeuverPlannerApp client-side planning)
+// ---------------------------------------------------------------------------
+
+/**
+ * @typedef {Object} ManeuverPlan
+ * @property {string} country - The maneuvering country
+ * @property {Object[]} pendingFleets - Original fleet positions [{territory, hostile}]
+ * @property {Object[]} pendingArmies - Original army positions [{territory, hostile}]
+ * @property {Array<[string, string, string]>} fleetTuples - Planned fleet moves [origin, dest, action]
+ * @property {Array<[string, string, string]>} armyTuples - Planned army moves [origin, dest, action]
+ */
+
+/**
+ * Computes a "virtual" board state by applying planned maneuver moves
+ * to the original countryInfo. This is the plan-based equivalent of
+ * getVirtualState — it takes explicit move arrays instead of reading
+ * from gameState.currentManeuver.
+ *
+ * @param {Object<string, CountryInfo>} countryInfo - The original countryInfo (not mutated)
+ * @param {ManeuverPlan} plan - The maneuver plan
+ * @returns {Object<string, CountryInfo>} A deep copy of countryInfo with planned moves applied
+ */
+function getVirtualStateFromPlans(countryInfo, plan) {
+	let virtual = JSON.parse(JSON.stringify(countryInfo));
+	let country = plan.country;
+
+	// Apply fleet tuples
+	let virtualFleets = [];
+	for (let i = 0; i < (plan.pendingFleets || []).length; i++) {
+		if (i < (plan.fleetTuples || []).length && plan.fleetTuples[i][1]) {
+			let move = plan.fleetTuples[i];
+			let action = move[2] || '';
+			let split = action.split(' ');
+			if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX) {
+				// War: attacking fleet destroyed, target unit removed
+				if (split[2] === 'fleet') {
+					let targetFleets = virtual[split[1]].fleets || [];
+					for (let j = 0; j < targetFleets.length; j++) {
+						if (targetFleets[j].territory === move[1]) {
+							targetFleets.splice(j, 1);
+							break;
+						}
+					}
+				} else {
+					let targetArmies = virtual[split[1]].armies || [];
+					for (let j = 0; j < targetArmies.length; j++) {
+						if (targetArmies[j].territory === move[1]) {
+							targetArmies.splice(j, 1);
+							break;
+						}
+					}
+				}
+				// Attacking fleet is destroyed — don't add to virtualFleets
+			} else {
+				// Normal move or peace — fleet survives at destination
+				virtualFleets.push({ territory: move[1], hostile: true });
+			}
+		} else {
+			// Not yet planned — keep at original position
+			virtualFleets.push({ ...plan.pendingFleets[i] });
+		}
+	}
+	virtual[country].fleets = virtualFleets;
+
+	// Apply army tuples
+	let virtualArmies = [];
+	for (let i = 0; i < (plan.pendingArmies || []).length; i++) {
+		if (i < (plan.armyTuples || []).length && plan.armyTuples[i][1]) {
+			let move = plan.armyTuples[i];
+			let action = move[2] || '';
+			let split = action.split(' ');
+			if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX) {
+				// War: both units destroyed
+				if (split[2] === 'fleet') {
+					let targetFleets = virtual[split[1]].fleets || [];
+					for (let j = 0; j < targetFleets.length; j++) {
+						if (targetFleets[j].territory === move[1]) {
+							targetFleets.splice(j, 1);
+							break;
+						}
+					}
+				} else {
+					let targetArmies = virtual[split[1]].armies || [];
+					for (let j = 0; j < targetArmies.length; j++) {
+						if (targetArmies[j].territory === move[1]) {
+							targetArmies.splice(j, 1);
+							break;
+						}
+					}
+				}
+				// Attacking army is destroyed
+			} else if (split[0] === 'blow') {
+				// Blow up: attacker destroyed, factory removed
+				let targetCountry = split[2];
+				let factories = virtual[targetCountry].factories || [];
+				let idx = factories.indexOf(move[1]);
+				if (idx !== -1) {
+					factories.splice(idx, 1);
+				}
+			} else {
+				// Normal move, peace, or hostile — army survives
+				let hostile = action !== MANEUVER_ACTIONS.PEACE;
+				virtualArmies.push({ territory: move[1], hostile: hostile });
+			}
+		} else {
+			// Not yet planned — keep at original position
+			virtualArmies.push({ ...plan.pendingArmies[i] });
+		}
+	}
+	// Post-processing: blow-up consumes 2 additional armies at each blow-up territory
+	for (let move of plan.armyTuples || []) {
+		let split = (move[2] || '').split(' ');
+		if (split[0] === 'blow') {
+			let destroyed = 0;
+			for (let j = virtualArmies.length - 1; j >= 0 && destroyed < 2; j--) {
+				if (virtualArmies[j].territory === move[1]) {
+					virtualArmies.splice(j, 1);
+					destroyed++;
+				}
+			}
+		}
+	}
+	virtual[country].armies = virtualArmies;
+
+	return virtual;
+}
+
+/**
+ * Get destination options for a unit at a given index, using explicit plan arrays
+ * to compute the virtual state. Plan-based equivalent of getCurrentUnitOptions.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {ManeuverPlan} plan - The maneuver plan
+ * @param {string} phase - 'fleet' or 'army'
+ * @param {number} unitIndex - Index of the unit in pendingFleets/pendingArmies
+ * @returns {Promise<string[]>} Array of destination territory names
+ */
+async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
+	let gameState = await readGameState(context);
+	let territorySetup = await readSetup(gameState.setup + '/territories');
+	let country = plan.country;
+
+	// Build partial plan: apply moves only up to (but not including) unitIndex
+	let partialPlan = {
+		country: country,
+		pendingFleets: plan.pendingFleets,
+		pendingArmies: plan.pendingArmies,
+		fleetTuples: phase === 'fleet' ? plan.fleetTuples.slice(0, unitIndex) : plan.fleetTuples,
+		armyTuples: phase === 'army' ? plan.armyTuples.slice(0, unitIndex) : [],
+	};
+
+	let virtualCountryInfo = getVirtualStateFromPlans(gameState.countryInfo, partialPlan);
+
+	if (phase === 'fleet') {
+		let virtualFleets = virtualCountryInfo[country].fleets || [];
+		// Find the surviving fleet at this index — earlier war moves may have
+		// reduced the virtual fleet array
+		let survivingIndex = 0;
+		for (let i = 0; i < (plan.pendingFleets || []).length; i++) {
+			if (i < unitIndex) {
+				let tuple = plan.fleetTuples[i];
+				if (tuple && tuple[1]) {
+					let split = (tuple[2] || '').split(' ');
+					if (split[0] !== MANEUVER_ACTIONS.WAR_PREFIX) {
+						survivingIndex++;
+					}
+				} else {
+					survivingIndex++;
+				}
+			} else if (i === unitIndex) {
+				break;
+			} else {
+				survivingIndex++;
+			}
+		}
+		let targetFleet = virtualFleets[survivingIndex];
+		if (!targetFleet) return [];
+		return getAdjacentSeas(targetFleet.territory, territorySetup);
+	} else {
+		// Army phase — build virtual fleetMan from all fleet tuples
+		let virtualFleetMan = (plan.fleetTuples || []).map((t) => [t[0], t[1], t[2]]);
+
+		let virtualArmies = virtualCountryInfo[country].armies || [];
+		let survivingIndex = 0;
+		for (let i = 0; i < (plan.pendingArmies || []).length; i++) {
+			if (i < unitIndex) {
+				let tuple = plan.armyTuples[i];
+				if (tuple && tuple[1]) {
+					let split = (tuple[2] || '').split(' ');
+					if (split[0] !== MANEUVER_ACTIONS.WAR_PREFIX && split[0] !== 'blow') {
+						survivingIndex++;
+					}
+				} else {
+					survivingIndex++;
+				}
+			} else if (i === unitIndex) {
+				break;
+			} else {
+				survivingIndex++;
+			}
+		}
+		let targetArmy = virtualArmies[survivingIndex];
+		if (!targetArmy) return [];
+
+		let virtualContext = { fleetMan: virtualFleetMan };
+		return getAdjacentLands(targetArmy.territory, territorySetup, country, virtualContext);
+	}
+}
+
+/**
+ * Get action options for a unit at a specific destination, using virtual state
+ * from plan arrays. Plan-based equivalent of getCurrentUnitActionOptions.
+ *
+ * Returns a per-country breakdown when multiple enemy countries have units at
+ * the destination, or a flat array for simple cases.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @param {ManeuverPlan} plan - The maneuver plan
+ * @param {string} phase - 'fleet' or 'army'
+ * @param {number} unitIndex - Index of the unit
+ * @param {string} destination - The selected destination territory
+ * @returns {Promise<string[] | {countries: Array<{country: string, units: string[], actions: string[]}>, otherActions: string[]}>}
+ *   Flat array for simple cases, or per-country object for multi-country destinations
+ */
+async function getUnitActionOptionsFromPlans(context, plan, phase, unitIndex, destination) {
+	let gameState = await readGameState(context);
+	let territorySetup = await readSetup(gameState.setup + '/territories');
+	let country = plan.country;
+
+	// Build partial plan up to (but not including) unitIndex
+	let partialPlan = {
+		country: country,
+		pendingFleets: plan.pendingFleets,
+		pendingArmies: plan.pendingArmies,
+		fleetTuples: phase === 'fleet' ? plan.fleetTuples.slice(0, unitIndex) : plan.fleetTuples,
+		armyTuples: phase === 'army' ? plan.armyTuples.slice(0, unitIndex) : [],
+	};
+
+	let virtualCountryInfo = getVirtualStateFromPlans(gameState.countryInfo, partialPlan);
+
+	// Build per-country breakdown of enemy units at destination
+	let countriesAtDest = {};
+	for (let c in virtualCountryInfo) {
+		if (c !== country) {
+			let units = [];
+			for (let f of virtualCountryInfo[c].fleets || []) {
+				if (f.hostile && f.territory === destination) {
+					units.push('fleet');
+				}
+			}
+			for (let a of virtualCountryInfo[c].armies || []) {
+				if (a.territory === destination) {
+					units.push('army');
+				}
+			}
+			if (units.length > 0) {
+				countriesAtDest[c] = units;
+			}
+		}
+	}
+
+	let enemyCountries = Object.keys(countriesAtDest);
+
+	if (phase === 'fleet') {
+		if (enemyCountries.length > 1) {
+			// Multi-country: return per-country breakdown
+			let countries = enemyCountries.map((c) => ({
+				country: c,
+				units: countriesAtDest[c],
+				actions: countriesAtDest[c].map((u) => 'war ' + c + ' ' + u).concat([MANEUVER_ACTIONS.PEACE]),
+			}));
+			return { countries: countries, otherActions: [] };
+		} else if (enemyCountries.length === 1) {
+			let actions = [];
+			let c = enemyCountries[0];
+			for (let u of countriesAtDest[c]) {
+				actions.push('war ' + c + ' ' + u);
+			}
+			actions.push(MANEUVER_ACTIONS.PEACE);
+			return actions;
+		}
+		return [];
+	} else {
+		// Army phase
+		let isForeign = territorySetup[destination].country && territorySetup[destination].country !== country;
+
+		if (enemyCountries.length > 1) {
+			// Multi-country: per-country breakdown
+			let countries = enemyCountries.map((c) => ({
+				country: c,
+				units: countriesAtDest[c],
+				actions: countriesAtDest[c].map((u) => 'war ' + c + ' ' + u).concat([MANEUVER_ACTIONS.PEACE]),
+			}));
+			let otherActions = [];
+			if (isForeign) {
+				otherActions.push(MANEUVER_ACTIONS.HOSTILE);
+			}
+			return { countries: countries, otherActions: otherActions };
+		} else if (enemyCountries.length === 1) {
+			let actions = [];
+			let c = enemyCountries[0];
+			for (let u of countriesAtDest[c]) {
+				actions.push('war ' + c + ' ' + u);
+			}
+			actions.push(MANEUVER_ACTIONS.PEACE);
+			return actions;
+		} else if (isForeign) {
+			let actions = [MANEUVER_ACTIONS.PEACE, MANEUVER_ACTIONS.HOSTILE];
+			// Blow up factory check
+			let territoryOwner = territorySetup[destination].country;
+			if (virtualCountryInfo[territoryOwner].factories.includes(destination)) {
+				let friendlyArmiesAtDest = (virtualCountryInfo[country].armies || []).filter(
+					(a) => a.territory === destination
+				).length;
+				if (friendlyArmiesAtDest + 1 >= 3) {
+					actions.push('blow up ' + territoryOwner);
+				}
+			}
+			return actions;
+		}
+		return [];
+	}
+}
+
 export {
 	getPreviousProposalMessage,
 	getWheelOptions,
@@ -927,4 +1252,7 @@ export {
 	getAdjacentSeas,
 	getAdjacentLands,
 	getD0,
+	getVirtualStateFromPlans,
+	getUnitOptionsFromPlans,
+	getUnitActionOptionsFromPlans,
 };

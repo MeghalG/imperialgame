@@ -223,7 +223,7 @@ class ManeuverStartApp extends SimpleMessageComponent {
 		super(props);
 		this.state = {
 			object: 'move',
-			message: 'Submit to begin moving units one at a time.',
+			message: 'Submit to plan your maneuver.',
 		};
 	}
 }

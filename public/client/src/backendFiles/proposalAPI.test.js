@@ -77,6 +77,9 @@ import {
 	getAdjacentSeas,
 	getAdjacentLands,
 	getD0,
+	getVirtualStateFromPlans,
+	getUnitOptionsFromPlans,
+	getUnitActionOptionsFromPlans,
 } from './proposalAPI.js';
 
 import * as helper from './helper.js';
@@ -2152,5 +2155,345 @@ describe('getCurrentUnitActionOptions — action choices at destination', () => 
 		// hostile and blow up should NOT appear when enemy units present
 		expect(result).not.toContain('hostile');
 		expect(result).not.toContain('blow up Italy');
+	});
+});
+
+// ===========================================================================
+// getVirtualStateFromPlans
+// ===========================================================================
+describe('getVirtualStateFromPlans', () => {
+	it('applies a normal fleet move', () => {
+		const countryInfo = buildMockDbData().games.g1.countryInfo;
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Trieste', hostile: true }],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [['Trieste', 'Adriatic Sea', '']],
+			armyTuples: [],
+		};
+		const result = getVirtualStateFromPlans(countryInfo, plan);
+		expect(result.Austria.fleets).toEqual([{ territory: 'Adriatic Sea', hostile: true }]);
+		// Original shouldn't be mutated
+		expect(countryInfo.Austria.fleets[0].territory).toBe('Trieste');
+	});
+
+	it('handles fleet war — attacking fleet destroyed, target removed', () => {
+		const countryInfo = buildMockDbData().games.g1.countryInfo;
+		countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Trieste', hostile: true }],
+			pendingArmies: [],
+			fleetTuples: [['Trieste', 'Adriatic Sea', 'war Italy fleet']],
+			armyTuples: [],
+		};
+		const result = getVirtualStateFromPlans(countryInfo, plan);
+		expect(result.Austria.fleets).toEqual([]); // attacking fleet destroyed
+		expect(result.Italy.fleets).toEqual([]); // target fleet removed
+	});
+
+	it('applies army peace move as non-hostile', () => {
+		const countryInfo = buildMockDbData().games.g1.countryInfo;
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [['Vienna', 'Rome', 'peace']],
+		};
+		const result = getVirtualStateFromPlans(countryInfo, plan);
+		expect(result.Austria.armies).toEqual([{ territory: 'Rome', hostile: false }]);
+	});
+
+	it('applies army hostile move as hostile', () => {
+		const countryInfo = buildMockDbData().games.g1.countryInfo;
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [['Vienna', 'Rome', 'hostile']],
+		};
+		const result = getVirtualStateFromPlans(countryInfo, plan);
+		expect(result.Austria.armies).toEqual([{ territory: 'Rome', hostile: true }]);
+	});
+
+	it('handles army war — both units destroyed', () => {
+		const countryInfo = buildMockDbData().games.g1.countryInfo;
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [['Vienna', 'Rome', 'war Italy army']],
+		};
+		const result = getVirtualStateFromPlans(countryInfo, plan);
+		expect(result.Austria.armies).toEqual([]); // attacking army destroyed
+		expect(result.Italy.armies).toEqual([]); // target army removed
+	});
+
+	it('handles blow up — factory removed, attacker destroyed, 2 armies consumed', () => {
+		const countryInfo = buildMockDbData().games.g1.countryInfo;
+		// Need 3 armies at Rome for blow up
+		countryInfo.Austria.armies = [
+			{ territory: 'Rome', hostile: true },
+			{ territory: 'Rome', hostile: true },
+			{ territory: 'Vienna', hostile: false },
+		];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: countryInfo.Austria.armies.map((a) => ({ ...a })),
+			fleetTuples: [],
+			armyTuples: [
+				['Rome', 'Rome', ''],
+				['Rome', 'Rome', ''],
+				['Vienna', 'Rome', 'blow up Italy'],
+			],
+		};
+		const result = getVirtualStateFromPlans(countryInfo, plan);
+		// Attacker destroyed + 2 armies consumed = 0 remaining
+		expect(result.Austria.armies).toEqual([]);
+		expect(result.Italy.factories).not.toContain('Rome');
+	});
+
+	it('keeps unplanned units at original positions', () => {
+		const countryInfo = buildMockDbData().games.g1.countryInfo;
+		countryInfo.Austria.fleets = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Adriatic Sea', hostile: true },
+		];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Adriatic Sea', hostile: true },
+			],
+			pendingArmies: [],
+			fleetTuples: [['Trieste', 'Adriatic Sea', '']], // only first fleet planned
+			armyTuples: [],
+		};
+		const result = getVirtualStateFromPlans(countryInfo, plan);
+		expect(result.Austria.fleets).toEqual([
+			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Adriatic Sea', hostile: true },
+		]);
+	});
+});
+
+// ===========================================================================
+// getUnitOptionsFromPlans
+// ===========================================================================
+describe('getUnitOptionsFromPlans', () => {
+	it('returns adjacent seas for a fleet', async () => {
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Trieste', hostile: true }],
+			pendingArmies: [],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 0);
+		expect(result).toContain('Trieste');
+		expect(result).toContain('Adriatic Sea');
+	});
+
+	it('returns destinations from virtual position after earlier fleet moves', async () => {
+		mockDbData.games.g1.countryInfo.Austria.fleets = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Adriatic Sea', hostile: true },
+		];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Adriatic Sea', hostile: true },
+			],
+			pendingArmies: [],
+			fleetTuples: [
+				['Trieste', 'Adriatic Sea', ''], // fleet 0 moved
+			],
+			armyTuples: [],
+		};
+		// Fleet 1 is still at Adriatic Sea (original position)
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1);
+		expect(result).toContain('Adriatic Sea');
+		expect(result).toContain('West Med');
+	});
+
+	it('skips destroyed fleet when computing surviving index', async () => {
+		mockDbData.games.g1.countryInfo.Austria.fleets = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Adriatic Sea', hostile: true },
+		];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Adriatic Sea', hostile: true },
+			],
+			pendingArmies: [],
+			fleetTuples: [
+				['Trieste', 'Adriatic Sea', 'war Italy fleet'], // fleet 0 destroyed in war
+			],
+			armyTuples: [],
+		};
+		// Fleet 0 destroyed, so fleet 1 is at virtual index 0
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1);
+		expect(result).toContain('Adriatic Sea');
+	});
+
+	it('returns adjacent lands for an army', async () => {
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
+		expect(result).toContain('Vienna');
+		expect(result).toContain('Budapest');
+		expect(result).toContain('Trieste');
+	});
+
+	it('army can reach through fleet-controlled seas', async () => {
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Trieste', hostile: true }],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [['Trieste', 'Adriatic Sea', '']], // fleet controls Adriatic
+			armyTuples: [],
+		};
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
+		// Army should be able to reach Rome through Adriatic Sea
+		expect(result).toContain('Rome');
+	});
+});
+
+// ===========================================================================
+// getUnitActionOptionsFromPlans
+// ===========================================================================
+describe('getUnitActionOptionsFromPlans', () => {
+	it('returns empty array when no enemy units and not foreign territory', async () => {
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Budapest');
+		expect(result).toEqual([]);
+	});
+
+	it('returns war + peace when single enemy country at destination', async () => {
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Rome');
+		expect(result).toContain('war Italy army');
+		expect(result).toContain('peace');
+	});
+
+	it('returns per-country breakdown when multiple enemy countries at destination', async () => {
+		mockDbData.games.g1.countryInfo.France.armies = [{ territory: 'Rome', hostile: true }];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Rome');
+		expect(result.countries).toBeDefined();
+		expect(result.countries.length).toBe(2);
+		const italyEntry = result.countries.find((c) => c.country === 'Italy');
+		expect(italyEntry.actions).toContain('war Italy army');
+		expect(italyEntry.actions).toContain('peace');
+		const franceEntry = result.countries.find((c) => c.country === 'France');
+		expect(franceEntry.actions).toContain('war France army');
+		expect(franceEntry.actions).toContain('peace');
+	});
+
+	it('returns peace + hostile for foreign territory without enemies', async () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = []; // remove Italian army from Rome
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: false }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Rome');
+		expect(result).toContain('peace');
+		expect(result).toContain('hostile');
+	});
+
+	it('includes blow up when 3+ friendly armies at destination', async () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = []; // remove Italian army
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Rome', hostile: true },
+			{ territory: 'Rome', hostile: true },
+			{ territory: 'Vienna', hostile: false },
+		];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [
+				{ territory: 'Rome', hostile: true },
+				{ territory: 'Rome', hostile: true },
+				{ territory: 'Vienna', hostile: false },
+			],
+			fleetTuples: [],
+			armyTuples: [
+				['Rome', 'Rome', ''],
+				['Rome', 'Rome', ''],
+			],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 2, 'Rome');
+		expect(result).toContain('blow up Italy');
+	});
+
+	it('fleet: returns war + peace when enemy fleet at destination', async () => {
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Trieste', hostile: true }],
+			pendingArmies: [],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 0, 'Adriatic Sea');
+		expect(result).toContain('war Italy fleet');
+		expect(result).toContain('peace');
+	});
+
+	it('reflects virtual state — enemy destroyed by earlier war not available', async () => {
+		mockDbData.games.g1.countryInfo.Austria.fleets = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Adriatic Sea', hostile: true },
+		];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Adriatic Sea', hostile: true },
+			],
+			pendingArmies: [],
+			fleetTuples: [
+				['Trieste', 'Adriatic Sea', 'war Italy fleet'], // fleet 0 destroys Italian fleet
+			],
+			armyTuples: [],
+		};
+		// Fleet 1 moves to Adriatic Sea — Italian fleet is already destroyed by fleet 0
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1, 'Adriatic Sea');
+		expect(result).toEqual([]); // no enemy units remaining
 	});
 });

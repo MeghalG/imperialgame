@@ -748,6 +748,256 @@ async function submitManeuver(context) {
 }
 
 /**
+ * Submits a complete maneuver plan in one batch. Processes fleet moves then army
+ * moves sequentially, checking each for peace vote triggers. If no peace votes
+ * are triggered, the entire maneuver completes in a single Firebase write.
+ *
+ * If a peace vote IS triggered at move N:
+ * - Moves 0..N-1 are committed to completedFleetMoves/completedArmyMoves
+ * - Move N triggers the peace vote (dictatorship inline or democracy peace-vote)
+ * - Remaining moves are stored in cm.remainingFleetPlans/cm.remainingArmyPlans
+ * - After peace vote resolves, ManeuverPlannerApp re-loads with remaining plans
+ *
+ * @param {Object} context - UserContext with { game, name, fleetMan, armyMan }
+ * @param {Array<ManeuverTuple>} context.fleetMan - Planned fleet moves
+ * @param {Array<ManeuverTuple>} context.armyMan - Planned army moves
+ * @returns {Promise<string>} 'done' on success
+ */
+async function submitBatchManeuver(context) {
+	let gameState = await database.ref('games/' + context.game).once('value');
+	gameState = gameState.val();
+	let cm = gameState.currentManeuver;
+	if (!cm) return 'done';
+
+	let setup = await database.ref('games/' + context.game + '/setup').once('value');
+	setup = setup.val();
+	let territorySetup = await readSetup(setup + '/territories');
+
+	gameState.sameTurn = true;
+
+	let fleetMoves = context.fleetMan || [];
+	let armyMoves = context.armyMan || [];
+
+	// Track destroyed units for accurate peace checks.
+	// Key: "country unitType territory", e.g. "Italy fleet Adriatic Sea"
+	let destroyedUnits = new Set();
+
+	// --- Process fleet moves ---
+	for (let i = 0; i < fleetMoves.length; i++) {
+		let tuple = fleetMoves[i];
+		let origin = tuple[0];
+		let dest = tuple[1];
+		let action = tuple[2] || '';
+		let split = action.split(' ');
+
+		// Check if this move triggers a peace vote
+		if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
+			let destCountry = territorySetup[dest] && territorySetup[dest].country;
+			if (destCountry && destCountry !== cm.country) {
+				// Check for enemy units at destination (excluding already-destroyed ones)
+				let hasEnemyUnits = false;
+				for (let c in gameState.countryInfo) {
+					if (c !== cm.country) {
+						for (let f of gameState.countryInfo[c].fleets || []) {
+							if (f.territory === dest && !destroyedUnits.has(c + ' fleet ' + dest)) {
+								hasEnemyUnits = true;
+							}
+						}
+						for (let a of gameState.countryInfo[c].armies || []) {
+							if (a.territory === dest && !destroyedUnits.has(c + ' army ' + dest)) {
+								hasEnemyUnits = true;
+							}
+						}
+					}
+				}
+				if (hasEnemyUnits) {
+					// Store remaining plans for later
+					cm.remainingFleetPlans = fleetMoves.slice(i + 1);
+					cm.remainingArmyPlans = armyMoves;
+
+					// Trigger peace vote
+					let targetGov = gameState.countryInfo[destCountry].gov;
+					if (targetGov === GOV_TYPES.DICTATORSHIP) {
+						let dictator = gameState.countryInfo[destCountry].leadership[0];
+						cm.pendingPeace = {
+							origin: origin,
+							destination: dest,
+							targetCountry: destCountry,
+							unitType: 'fleet',
+							tuple: tuple,
+						};
+						for (let key in gameState.playerInfo) {
+							gameState.playerInfo[key].myTurn = false;
+						}
+						gameState.playerInfo[dictator].myTurn = true;
+						gameState.sameTurn = false;
+					} else {
+						let leadership = gameState.countryInfo[destCountry].leadership;
+						let totalStock = 0;
+						for (let player of leadership) {
+							for (let s of gameState.playerInfo[player].stock || []) {
+								if (s.country === destCountry) {
+									totalStock += s.stock;
+								}
+							}
+						}
+						gameState.peaceVote = {
+							movingCountry: cm.country,
+							targetCountry: destCountry,
+							unitType: 'fleet',
+							origin: origin,
+							destination: dest,
+							acceptVotes: 0,
+							rejectVotes: 0,
+							voters: [],
+							totalStock: totalStock,
+							tuple: tuple,
+						};
+						gameState.mode = MODES.PEACE_VOTE;
+						for (let key in gameState.playerInfo) {
+							gameState.playerInfo[key].myTurn = false;
+						}
+						for (let player of leadership) {
+							gameState.playerInfo[player].myTurn = true;
+						}
+						gameState.sameTurn = false;
+					}
+					gameState.undo = context.name;
+					await finalizeSubmit(gameState, context.game, context);
+					return 'done';
+				}
+			}
+		}
+
+		// Track unit destruction from war moves
+		if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX && split.length >= 3) {
+			let targetCountry = split.slice(1, split.length - 1).join(' ');
+			let targetType = split[split.length - 1];
+			destroyedUnits.add(targetCountry + ' ' + targetType + ' ' + dest);
+		}
+
+		// No peace vote: commit this move
+		if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
+		cm.completedFleetMoves.push(tuple);
+		cm.unitIndex++;
+	}
+
+	// Phase transition to army
+	cm.phase = 'army';
+	cm.unitIndex = 0;
+
+	// --- Process army moves ---
+	for (let i = 0; i < armyMoves.length; i++) {
+		let tuple = armyMoves[i];
+		let origin = tuple[0];
+		let dest = tuple[1];
+		let action = tuple[2] || '';
+		let split = action.split(' ');
+
+		// Validate: armies cannot move to sea territories
+		if (territorySetup[dest] && territorySetup[dest].sea) {
+			console.error('Invalid army move: armies cannot move to sea territory "' + dest + '"');
+			continue;
+		}
+
+		// Check if this move triggers a peace vote
+		if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
+			let destCountry = territorySetup[dest] && territorySetup[dest].country;
+			if (destCountry && destCountry !== cm.country) {
+				let hasEnemyUnits = false;
+				for (let c in gameState.countryInfo) {
+					if (c !== cm.country) {
+						for (let f of gameState.countryInfo[c].fleets || []) {
+							if (f.territory === dest && !destroyedUnits.has(c + ' fleet ' + dest)) {
+								hasEnemyUnits = true;
+							}
+						}
+						for (let a of gameState.countryInfo[c].armies || []) {
+							if (a.territory === dest && !destroyedUnits.has(c + ' army ' + dest)) {
+								hasEnemyUnits = true;
+							}
+						}
+					}
+				}
+				if (hasEnemyUnits) {
+					cm.remainingFleetPlans = [];
+					cm.remainingArmyPlans = armyMoves.slice(i + 1);
+
+					let targetGov = gameState.countryInfo[destCountry].gov;
+					if (targetGov === GOV_TYPES.DICTATORSHIP) {
+						let dictator = gameState.countryInfo[destCountry].leadership[0];
+						cm.pendingPeace = {
+							origin: origin,
+							destination: dest,
+							targetCountry: destCountry,
+							unitType: 'army',
+							tuple: tuple,
+						};
+						for (let key in gameState.playerInfo) {
+							gameState.playerInfo[key].myTurn = false;
+						}
+						gameState.playerInfo[dictator].myTurn = true;
+						gameState.sameTurn = false;
+					} else {
+						let leadership = gameState.countryInfo[destCountry].leadership;
+						let totalStock = 0;
+						for (let player of leadership) {
+							for (let s of gameState.playerInfo[player].stock || []) {
+								if (s.country === destCountry) {
+									totalStock += s.stock;
+								}
+							}
+						}
+						gameState.peaceVote = {
+							movingCountry: cm.country,
+							targetCountry: destCountry,
+							unitType: 'army',
+							origin: origin,
+							destination: dest,
+							acceptVotes: 0,
+							rejectVotes: 0,
+							voters: [],
+							totalStock: totalStock,
+							tuple: tuple,
+						};
+						gameState.mode = MODES.PEACE_VOTE;
+						for (let key in gameState.playerInfo) {
+							gameState.playerInfo[key].myTurn = false;
+						}
+						for (let player of leadership) {
+							gameState.playerInfo[player].myTurn = true;
+						}
+						gameState.sameTurn = false;
+					}
+					gameState.undo = context.name;
+					await finalizeSubmit(gameState, context.game, context);
+					return 'done';
+				}
+			}
+		}
+
+		// Track unit destruction from war and blow-up moves
+		if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX && split.length >= 3) {
+			let targetCountry = split.slice(1, split.length - 1).join(' ');
+			let targetType = split[split.length - 1];
+			destroyedUnits.add(targetCountry + ' ' + targetType + ' ' + dest);
+		}
+
+		// No peace vote: commit this move
+		if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
+		cm.completedArmyMoves.push(tuple);
+		cm.unitIndex++;
+	}
+
+	// All moves processed without peace interruption — complete the maneuver
+	await completeManeuver(gameState, context);
+	gameState.sameTurn = false;
+	gameState.undo = context.name;
+	await finalizeSubmit(gameState, context.game, context);
+	return 'done';
+}
+
+/**
  * Handles a dictator's accept/reject decision on a peace offer.
  * Called when the target country is a dictatorship and a unit wants to enter peacefully.
  *
@@ -1761,6 +2011,7 @@ export {
 	submitVote,
 	submitNoCounter,
 	submitManeuver,
+	submitBatchManeuver,
 	submitDictatorPeaceVote,
 	submitPeaceVote,
 	submitProposal,

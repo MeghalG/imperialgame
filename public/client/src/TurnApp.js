@@ -7,7 +7,7 @@ import ProposalApp from './ProposalApp.js';
 import ProposalAppOpp from './ProposalAppOpp.js';
 import VoteApp from './VoteApp.js';
 import GameOverApp from './GameOverApp.js';
-import ContinueManeuverApp from './ContinueManeuverApp.js';
+import ManeuverPlannerApp from './ManeuverPlannerApp.js';
 import PeaceVoteApp from './PeaceVoteApp.js';
 import StaticTurnApp from './StaticTurnApp.js';
 import { Card, Popconfirm } from 'antd';
@@ -112,7 +112,7 @@ function DisplayMode(props) {
 		case 'vote':
 			return <VoteApp key={props.turnID} />;
 		case 'continue-man':
-			return <ContinueManeuverApp key={props.turnID} />;
+			return <ManeuverPlannerApp key={props.turnID} />;
 		case 'peace-vote':
 			return <PeaceVoteApp key={props.turnID} />;
 		case 'game-over':
