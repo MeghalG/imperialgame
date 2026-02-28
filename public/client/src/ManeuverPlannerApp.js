@@ -867,6 +867,44 @@ class ManeuverPlannerApp extends React.Component {
 		}
 	}
 
+	/**
+	 * Returns a human-readable reason why the maneuver can't be submitted yet,
+	 * or '' if everything is ready.
+	 */
+	getBlockedReason(peaceStop) {
+		if (!peaceStop) {
+			// No peace stop — check all units
+			let unplannedFleets = this.state.fleetPlans.filter((p) => !p.dest).length;
+			let unplannedArmies = this.state.armyPlans.filter((p) => !p.dest).length;
+			let parts = [];
+			if (unplannedFleets > 0) parts.push(unplannedFleets + ' fleet move' + (unplannedFleets > 1 ? 's' : ''));
+			if (unplannedArmies > 0) parts.push(unplannedArmies + ' army move' + (unplannedArmies > 1 ? 's' : ''));
+			return parts.length > 0 ? 'Plan ' + parts.join(' and ') + ' first' : '';
+		}
+
+		if (peaceStop.phase === 'army') {
+			// All fleets + armies up to peaceStop.index must be planned
+			let unplannedFleets = this.state.fleetPlans.filter((p) => !p.dest).length;
+			let unplannedArmies = 0;
+			for (let i = 0; i <= peaceStop.index; i++) {
+				if (!this.state.armyPlans[i].dest) unplannedArmies++;
+			}
+			let parts = [];
+			if (unplannedFleets > 0) parts.push(unplannedFleets + ' fleet move' + (unplannedFleets > 1 ? 's' : ''));
+			if (unplannedArmies > 0) parts.push(unplannedArmies + ' army move' + (unplannedArmies > 1 ? 's' : ''));
+			return parts.length > 0 ? 'Plan ' + parts.join(' and ') + ' first' : '';
+		}
+
+		// Peace stop is on a fleet — check fleets up to peaceStop.index
+		let unplannedFleets = 0;
+		for (let i = 0; i <= peaceStop.index; i++) {
+			if (!this.state.fleetPlans[i].dest) unplannedFleets++;
+		}
+		if (unplannedFleets > 0)
+			return 'Plan ' + unplannedFleets + ' fleet move' + (unplannedFleets > 1 ? 's' : '') + ' first';
+		return '';
+	}
+
 	renderInlinePeaceSubmit(phase, index) {
 		let plan = phase === 'fleet' ? this.state.fleetPlans[index] : this.state.armyPlans[index];
 		let dest = plan.dest;
@@ -890,6 +928,20 @@ class ManeuverPlannerApp extends React.Component {
 		}
 
 		let canSubmit = this.allPlanned();
+		let peaceStop = this.findFirstPeaceStop();
+		let blockedReason = canSubmit ? '' : this.getBlockedReason(peaceStop);
+
+		let peaceButton = (
+			<Button
+				type="primary"
+				style={{ marginTop: 6, background: '#fa8c16', borderColor: '#fa8c16' }}
+				loading={this.state.submitting}
+				disabled={!canSubmit}
+				onClick={() => this.submit()}
+			>
+				Propose Peace at {dest}
+			</Button>
+		);
 
 		return (
 			<div
@@ -907,15 +959,14 @@ class ManeuverPlannerApp extends React.Component {
 						{info}
 					</div>
 				))}
-				<Button
-					type="primary"
-					style={{ marginTop: 6, background: '#fa8c16', borderColor: '#fa8c16' }}
-					loading={this.state.submitting}
-					disabled={!canSubmit}
-					onClick={() => this.submit()}
-				>
-					Propose Peace at {dest}
-				</Button>
+				{blockedReason ? (
+					<Tooltip title={blockedReason}>
+						{/* Wrap in span so Tooltip works on disabled button */}
+						<span>{peaceButton}</span>
+					</Tooltip>
+				) : (
+					peaceButton
+				)}
 			</div>
 		);
 	}
