@@ -88,7 +88,7 @@ class LoginApp extends React.Component {
 
 	buildTimer() {
 		let t = [];
-		if (this.state.timer.timed) {
+		if (this.state.timer.timed && this.state.time > 0) {
 			let ti = 0;
 			if (this.state.timer.pause) {
 				ti = this.state.timer.pause - this.state.timer.lastMove;
