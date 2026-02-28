@@ -4292,3 +4292,1272 @@ describe('submitBatchManeuver', () => {
 		errorSpy.mockRestore();
 	});
 });
+
+// ===========================================================================
+// executeProposal — Maneuver war / peace / hostile / tax-chip execution
+// ===========================================================================
+describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
+	/** Adds territory data to the mock DB for maneuver tests */
+	function addTerritorySetup(territories) {
+		mockDbData['setups/standard'].territories = territories;
+		mockDbData.setups.standard.territories = territories;
+	}
+
+	// -----------------------------------------------------------------------
+	// War action: destroying an enemy fleet (via fleet attack)
+	// -----------------------------------------------------------------------
+	test('fleet war action destroys an enemy fleet and consuming fleet is removed', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [
+			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'East Med', hostile: true },
+		];
+		gs.countryInfo.Austria.armies = [];
+		// Italy has a fleet at West Med that will be attacked
+		gs.countryInfo.Italy.fleets = [
+			{ territory: 'West Med', hostile: true },
+			{ territory: 'Tyrrhenian Sea', hostile: true },
+		];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			'Adriatic Sea': {},
+			'West Med': {},
+			'East Med': {},
+			'Tyrrhenian Sea': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [
+				['Adriatic Sea', 'West Med', 'war Italy fleet'],
+				['East Med', 'Tyrrhenian Sea', ''],
+			],
+			armyMan: [],
+		};
+
+		await executeProposal(gs, context);
+
+		// Italy's fleet at West Med should be destroyed
+		expect(gs.countryInfo.Italy.fleets).toEqual([{ territory: 'Tyrrhenian Sea', hostile: true }]);
+		// Austria's attacking fleet is consumed (war fleet does not survive),
+		// only the non-war fleet remains
+		expect(gs.countryInfo.Austria.fleets).toEqual([{ territory: 'Tyrrhenian Sea', hostile: true }]);
+	});
+
+	// -----------------------------------------------------------------------
+	// War action: destroying an enemy army (via army attack)
+	// -----------------------------------------------------------------------
+	test('army war action destroys an enemy army and consuming army is removed', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+		];
+		// Italy has an army at Venice that will be attacked
+		gs.countryInfo.Italy.armies = [
+			{ territory: 'Venice', hostile: true },
+			{ territory: 'Rome', hostile: true },
+		];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Venice: { country: 'Italy' },
+			Rome: { country: 'Italy' },
+			Trieste: { country: 'Austria' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [
+				['Vienna', 'Venice', 'war Italy army'],
+				['Budapest', 'Trieste', ''],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// Italy's army at Venice should be destroyed
+		expect(gs.countryInfo.Italy.armies).toEqual([{ territory: 'Rome', hostile: true }]);
+		// Austria's attacking army is consumed (war army does not survive),
+		// only the non-war army remains
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Trieste', hostile: true }]);
+	});
+
+	// -----------------------------------------------------------------------
+	// War action: army attacking an enemy fleet
+	// -----------------------------------------------------------------------
+	test('army war action can destroy an enemy fleet at a port', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		// France has a fleet at Marseilles that will be attacked by an army
+		gs.countryInfo.France.fleets = [{ territory: 'Marseilles', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Marseilles: { country: 'France', port: true },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Marseilles', 'war France fleet']],
+		};
+
+		await executeProposal(gs, context);
+
+		// France's fleet at Marseilles should be destroyed
+		expect(gs.countryInfo.France.fleets).toEqual([]);
+		// Austria's attacking army is consumed (war army does not survive)
+		expect(gs.countryInfo.Austria.armies).toEqual([]);
+	});
+
+	// -----------------------------------------------------------------------
+	// War action: fleet attacking an enemy army
+	// -----------------------------------------------------------------------
+	test('fleet war action can destroy an enemy army at a coastal territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.armies = [];
+		// Italy has an army at a coastal territory
+		gs.countryInfo.Italy.armies = [{ territory: 'Venice', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			'Adriatic Sea': {},
+			Venice: { country: 'Italy', port: true },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [['Adriatic Sea', 'Venice', 'war Italy army']],
+			armyMan: [],
+		};
+
+		await executeProposal(gs, context);
+
+		// Italy's army at Venice should be destroyed
+		expect(gs.countryInfo.Italy.armies).toEqual([]);
+		// Austria's attacking fleet is consumed (war fleet does not survive)
+		expect(gs.countryInfo.Austria.fleets).toEqual([]);
+	});
+
+	// -----------------------------------------------------------------------
+	// Blow-up action: destroying a factory
+	// -----------------------------------------------------------------------
+	test('blow up action removes factory and consumes 3 armies', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Galicia', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Trieste', hostile: true },
+		];
+		gs.countryInfo.France.factories = ['Paris', 'Marseilles'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Galicia: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Vienna: { country: 'Austria' },
+			Trieste: { country: 'Austria' },
+			Paris: { country: 'France' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [
+				['Galicia', 'Paris', 'blow up France'],
+				['Budapest', 'Paris', ''],
+				['Vienna', 'Paris', ''],
+				['Trieste', 'Budapest', ''],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// Paris factory should be destroyed, Marseilles remains
+		expect(gs.countryInfo.France.factories).toEqual(['Marseilles']);
+		// 3 armies at Paris are consumed (1 blow-up + 2 more), only the army at Budapest survives
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Budapest', hostile: true }]);
+	});
+
+	// -----------------------------------------------------------------------
+	// Peace action: peaceful entry into foreign territory
+	// -----------------------------------------------------------------------
+	test('peace action sets hostile=false for army entering foreign territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Venice: { country: 'Italy' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Venice', 'peace']],
+		};
+
+		await executeProposal(gs, context);
+
+		// Army should be at Venice with hostile = false (peaceful entry)
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Venice', hostile: false }]);
+	});
+
+	test('peace action to own territory keeps hostile=true', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Budapest', 'peace']],
+		};
+
+		await executeProposal(gs, context);
+
+		// Moving to own territory with peace action: hostile stays true
+		// because the code checks territorySetup.country !== country
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Budapest', hostile: true }]);
+	});
+
+	// -----------------------------------------------------------------------
+	// Hostile action: hostile entry into foreign territory
+	// -----------------------------------------------------------------------
+	test('hostile action keeps hostile=true for army entering foreign territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Venice: { country: 'Italy' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Venice', 'hostile']],
+		};
+
+		await executeProposal(gs, context);
+
+		// Army should be at Venice with hostile = true (hostile entry)
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Venice', hostile: true }]);
+	});
+
+	// -----------------------------------------------------------------------
+	// Tax chip placement on unowned territory during normal fleet move
+	// -----------------------------------------------------------------------
+	test('fleet normal move places tax chip on unowned (neutral) territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.armies = [];
+		gs.countryInfo.Austria.taxChips = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		// West Med has no country (sea / neutral) so a tax chip should be placed
+		addTerritorySetup({
+			'Adriatic Sea': {},
+			'West Med': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [['Adriatic Sea', 'West Med', '']],
+			armyMan: [],
+		};
+
+		await executeProposal(gs, context);
+
+		// Tax chip should be placed at West Med
+		expect(gs.countryInfo.Austria.taxChips).toContain('West Med');
+		// Fleet should be at the destination
+		expect(gs.countryInfo.Austria.fleets).toEqual([{ territory: 'West Med', hostile: true }]);
+	});
+
+	test('fleet normal move does NOT place tax chip on owned territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.armies = [];
+		gs.countryInfo.Austria.taxChips = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		// Venice belongs to Italy, so no tax chip placed
+		addTerritorySetup({
+			'Adriatic Sea': {},
+			Venice: { country: 'Italy' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [['Adriatic Sea', 'Venice', '']],
+			armyMan: [],
+		};
+
+		await executeProposal(gs, context);
+
+		// No tax chip should be placed on owned territory
+		expect(gs.countryInfo.Austria.taxChips).not.toContain('Venice');
+	});
+
+	// -----------------------------------------------------------------------
+	// Tax chip placement on unowned territory during normal army move
+	// -----------------------------------------------------------------------
+	test('army normal move places tax chip on unowned (neutral) territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.taxChips = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		// "Neutral Land" has no country so a tax chip should be placed
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			'Neutral Land': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Neutral Land', '']],
+		};
+
+		await executeProposal(gs, context);
+
+		// Tax chip should be placed at the neutral territory
+		expect(gs.countryInfo.Austria.taxChips).toContain('Neutral Land');
+		// Army should be at the destination
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Neutral Land', hostile: true }]);
+	});
+
+	test('army normal move does NOT place tax chip on owned territory', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.taxChips = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Venice: { country: 'Italy' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Venice', '']],
+		};
+
+		await executeProposal(gs, context);
+
+		// No tax chip should be placed on owned territory
+		expect(gs.countryInfo.Austria.taxChips).not.toContain('Venice');
+	});
+
+	// -----------------------------------------------------------------------
+	// Tax chip removal: normal move removes other country's tax chip
+	// -----------------------------------------------------------------------
+	test('normal move removes other country tax chip at destination', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.taxChips = [];
+		// Italy has a tax chip at the neutral territory
+		gs.countryInfo.Italy.taxChips = ['Neutral Land'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			'Neutral Land': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Neutral Land', '']],
+		};
+
+		await executeProposal(gs, context);
+
+		// Italy's tax chip at Neutral Land should be removed
+		expect(gs.countryInfo.Italy.taxChips).not.toContain('Neutral Land');
+		// Austria should now have a tax chip at Neutral Land
+		expect(gs.countryInfo.Austria.taxChips).toContain('Neutral Land');
+	});
+
+	// -----------------------------------------------------------------------
+	// Normal move (empty action code) — unit moves without conflict
+	// -----------------------------------------------------------------------
+	test('normal fleet move (empty action) moves fleet to destination', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [
+			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'East Med', hostile: true },
+		];
+		gs.countryInfo.Austria.armies = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			'Adriatic Sea': {},
+			'East Med': {},
+			'West Med': {},
+			'Ionian Sea': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [
+				['Adriatic Sea', 'West Med', ''],
+				['East Med', 'Ionian Sea', ''],
+			],
+			armyMan: [],
+		};
+
+		await executeProposal(gs, context);
+
+		// Both fleets should be at their destinations
+		expect(gs.countryInfo.Austria.fleets).toEqual([
+			{ territory: 'West Med', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+		]);
+	});
+
+	test('normal army move (empty action) moves army to destination', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+		];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Trieste: { country: 'Austria' },
+			Galicia: { country: 'Austria' },
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [
+				['Vienna', 'Trieste', ''],
+				['Budapest', 'Galicia', ''],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// Both armies should be at their destinations
+		const territories = gs.countryInfo.Austria.armies.map((a) => a.territory).sort();
+		expect(territories).toEqual(['Galicia', 'Trieste']);
+		// All should be hostile since they moved to own territory
+		gs.countryInfo.Austria.armies.forEach((a) => {
+			expect(a.hostile).toBe(true);
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// Combined scenario: war + peace + hostile + normal in one maneuver
+	// -----------------------------------------------------------------------
+	test('mixed maneuver: war destroys enemy, peace enters peacefully, hostile enters hostilely, normal moves', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+			{ territory: 'Galicia', hostile: true },
+			{ territory: 'Trieste', hostile: true },
+		];
+		gs.countryInfo.Austria.taxChips = [];
+		// Italy has an army at Venice
+		gs.countryInfo.Italy.armies = [{ territory: 'Venice', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Galicia: { country: 'Austria' },
+			Trieste: { country: 'Austria' },
+			Venice: { country: 'Italy' },
+			Rome: { country: 'Italy' },
+			'Neutral Land': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [
+				['Vienna', 'Venice', 'war Italy army'], // war: destroy enemy, consuming army
+				['Budapest', 'Rome', 'peace'], // peace: enter foreign territory peacefully
+				['Galicia', 'Venice', 'hostile'], // hostile: enter foreign territory hostilely
+				['Trieste', 'Neutral Land', ''], // normal move to neutral territory
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// Italy's army at Venice should be destroyed by war
+		expect(gs.countryInfo.Italy.armies).toEqual([]);
+		// Austria should have 3 surviving armies (war army consumed)
+		expect(gs.countryInfo.Austria.armies).toHaveLength(3);
+		// Peace army at Rome should have hostile=false
+		const romeArmy = gs.countryInfo.Austria.armies.find((a) => a.territory === 'Rome');
+		expect(romeArmy).toBeDefined();
+		expect(romeArmy.hostile).toBe(false);
+		// Hostile army at Venice should have hostile=true
+		const veniceArmy = gs.countryInfo.Austria.armies.find((a) => a.territory === 'Venice');
+		expect(veniceArmy).toBeDefined();
+		expect(veniceArmy.hostile).toBe(true);
+		// Normal army at Neutral Land should have hostile=true and tax chip placed
+		const neutralArmy = gs.countryInfo.Austria.armies.find((a) => a.territory === 'Neutral Land');
+		expect(neutralArmy).toBeDefined();
+		expect(neutralArmy.hostile).toBe(true);
+		expect(gs.countryInfo.Austria.taxChips).toContain('Neutral Land');
+	});
+
+	// -----------------------------------------------------------------------
+	// War does NOT place tax chips (only normal moves do)
+	// -----------------------------------------------------------------------
+	test('war action does not place a tax chip at the destination', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.taxChips = [];
+		gs.countryInfo.Italy.armies = [{ territory: 'Neutral Land', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			'Neutral Land': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Neutral Land', 'war Italy army']],
+		};
+
+		await executeProposal(gs, context);
+
+		// War action should not place tax chip (only normal moves place tax chips)
+		expect(gs.countryInfo.Austria.taxChips).not.toContain('Neutral Land');
+	});
+
+	// -----------------------------------------------------------------------
+	// Peace and hostile actions do NOT place tax chips
+	// -----------------------------------------------------------------------
+	test('peace action does not place tax chip at destination', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.taxChips = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			'Neutral Land': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Neutral Land', 'peace']],
+		};
+
+		await executeProposal(gs, context);
+
+		// Peace action should not place tax chip (code only checks !army[2] for tax chips)
+		expect(gs.countryInfo.Austria.taxChips).not.toContain('Neutral Land');
+	});
+
+	test('hostile action does not place tax chip at destination', async () => {
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.taxChips = [];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			'Neutral Land': {},
+		});
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Neutral Land', 'hostile']],
+		};
+
+		await executeProposal(gs, context);
+
+		// Hostile action should not place tax chip
+		expect(gs.countryInfo.Austria.taxChips).not.toContain('Neutral Land');
+	});
+});
+
+// ===========================================================================
+// Swiss Banking — end-to-end flow
+// ===========================================================================
+
+describe('Swiss Banking — Punt Buy adds player to swissSet', () => {
+	test('punting creates swissSet if null and adds the player', async () => {
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.swissSet = null;
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = true; // Bob still has a swiss buy
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Punt Buy',
+			buyStock: null,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Alice did not buy any stock
+		expect(written.playerInfo.Alice.stock).toEqual([]);
+		// Alice's swiss flag cleared (she just acted)
+		expect(written.playerInfo.Alice.swiss).toBe(false);
+		// Bob (swiss=true) should be activated as next buyer
+		expect(written.playerInfo.Bob.myTurn).toBe(true);
+	});
+
+	test('punting appends to existing swissSet', async () => {
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.swissSet = ['Bob'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = true;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Punt Buy',
+			buyStock: null,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Alice should not get stock
+		expect(written.playerInfo.Alice.stock).toEqual([]);
+	});
+
+	test('punting does not change leadership or offLimits', async () => {
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = true;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Punt Buy',
+			buyStock: null,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// offLimits should not be changed (no stock purchased)
+		expect(written.countryInfo.Austria.offLimits).toBe(false);
+		// Leadership unchanged
+		expect(written.countryInfo.Austria.leadership).toEqual(['Alice', 'Bob']);
+	});
+});
+
+describe('Swiss Banking — next swiss buyer selection', () => {
+	test('after buying, hands turn to the next player with swiss=true', async () => {
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = true;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		expect(written.playerInfo.Alice.myTurn).toBe(false);
+		expect(written.playerInfo.Alice.swiss).toBe(false);
+		expect(written.playerInfo.Bob.myTurn).toBe(true);
+		expect(written.playerInfo.Bob.swiss).toBe(true);
+	});
+
+	test('skips players whose swiss=false when searching for next buyer', async () => {
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		// Alice buys, Bob is NOT swiss, Alice is last buyer
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = false;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// No more swiss buyers: this is lastBuy=true, round ends
+		expect(written.playerInfo.Alice.myTurn).toBe(false);
+		// offLimits reset (lastBuy path)
+		expect(written.countryInfo.Austria.offLimits).toBe(false);
+		// swissSet is reset
+		expect(written.swissSet).toBeNull();
+		// Mode transitions to proposal for the next country (incrementCountry called)
+		expect(written.mode).toBe('proposal');
+	});
+});
+
+describe('Swiss Banking — end of investor round activates swiss players', () => {
+	test('lastBuy activates swissSet players and permSwiss players for swiss buys', async () => {
+		const helper = require('./helper.js');
+		// Make Charlie a permanent swiss banker (not in any leadership)
+		helper.getPermSwiss.mockReturnValueOnce(['Charlie']);
+		helper.getPlayersInOrder.mockResolvedValueOnce(['Alice', 'Bob', 'Charlie']);
+
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		// Add Charlie as a player
+		gs.playerInfo.Charlie = {
+			money: 10,
+			myTurn: false,
+			investor: false,
+			order: 3,
+			swiss: false,
+			stock: [],
+			scoreModifier: 0,
+			email: '',
+			banked: 60,
+		};
+		// swissSet has Bob (he punted earlier)
+		gs.swissSet = ['Bob'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = false; // no swiss flag yet, he's in swissSet
+		gs.playerInfo.Charlie.swiss = false;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// lastBuy path: swissSet and permSwiss both get swiss=true
+		expect(written.playerInfo.Bob.swiss).toBe(true); // from swissSet
+		expect(written.playerInfo.Charlie.swiss).toBe(true); // from permSwiss
+		// swissSet is reset to null
+		expect(written.swissSet).toBeNull();
+	});
+
+	test('lastBuy moves investor card to next player', async () => {
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = false;
+		gs.playerInfo.Bob.investor = false;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Investor card should move from Alice (order 1) to Bob (order 2)
+		expect(written.playerInfo.Alice.investor).toBe(false);
+		expect(written.playerInfo.Bob.investor).toBe(true);
+	});
+
+	test('lastBuy resets offLimits for all countries', async () => {
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = false;
+		// Mark some countries as offLimits from earlier buys
+		gs.countryInfo.Austria.offLimits = true;
+		gs.countryInfo.Italy.offLimits = true;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'France',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// All offLimits flags should be reset
+		expect(written.countryInfo.Austria.offLimits).toBe(false);
+		expect(written.countryInfo.Italy.offLimits).toBe(false);
+		expect(written.countryInfo.France.offLimits).toBe(false);
+	});
+});
+
+describe('Swiss Banking — permanent swiss (getPermSwiss)', () => {
+	test('player not in any leadership gets swiss=true at end of investor round', async () => {
+		const helper = require('./helper.js');
+		helper.getPermSwiss.mockReturnValueOnce(['Bob']);
+
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		// Alice is the only buyer and investor; Bob has no leadership roles
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = false;
+		gs.swissSet = null;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Bob is permanent swiss -> gets swiss=true
+		expect(written.playerInfo.Bob.swiss).toBe(true);
+		// Alice was not in permSwiss, and didn't punt, so swiss stays false
+		expect(written.playerInfo.Alice.swiss).toBe(false);
+	});
+
+	test('permSwiss players get swiss even if they did not punt', async () => {
+		const helper = require('./helper.js');
+		helper.getPermSwiss.mockReturnValueOnce(['Alice', 'Bob']);
+
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = false;
+		gs.swissSet = null;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Both Alice and Bob are permSwiss -> both get swiss=true
+		expect(written.playerInfo.Alice.swiss).toBe(true);
+		expect(written.playerInfo.Bob.swiss).toBe(true);
+	});
+});
+
+describe('Swiss Banking — temporary swiss (punt this round)', () => {
+	test('player who punted gets swiss=true in the next swiss activation', async () => {
+		const helper = require('./helper.js');
+		helper.getPermSwiss.mockReturnValueOnce([]);
+
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		// Bob punted earlier and is in swissSet
+		gs.swissSet = ['Bob'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.swiss = true;
+		gs.playerInfo.Alice.investor = true;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.swiss = false;
+		setupMockDb(gs);
+
+		// Alice is last buyer (Bob has swiss=false), triggers lastBuy
+		await submitBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Bob was in swissSet from punting -> gets swiss=true
+		expect(written.playerInfo.Bob.swiss).toBe(true);
+		expect(written.swissSet).toBeNull();
+	});
+
+	test('punter and permSwiss both get swiss=true at end of round', async () => {
+		const helper = require('./helper.js');
+		helper.getPermSwiss.mockReturnValueOnce(['Charlie']);
+		helper.getPlayersInOrder.mockResolvedValueOnce(['Alice', 'Bob', 'Charlie']);
+
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.playerInfo.Charlie = {
+			money: 10,
+			myTurn: false,
+			investor: false,
+			order: 3,
+			swiss: false,
+			stock: [],
+			scoreModifier: 0,
+			email: '',
+			banked: 60,
+		};
+		// Alice punted, she's in swissSet
+		gs.swissSet = ['Alice'];
+		gs.playerInfo.Alice.myTurn = false;
+		gs.playerInfo.Alice.swiss = false;
+		gs.playerInfo.Alice.investor = false;
+		// Bob is current buyer and investor, last one with swiss
+		gs.playerInfo.Bob.myTurn = true;
+		gs.playerInfo.Bob.swiss = true;
+		gs.playerInfo.Bob.investor = true;
+		gs.playerInfo.Bob.money = 20;
+		gs.playerInfo.Charlie.swiss = false;
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Bob',
+			buyCountry: 'Austria',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Alice was in swissSet (punted) -> gets swiss=true
+		expect(written.playerInfo.Alice.swiss).toBe(true);
+		// Charlie is permSwiss -> gets swiss=true
+		expect(written.playerInfo.Charlie.swiss).toBe(true);
+		// Bob just bought, he's neither in swissSet nor permSwiss
+		expect(written.playerInfo.Bob.swiss).toBe(false);
+		expect(written.swissSet).toBeNull();
+	});
+});
+
+describe('Swiss Banking — investor passed triggers buy mode with swiss setup', () => {
+	test('when investor is passed on rondel, mode becomes buy and investor holder gets bonus', async () => {
+		const helper = require('./helper.js');
+		helper.investorPassed.mockResolvedValueOnce(true);
+
+		const gs = createMockGameState({
+			mode: 'proposal',
+			countryUp: 'Austria',
+		});
+		gs.countryInfo.Austria.wheelSpot = 'L-Produce';
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.investor = false;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.investor = true;
+		gs.playerInfo.Bob.money = 15;
+		setupMockDb(gs);
+
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'Investor',
+		};
+
+		await submitProposal(context);
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Mode transitions to buy
+		expect(written.mode).toBe('buy');
+		// Investor holder (Bob) gets $2 investor bonus + $1 from the mocked investor payout
+		// (getInvestorPayout mock returns [['Alice', 2], ['Bob', 1]])
+		expect(written.playerInfo.Bob.money).toBe(15 + 2 + 1);
+		expect(written.playerInfo.Bob.myTurn).toBe(true);
+	});
+});
+
+describe('Swiss Banking — swissSet tracking across multiple punts', () => {
+	test('multiple players can punt and all end up in swissSet', async () => {
+		const helper = require('./helper.js');
+		helper.getPermSwiss.mockReturnValueOnce([]);
+		helper.getPlayersInOrder.mockResolvedValueOnce(['Alice', 'Bob', 'Charlie']);
+
+		const gs = createMockGameState({ mode: 'buy', countryUp: 'Austria' });
+		gs.playerInfo.Charlie = {
+			money: 10,
+			myTurn: false,
+			investor: false,
+			order: 3,
+			swiss: false,
+			stock: [],
+			scoreModifier: 0,
+			email: '',
+			banked: 60,
+		};
+		// Alice already punted; Bob punts now; Charlie is next swiss buyer
+		gs.swissSet = ['Alice'];
+		gs.playerInfo.Alice.myTurn = false;
+		gs.playerInfo.Alice.swiss = false;
+		gs.playerInfo.Alice.investor = false;
+		gs.playerInfo.Bob.myTurn = true;
+		gs.playerInfo.Bob.swiss = true;
+		gs.playerInfo.Bob.investor = true;
+		gs.playerInfo.Bob.money = 20;
+		gs.playerInfo.Charlie.swiss = true; // Charlie still has a swiss buy
+		setupMockDb(gs);
+
+		await submitBuy({
+			game: 'testGame',
+			name: 'Bob',
+			buyCountry: 'Punt Buy',
+			buyStock: null,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Bob punted, so he does not get stock
+		expect(written.playerInfo.Bob.stock).toEqual([]);
+		// Charlie's swiss flag means he's the next buyer
+		expect(written.playerInfo.Charlie.myTurn).toBe(true);
+		// Bob's swiss flag is cleared after acting
+		expect(written.playerInfo.Bob.swiss).toBe(false);
+	});
+});
+
+describe('Swiss Banking — doneBuying sets up swiss for initial bid rounds', () => {
+	test('after initial bid round finishes on Russia, permSwiss players are added to swissSet', async () => {
+		const helper = require('./helper.js');
+		// Simulate a 3-player game where Charlie has no leadership
+		helper.getPermSwiss.mockReturnValueOnce(['Charlie']);
+		helper.getStockBelow.mockResolvedValue(3);
+		helper.getPlayersInOrder.mockResolvedValueOnce(['Alice', 'Bob', 'Charlie']);
+
+		const gs = createMockGameState({
+			mode: 'buy-bid',
+			countryUp: 'Russia',
+		});
+		gs.playerInfo.Charlie = {
+			money: 10,
+			myTurn: false,
+			investor: false,
+			order: 3,
+			swiss: false,
+			stock: [],
+			scoreModifier: 0,
+			email: '',
+			banked: 60,
+		};
+		gs.bidBuyOrder = ['Alice'];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Alice.bid = 6;
+		gs.playerInfo.Alice.money = 20;
+		gs.playerInfo.Bob.myTurn = false;
+		gs.playerInfo.Bob.bid = 4;
+		gs.playerInfo.Charlie.bid = undefined;
+		setupMockDb(gs);
+
+		// bidBuy triggers the purchase and calls doneBuying when Russia's round ends
+		await bidBuy({
+			game: 'testGame',
+			name: 'Alice',
+			buyCountry: 'Russia',
+			buyStock: 3,
+			returnStock: 'None',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// After doneBuying on Russia, permSwiss should have been processed
+		// The game should have moved past buy mode
+		expect(written.mode).toBe('proposal');
+	});
+});

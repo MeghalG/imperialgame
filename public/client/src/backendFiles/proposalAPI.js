@@ -523,17 +523,52 @@ async function getArmyPeaceOptions(context) {
 		d[key].push(MANEUVER_ACTIONS.PEACE);
 
 		if (territorySetup[key].country && territorySetup[key].country !== country) {
-			d[key].push(MANEUVER_ACTIONS.HOSTILE);
+			// Check if this territory holds the target country's last operational factory
+			// (a factory is "saturated"/non-operational if a hostile army from another country sits on it)
+			let targetName = territorySetup[key].country;
+			let isLastFactory = false;
+			if (gameState.countryInfo[targetName].factories.includes(key)) {
+				let opCount = 0;
+				for (let f of gameState.countryInfo[targetName].factories) {
+					let occ = false;
+					for (let c in gameState.countryInfo) {
+						if (c !== targetName) {
+							for (let a of gameState.countryInfo[c].armies || []) {
+								if (a.hostile && a.territory === f) occ = true;
+							}
+						}
+					}
+					if (!occ) opCount++;
+				}
+				if (opCount <= 1) isLastFactory = true;
+			}
+			if (!isLastFactory) {
+				d[key].push(MANEUVER_ACTIONS.HOSTILE);
+			}
 		}
 		if (
 			territorySetup[key].country &&
 			territorySetup[key].country !== country &&
 			gameState.countryInfo[territorySetup[key].country].factories.includes(key)
 		) {
-			// Blow up requires 3 armies at the territory
+			// Blow up requires 3 armies at the territory AND target must have >1 operational factory
+			let targetName = territorySetup[key].country;
+			let targetFactories = gameState.countryInfo[targetName].factories;
+			let operationalCount = 0;
+			for (let f of targetFactories) {
+				let occupied = false;
+				for (let c in gameState.countryInfo) {
+					if (c !== targetName) {
+						for (let a of gameState.countryInfo[c].armies || []) {
+							if (a.hostile && a.territory === f) occupied = true;
+						}
+					}
+				}
+				if (!occupied) operationalCount++;
+			}
 			let armiesAssigned = (context.armyMan || []).filter((m) => m[1] === key).length;
 			let ownArmiesThere = (gameState.countryInfo[country].armies || []).filter((a) => a.territory === key).length;
-			if (armiesAssigned + ownArmiesThere + 1 >= 3) {
+			if (operationalCount > 1 && armiesAssigned + ownArmiesThere + 1 >= 3) {
 				d[key].push('blow up ' + territorySetup[key].country);
 			}
 		}
@@ -890,13 +925,46 @@ async function getCurrentUnitActionOptions(context) {
 		} else if (isForeign) {
 			// No enemy units but foreign territory: peace, hostile, or blow up
 			actions.push(MANEUVER_ACTIONS.PEACE);
-			actions.push(MANEUVER_ACTIONS.HOSTILE);
-			// Blow up factory (requires 3 armies: current + 2 already at destination)
-			if (virtualCountryInfo[territorySetup[dest].country].factories.includes(dest)) {
+			// Check if this territory holds the target country's last operational factory
+			// (a factory is "saturated"/non-operational if a hostile army from another country sits on it)
+			let targetCountryName = territorySetup[dest].country;
+			let isLastFactory = false;
+			if (virtualCountryInfo[targetCountryName].factories.includes(dest)) {
+				let opCount = 0;
+				for (let f of virtualCountryInfo[targetCountryName].factories) {
+					let occ = false;
+					for (let c in virtualCountryInfo) {
+						if (c !== targetCountryName) {
+							for (let a of virtualCountryInfo[c].armies || []) {
+								if (a.hostile && a.territory === f) occ = true;
+							}
+						}
+					}
+					if (!occ) opCount++;
+				}
+				if (opCount <= 1) isLastFactory = true;
+			}
+			if (!isLastFactory) {
+				actions.push(MANEUVER_ACTIONS.HOSTILE);
+			}
+			// Blow up factory (requires 3 armies AND target must have >1 operational factory)
+			if (virtualCountryInfo[targetCountryName].factories.includes(dest)) {
+				let operationalCount = 0;
+				for (let f of virtualCountryInfo[targetCountryName].factories) {
+					let occupied = false;
+					for (let c in virtualCountryInfo) {
+						if (c !== targetCountryName) {
+							for (let a of virtualCountryInfo[c].armies || []) {
+								if (a.hostile && a.territory === f) occupied = true;
+							}
+						}
+					}
+					if (!occupied) operationalCount++;
+				}
 				let friendlyArmiesAtDest = (virtualCountryInfo[country].armies || []).filter(
 					(a) => a.territory === dest
 				).length;
-				if (friendlyArmiesAtDest + 1 >= 3) {
+				if (operationalCount > 1 && friendlyArmiesAtDest + 1 >= 3) {
 					actions.push('blow up ' + territorySetup[dest].country);
 				}
 			}

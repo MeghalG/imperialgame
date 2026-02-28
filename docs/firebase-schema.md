@@ -421,9 +421,18 @@ setups/{setupName}/
   wheelCoords/                 # Map coordinates for drawing the rondel on the map
     {actionName}: [x, y]       # Pixel coordinates for each wheel position
 
-  stockCosts: number[]         # Array where index = stock denomination, value = price
-                               # e.g. [0, 2, 4, 6, 9, 12, 16, 21, 27]
-                               # stockCosts[0] = 0 (no stock), stockCosts[1] = 2, etc.
+  stockCosts: number[]         # Array where index = stock denomination, value = price in millions
+                               # These values are defined entirely in Firebase setup data, not
+                               # hardcoded in code. The code reads them at runtime via
+                               # readSetup(gameState.setup + '/stockCosts').
+                               #
+                               # Index 0 is unused (stock denominations are 1-indexed, so
+                               # denomination 1 maps to stockCosts[1], denomination 2 to
+                               # stockCosts[2], etc.). Index 0 is conventionally 0.
+                               #
+                               # Example: [0, 2, 4, 6, 9, 12, 16, 21, 27]
+                               # Note: The exact values depend on the setup stored in Firebase
+                               # and may vary between setups.
 
   countries/
     {country}/

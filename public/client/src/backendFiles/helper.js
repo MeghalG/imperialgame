@@ -433,9 +433,12 @@ async function investorPassed(oldWheel, newWheel, context) {
  * Determines the winning player by finding the one with the highest victory score.
  * Uses computeScore to calculate each player's total score.
  *
- * Tiebreaking: if two players have the same score, the one with higher cash value
- * (computeCash) wins. If still tied, the one with more raw money wins.
- * If all tiebreakers are equal, the first player found wins (iteration order).
+ * Tiebreaking (official Imperial rules):
+ * 1. If players are tied on total score, find the nation(s) with the most power
+ *    points. The tied player with higher total stock denominations in those top
+ *    nation(s) wins.
+ * 2. If still tied, the player with more cash on hand wins.
+ * 3. If all tiebreakers are equal, the first player found wins (iteration order).
  *
  * Called from: turnAPI.getTitle when the game is over to display the winner.
  *
@@ -444,25 +447,63 @@ async function investorPassed(oldWheel, newWheel, context) {
  */
 function getWinner(gameState) {
 	let maxScore = -Infinity;
-	let maxCash = -Infinity;
-	let maxMoney = -Infinity;
-	let player = '';
+	let tiedPlayers = [];
+	// First pass: find the max score and all players who have it
 	for (let key in gameState.playerInfo) {
 		let score = computeScore(gameState.playerInfo[key], gameState.countryInfo);
-		let cash = computeCash(gameState.playerInfo[key], gameState.countryInfo);
-		let money = gameState.playerInfo[key].money;
-		if (
-			score > maxScore ||
-			(score === maxScore && cash > maxCash) ||
-			(score === maxScore && cash === maxCash && money > maxMoney)
-		) {
+		if (score > maxScore) {
 			maxScore = score;
-			maxCash = cash;
-			maxMoney = money;
-			player = key;
+			tiedPlayers = [key];
+		} else if (score === maxScore) {
+			tiedPlayers.push(key);
 		}
 	}
-	return player;
+	if (tiedPlayers.length <= 1) return tiedPlayers[0] || '';
+
+	// Tiebreak 1: investment in the strongest nation(s)
+	// Find the max power points among all nations
+	let maxPoints = -Infinity;
+	for (let country in gameState.countryInfo) {
+		if (gameState.countryInfo[country].points > maxPoints) {
+			maxPoints = gameState.countryInfo[country].points;
+		}
+	}
+	// Find all nations with max points
+	let topNations = [];
+	for (let country in gameState.countryInfo) {
+		if (gameState.countryInfo[country].points === maxPoints) {
+			topNations.push(country);
+		}
+	}
+	// Sum each tied player's stock denominations in the top nation(s)
+	let bestInvestment = -Infinity;
+	let investmentTied = [];
+	for (let player of tiedPlayers) {
+		let investment = 0;
+		for (let s of gameState.playerInfo[player].stock || []) {
+			if (topNations.includes(s.country)) {
+				investment += s.stock;
+			}
+		}
+		if (investment > bestInvestment) {
+			bestInvestment = investment;
+			investmentTied = [player];
+		} else if (investment === bestInvestment) {
+			investmentTied.push(player);
+		}
+	}
+	if (investmentTied.length === 1) return investmentTied[0];
+
+	// Tiebreak 2: cash on hand
+	let bestMoney = -Infinity;
+	let winner = investmentTied[0];
+	for (let player of investmentTied) {
+		if (gameState.playerInfo[player].money > bestMoney) {
+			bestMoney = gameState.playerInfo[player].money;
+			winner = player;
+		}
+	}
+	return winner;
 }
 
 /**
