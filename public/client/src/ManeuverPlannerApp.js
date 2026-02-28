@@ -640,7 +640,7 @@ class ManeuverPlannerApp extends React.Component {
 							</span>
 						)}
 						{!isPlanned && !isActive && (
-							<span style={{ color: 'rgba(255,255,255,0.35)', marginLeft: 8 }}>\u2192 ?</span>
+							<span style={{ color: 'rgba(255,255,255,0.35)', marginLeft: 8 }}>{'\u2192'} ?</span>
 						)}
 					</span>
 
