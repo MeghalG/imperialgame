@@ -7,6 +7,7 @@ import HistoryApp from './HistoryApp.js';
 import RulesApp from './RulesApp.js';
 import UserContext from './UserContext.js';
 import { database } from './backendFiles/firebase.js';
+import { invalidateIfStale } from './backendFiles/stateCache.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 
 import { Tabs } from 'antd';
@@ -27,6 +28,7 @@ class GameApp extends React.Component {
 	componentDidMount() {
 		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
 		this.turnRef.on('value', (dataSnapshot) => {
+			invalidateIfStale(this.context.game, dataSnapshot.val());
 			this.makeTitle();
 		});
 	}

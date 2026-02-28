@@ -4,7 +4,7 @@ import { Select, Button, Card, List, Tag, Radio } from 'antd';
 import UserContext from './UserContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
-import { database } from './backendFiles/firebase.js';
+import { readGameState } from './backendFiles/stateCache.js';
 
 const { Option } = Select;
 
@@ -91,8 +91,7 @@ class ContinueManeuverApp extends React.Component {
 
 	async loadData() {
 		try {
-			let gameState = await database.ref('games/' + this.context.game).once('value');
-			gameState = gameState.val();
+			let gameState = await readGameState(this.context);
 			let cm = gameState.currentManeuver;
 			if (!cm) return;
 

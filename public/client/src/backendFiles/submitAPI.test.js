@@ -111,6 +111,7 @@ import {
 	completeManeuver,
 	executeProposal,
 } from './submitAPI.js';
+import { clearCache } from './stateCache.js';
 
 // ---- Helpers --------------------------------------------------------------
 
@@ -307,6 +308,7 @@ beforeEach(() => {
 	mockDbData = {};
 	mockSetData = {};
 	mockRemovedPaths = [];
+	clearCache();
 	jest.clearAllMocks();
 });
 
@@ -2458,6 +2460,7 @@ describe('submitManeuver — full maneuver flow', () => {
 		gs.countryInfo.Austria.fleets = [];
 		gs.countryInfo.Italy.gov = 'dictatorship';
 		gs.countryInfo.Italy.leadership = ['Bob'];
+		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: false }];
 		gs.currentManeuver = {
 			country: 'Austria',
 			player: 'Alice',
@@ -2505,6 +2508,7 @@ describe('submitManeuver — full maneuver flow', () => {
 		gs.countryInfo.Austria.fleets = [];
 		gs.countryInfo.Italy.gov = 'democracy';
 		gs.countryInfo.Italy.leadership = ['Bob', 'Alice'];
+		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: false }];
 		gs.playerInfo.Bob.stock = [{ country: 'Italy', stock: 3 }];
 		gs.playerInfo.Alice.stock = [{ country: 'Italy', stock: 2 }];
 		gs.currentManeuver = {
@@ -2545,6 +2549,53 @@ describe('submitManeuver — full maneuver flow', () => {
 		expect(written.playerInfo.Alice.myTurn).toBe(true);
 		// sameTurn must be false so all voters' TurnApp refreshes
 		expect(written.sameTurn).toBe(false);
+	});
+
+	test('peace to foreign territory with no enemy units skips peace vote', async () => {
+		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Italy.gov = 'dictatorship';
+		gs.countryInfo.Italy.leadership = ['Bob'];
+		// No Italian units at Rome — only factories might be there
+		gs.countryInfo.Italy.armies = [];
+		gs.countryInfo.Italy.fleets = [];
+		gs.currentManeuver = {
+			country: 'Austria',
+			player: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			phase: 'army',
+			unitIndex: 0,
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			completedFleetMoves: [],
+			completedArmyMoves: [],
+			returnMode: 'execute',
+			proposalSlot: 0,
+			pendingPeace: null,
+		};
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
+
+		await submitManeuver({
+			game: 'testGame',
+			name: 'Alice',
+			maneuverDest: 'Rome',
+			maneuverAction: 'peace',
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// No peace vote triggered — move was recorded directly
+		expect(written.currentManeuver).toBeNull(); // maneuver completed (only 1 army)
+		expect(written.peaceVote).toBeUndefined();
+		// Mode should not be peace-vote (it should have progressed past maneuver)
+		expect(written.mode).not.toBe('peace-vote');
 	});
 });
 

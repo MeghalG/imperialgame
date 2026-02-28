@@ -1,5 +1,5 @@
-import { database } from './firebase.js';
 import * as helper from './helper.js';
+import { readGameState } from './stateCache.js';
 import { MODES, GOV_TYPES } from '../gameConstants.js';
 
 /**
@@ -16,8 +16,7 @@ import { MODES, GOV_TYPES } from '../gameConstants.js';
  * @returns {Promise<string>} Human-readable turn status message
  */
 async function getTitle(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let mode = gameState.mode;
 	let country = gameState.countryUp;
 	let players = [];
@@ -102,13 +101,12 @@ async function getTitle(context) {
  */
 async function getTurnTitle(context) {
 	let name = context.name;
-	let players = await database.ref('games/' + context.game + '/playerInfo').once('value');
-	players = Object.keys(players.val());
+	let gameState = await readGameState(context);
+	let players = Object.keys(gameState.playerInfo);
 	if (!players.includes(name)) {
 		return 'Log in as a player to take your turn.';
 	}
-	let myTurn = await database.ref('games/' + context.game + '/playerInfo/' + name + '/myTurn').once('value');
-	myTurn = myTurn.val();
+	let myTurn = gameState.playerInfo[name].myTurn;
 	if (myTurn) {
 		return 'Take Your Turn.';
 	} else {
@@ -129,10 +127,9 @@ async function getTurnTitle(context) {
  * @returns {Promise<string>} The game mode string (e.g. "bid", "proposal") or "non-turn"
  */
 async function getMode(context) {
-	let mode = await database.ref('games/' + context.game + '/mode').once('value');
-	mode = mode.val();
-	let turn = await database.ref('games/' + context.game + '/playerInfo/' + context.name + '/myTurn').once('value');
-	turn = turn.val();
+	let gameState = await readGameState(context);
+	let mode = gameState.mode;
+	let turn = (gameState.playerInfo[context.name] || {}).myTurn;
 	if (context.name && turn) {
 		return mode;
 	} else {
@@ -141,29 +138,25 @@ async function getMode(context) {
 }
 
 /**
- * Retrieves the current turn ID from Firebase. The turn ID is an auto-incrementing counter
- * that changes each time a turn is submitted, allowing components to detect state changes
- * and re-render.
+ * Retrieves the current turn ID from the cached game state. The turn ID is an
+ * auto-incrementing counter that changes each time a turn is submitted, allowing
+ * components to detect state changes and re-render.
  *
  * Called from: GameApp to listen for turn changes and trigger UI updates.
- *
- * @caveat The original author noted: "probably update turnID at the end of submit methods
- *   and listen for them instead."
  *
  * @param {Object} context - UserContext with { game }
  * @param {string} context.game - The Firebase game ID
  * @returns {Promise<number>} The current turn ID number
  */
 async function getTurnID(context) {
-	let turnID = await database.ref('games/' + context.game + '/turnID').once('value');
-	turnID = turnID.val();
-	return turnID;
+	let gameState = await readGameState(context);
+	return gameState.turnID;
 }
 
 /**
- * Checks whether the current player can undo the last action. The undo field in Firebase
- * stores the name of the last player who submitted a turn. Only that player can undo.
- * Returns the player's name if they can undo, or false otherwise.
+ * Checks whether the current player can undo the last action. The undo field in the
+ * game state stores the name of the last player who submitted a turn. Only that player
+ * can undo. Returns the player's name if they can undo, or false otherwise.
  *
  * Called from: TurnApp to conditionally show the undo button.
  *
@@ -173,14 +166,14 @@ async function getTurnID(context) {
  * @returns {Promise<string|false>} The player's name if undo is available, or false
  */
 async function undoable(context) {
-	let undoPlayer = await database.ref('games/' + context.game + '/undo').once('value');
-	undoPlayer = undoPlayer.val();
+	let gameState = await readGameState(context);
+	let undoPlayer = gameState.undo;
 	return undoPlayer === context.name && context.name;
 }
 
 /**
  * Checks whether it is currently the player's turn. Returns the myTurn boolean from
- * the player's info in Firebase. Returns false if the player name or game ID is not set.
+ * the player's info. Returns false if the player name or game ID is not set.
  *
  * Called from: GameApp and other components to determine if the current player should
  * see active controls or a read-only view.
@@ -194,10 +187,47 @@ async function getMyTurn(context) {
 	if (!context.name || !context.game) {
 		return false;
 	}
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let myTurn = (gameState.playerInfo[context.name] || {}).myTurn;
 	return myTurn;
 }
 
-export { getTitle, getTurnTitle, getMode, getTurnID, undoable, getMyTurn };
+/**
+ * Consolidated turn state reader. Computes all values TurnApp needs from a single
+ * cached game state read, eliminating redundant Firebase calls.
+ *
+ * Called from: TurnApp.newTurn() instead of 4 separate turnAPI calls.
+ *
+ * @param {Object} context - UserContext with { game, name }
+ * @returns {Promise<{turnTitle: string, mode: string, undoable: string|false, turnID: number}>}
+ */
+async function getTurnState(context) {
+	let gameState = await readGameState(context);
+
+	// turnTitle
+	let name = context.name;
+	let players = Object.keys(gameState.playerInfo);
+	let turnTitle;
+	if (!players.includes(name)) {
+		turnTitle = 'Log in as a player to take your turn.';
+	} else if (gameState.playerInfo[name].myTurn) {
+		turnTitle = 'Take Your Turn.';
+	} else {
+		turnTitle = 'Not Your Turn.';
+	}
+
+	// mode
+	let turn = (gameState.playerInfo[context.name] || {}).myTurn;
+	let mode = context.name && turn ? gameState.mode : 'non-turn';
+
+	// undoable
+	let undoPlayer = gameState.undo;
+	let canUndo = undoPlayer === context.name && context.name;
+
+	// turnID
+	let turnID = gameState.turnID;
+
+	return { turnTitle, mode, undoable: canUndo, turnID };
+}
+
+export { getTitle, getTurnTitle, getMode, getTurnID, undoable, getMyTurn, getTurnState };

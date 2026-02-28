@@ -15,6 +15,7 @@ import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { database } from './backendFiles/firebase.js';
+import { invalidateIfStale } from './backendFiles/stateCache.js';
 
 class TurnApp extends React.Component {
 	constructor(props) {
@@ -29,12 +30,7 @@ class TurnApp extends React.Component {
 	}
 
 	async newTurn() {
-		let [turnTitle, mode, undoable, turnID] = await Promise.all([
-			turnAPI.getTurnTitle(this.context),
-			turnAPI.getMode(this.context),
-			turnAPI.undoable(this.context),
-			turnAPI.getTurnID(this.context),
-		]);
+		let { turnTitle, mode, undoable, turnID } = await turnAPI.getTurnState(this.context);
 		this.setState({ turnTitle: turnTitle, mode: mode, undoable: undoable, turnID: turnID });
 	}
 
@@ -42,6 +38,7 @@ class TurnApp extends React.Component {
 		this.newTurn();
 		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
 		this.turnRef.on('value', async (dataSnapshot) => {
+			invalidateIfStale(this.context.game, dataSnapshot.val());
 			this.newTurn();
 		});
 	}

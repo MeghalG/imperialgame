@@ -1,5 +1,6 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
+import { readGameState } from './stateCache.js';
 
 /**
  * Retrieves all existing game IDs from Firebase. Returns an empty array if no games exist.
@@ -30,9 +31,8 @@ async function getGameIDs() {
  * @returns {Promise<number>} The player's current money
  */
 async function getMoney(context) {
-	let money = await database.ref('games/' + context.game + '/playerInfo/' + context.name + '/money').once('value');
-	money = money.val();
-	return money;
+	let gameState = await readGameState(context);
+	return gameState.playerInfo[context.name].money;
 }
 /**
  * Retrieves the name of the country whose turn it currently is.
@@ -45,9 +45,8 @@ async function getMoney(context) {
  * @returns {Promise<string>} The name of the current country (e.g. "Austria")
  */
 async function getCountry(context) {
-	let country = await database.ref('games/' + context.game + '/countryUp').once('value');
-	country = country.val();
-	return country;
+	let gameState = await readGameState(context);
+	return gameState.countryUp;
 }
 
 /**
@@ -63,9 +62,8 @@ async function getCountry(context) {
  * @returns {Promise<number>} The player's current bid amount
  */
 async function getBid(context) {
-	let bid = await database.ref('games/' + context.game + '/playerInfo/' + context.name + '/bid').once('value');
-	bid = bid.val();
-	return bid;
+	let gameState = await readGameState(context);
+	return gameState.playerInfo[context.name].bid;
 }
 
 /**
@@ -84,17 +82,11 @@ async function getBid(context) {
  *   and the stock denomination value the bid covers
  */
 async function getStock(context) {
-	let t = {};
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
-	let country = await database.ref('games/' + context.game + '/countryUp').once('value');
-	country = country.val();
-	t['country'] = country;
-	let bid = await database.ref('games/' + context.game + '/playerInfo/' + context.name + '/bid').once('value');
-	bid = bid.val();
-	let value = await helper.getStockBelow(bid, countryInfo[country], context);
-	t['value'] = value;
-	return t;
+	let gameState = await readGameState(context);
+	let country = gameState.countryUp;
+	let bid = gameState.playerInfo[context.name].bid;
+	let value = await helper.getStockBelow(bid, gameState.countryInfo[country], context);
+	return { country: country, value: value };
 }
 
 /**
@@ -108,8 +100,7 @@ async function getStock(context) {
  * @returns {Promise<[string, string]>} Array of two proposal description strings
  */
 async function getVoteOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	return [gameState.voting['proposal 1'].proposal, gameState.voting['proposal 2'].proposal];
 }
 
@@ -126,8 +117,7 @@ async function getVoteOptions(context) {
  * @returns {Promise<GameState>} The complete game state object
  */
 async function getGameState(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	return gameState;
 }
 

@@ -80,6 +80,7 @@ import {
 } from './proposalAPI.js';
 
 import * as helper from './helper.js';
+import { clearCache } from './stateCache.js';
 
 // ---------------------------------------------------------------------------
 // Shared test fixtures
@@ -204,6 +205,7 @@ function buildMockDbData(overrides = {}) {
 
 beforeEach(() => {
 	mockDbData = buildMockDbData();
+	clearCache();
 	jest.clearAllMocks();
 
 	// Restore default mock implementations
@@ -1670,6 +1672,7 @@ describe('getVirtualState', () => {
 describe('getCurrentUnitOptions — step-by-step maneuver', () => {
 	beforeEach(() => {
 		mockDbData = buildMockDbData();
+		clearCache();
 	});
 
 	test('returns fleet options (adjacent seas) for fleet phase', async () => {
@@ -1883,6 +1886,7 @@ describe('getCurrentUnitOptions — step-by-step maneuver', () => {
 describe('getCurrentUnitActionOptions — action choices at destination', () => {
 	beforeEach(() => {
 		buildMockDbData();
+		clearCache();
 	});
 
 	test('returns empty array when no currentManeuver', async () => {

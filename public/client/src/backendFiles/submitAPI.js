@@ -1,5 +1,6 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
+import { setCachedState } from './stateCache.js';
 import emailjs from 'emailjs-com';
 import {
 	MODES,
@@ -72,6 +73,10 @@ async function finalizeSubmit(gameState, gameID, context) {
 		timer.pause = 0;
 	}
 	await database.ref('game histories/' + gameID + '/' + oldState.turnID).set(oldState);
+	// Cache the new state so that the turnID listener on this client can read it
+	// instantly without a Firebase round-trip. The turnID will be incremented to
+	// gameState.turnID + 1, so cache with that value.
+	setCachedState(gameID, gameState.turnID + 1, gameState);
 	await database.ref('games/' + gameID).set(gameState, async (error) => {
 		if (error) {
 			console.error('Firebase write failed in finalizeSubmit:', error);
@@ -635,64 +640,80 @@ async function submitManeuver(context) {
 		let destCountry = territorySetup[dest].country;
 		// Peace is only meaningful when entering another country's territory
 		if (destCountry && destCountry !== cm.country) {
-			let targetGov = gameState.countryInfo[destCountry].gov;
-			if (targetGov === GOV_TYPES.DICTATORSHIP) {
-				// Dictatorship: dictator decides
-				let dictator = gameState.countryInfo[destCountry].leadership[0];
-				cm.pendingPeace = {
-					origin: origin,
-					destination: dest,
-					targetCountry: destCountry,
-					unitType: phase,
-					tuple: tuple,
-				};
-				for (let key in gameState.playerInfo) {
-					gameState.playerInfo[key].myTurn = false;
-				}
-				gameState.playerInfo[dictator].myTurn = true;
-				// Active player is changing — force TurnApp refresh for the dictator
-				gameState.sameTurn = false;
-				// Stay in continue-man mode; the dictator sees accept/reject
-				gameState.undo = context.name;
-				await finalizeSubmit(gameState, context.game, context);
-				return 'done';
-			} else {
-				// Democracy: all stockholders of target country vote
-				let leadership = gameState.countryInfo[destCountry].leadership;
-				let totalStock = 0;
-				for (let player of leadership) {
-					for (let s of gameState.playerInfo[player].stock || []) {
-						if (s.country === destCountry) {
-							totalStock += s.stock;
-						}
+			// Check if there are enemy units at the destination
+			let hasEnemyUnits = false;
+			for (let c in gameState.countryInfo) {
+				if (c !== cm.country) {
+					for (let f of gameState.countryInfo[c].fleets || []) {
+						if (f.territory === dest) hasEnemyUnits = true;
+					}
+					for (let a of gameState.countryInfo[c].armies || []) {
+						if (a.territory === dest) hasEnemyUnits = true;
 					}
 				}
-				gameState.peaceVote = {
-					movingCountry: cm.country,
-					targetCountry: destCountry,
-					unitType: phase,
-					origin: origin,
-					destination: dest,
-					acceptVotes: 0,
-					rejectVotes: 0,
-					voters: [],
-					totalStock: totalStock,
-					tuple: tuple,
-				};
-				gameState.mode = MODES.PEACE_VOTE;
-				for (let key in gameState.playerInfo) {
-					gameState.playerInfo[key].myTurn = false;
+			}
+			// Only trigger peace vote if enemy units are present;
+			// factories alone don't get to decide on peace
+			if (hasEnemyUnits) {
+				let targetGov = gameState.countryInfo[destCountry].gov;
+				if (targetGov === GOV_TYPES.DICTATORSHIP) {
+					// Dictatorship: dictator decides
+					let dictator = gameState.countryInfo[destCountry].leadership[0];
+					cm.pendingPeace = {
+						origin: origin,
+						destination: dest,
+						targetCountry: destCountry,
+						unitType: phase,
+						tuple: tuple,
+					};
+					for (let key in gameState.playerInfo) {
+						gameState.playerInfo[key].myTurn = false;
+					}
+					gameState.playerInfo[dictator].myTurn = true;
+					// Active player is changing — force TurnApp refresh for the dictator
+					gameState.sameTurn = false;
+					// Stay in continue-man mode; the dictator sees accept/reject
+					gameState.undo = context.name;
+					await finalizeSubmit(gameState, context.game, context);
+					return 'done';
+				} else {
+					// Democracy: all stockholders of target country vote
+					let leadership = gameState.countryInfo[destCountry].leadership;
+					let totalStock = 0;
+					for (let player of leadership) {
+						for (let s of gameState.playerInfo[player].stock || []) {
+							if (s.country === destCountry) {
+								totalStock += s.stock;
+							}
+						}
+					}
+					gameState.peaceVote = {
+						movingCountry: cm.country,
+						targetCountry: destCountry,
+						unitType: phase,
+						origin: origin,
+						destination: dest,
+						acceptVotes: 0,
+						rejectVotes: 0,
+						voters: [],
+						totalStock: totalStock,
+						tuple: tuple,
+					};
+					gameState.mode = MODES.PEACE_VOTE;
+					for (let key in gameState.playerInfo) {
+						gameState.playerInfo[key].myTurn = false;
+					}
+					// All stockholders of the target country vote, including the proposer
+					// (they may own stock in the target country)
+					for (let player of leadership) {
+						gameState.playerInfo[player].myTurn = true;
+					}
+					// Active players are changing — force TurnApp refresh for all voters
+					gameState.sameTurn = false;
+					gameState.undo = context.name;
+					await finalizeSubmit(gameState, context.game, context);
+					return 'done';
 				}
-				// All stockholders of the target country vote, including the proposer
-				// (they may own stock in the target country)
-				for (let player of leadership) {
-					gameState.playerInfo[player].myTurn = true;
-				}
-				// Active players are changing — force TurnApp refresh for all voters
-				gameState.sameTurn = false;
-				gameState.undo = context.name;
-				await finalizeSubmit(gameState, context.game, context);
-				return 'done';
 			}
 		}
 	}
@@ -1728,6 +1749,8 @@ async function undo(context) {
 	// Force TurnApp refresh for all players after undo
 	gameState.sameTurn = false;
 	await database.ref('game histories/' + context.game + '/' + oldTurnID).remove();
+	// Cache the restored state so turnID listener reads it instantly
+	setCachedState(context.game, oldTurnID, gameState);
 	await database.ref('games/' + context.game).set(gameState, async (error) => {
 		if (error) {
 			console.error('Firebase write failed in undo:', error);

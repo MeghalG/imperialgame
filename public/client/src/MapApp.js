@@ -8,6 +8,7 @@ import UserContext from './UserContext.js';
 import * as mapAPI from './backendFiles/mapAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
+import { invalidateIfStale } from './backendFiles/stateCache.js';
 import { Popover } from 'antd';
 
 class MapApp extends React.Component {
@@ -57,6 +58,7 @@ class MapApp extends React.Component {
 		this.getMapItems();
 		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
 		this.turnRef.on('value', (dataSnapshot) => {
+			invalidateIfStale(this.context.game, dataSnapshot.val());
 			this.getMapItems();
 		});
 	}

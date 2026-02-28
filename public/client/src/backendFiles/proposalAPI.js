@@ -1,5 +1,6 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
+import { readGameState } from './stateCache.js';
 import { MODES, MANEUVER_ACTIONS } from '../gameConstants.js';
 
 /**
@@ -16,8 +17,7 @@ import { MODES, MANEUVER_ACTIONS } from '../gameConstants.js';
  * @returns {Promise<string|Object>} The previous proposal description, maneuver state, or empty string
  */
 async function getPreviousProposalMessage(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
 	let opp = gameState.countryInfo[country].leadership[1];
 	let history = gameState.history;
@@ -45,14 +45,11 @@ async function getPreviousProposalMessage(context) {
  * @returns {Promise<string[]>} Array of available wheel action names (e.g. "Investor", "Taxation", etc.)
  */
 async function getWheelOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
 	let currentPos = gameState.countryInfo[country].wheelSpot;
 	let money = gameState.playerInfo[context.name].money;
-	let wheel = await database.ref(setup + '/wheel').once('value');
+	let wheel = await database.ref(gameState.setup + '/wheel').once('value');
 	wheel = wheel.val();
 	if (currentPos === 'center') {
 		return wheel;
@@ -87,13 +84,10 @@ async function getWheelOptions(context) {
  * @returns {Promise<string[]>} Array of territory names eligible for factory placement
  */
 async function getLocationOptions(context) {
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let country = await database.ref('games/' + context.game + '/countryUp').once('value');
-	country = country.val();
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
-	let territories = await database.ref(setup + '/territories').once('value');
+	let gameState = await readGameState(context);
+	let country = gameState.countryUp;
+	let countryInfo = gameState.countryInfo;
+	let territories = await database.ref(gameState.setup + '/territories').once('value');
 	territories = territories.val();
 	let factories = countryInfo[country].factories;
 	let opts = [];
@@ -122,14 +116,11 @@ async function getLocationOptions(context) {
  *   and the maximum number of new fleets that can be produced
  */
 async function getFleetProduceOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territories = await database.ref(setup + '/territories').once('value');
+	let territories = await database.ref(gameState.setup + '/territories').once('value');
 	territories = territories.val();
-	let countrysetup = await database.ref(setup + '/countries').once('value');
+	let countrysetup = await database.ref(gameState.setup + '/countries').once('value');
 	countrysetup = countrysetup.val();
 	let fleets = gameState.countryInfo[country].fleets;
 	if (!fleets) {
@@ -163,14 +154,11 @@ async function getFleetProduceOptions(context) {
  *   and the maximum number of new armies that can be produced
  */
 async function getArmyProduceOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territories = await database.ref(setup + '/territories').once('value');
+	let territories = await database.ref(gameState.setup + '/territories').once('value');
 	territories = territories.val();
-	let countrysetup = await database.ref(setup + '/countries').once('value');
+	let countrysetup = await database.ref(gameState.setup + '/countries').once('value');
 	countrysetup = countrysetup.val();
 	let armies = gameState.countryInfo[country].armies;
 	if (!armies) {
@@ -204,8 +192,7 @@ async function getArmyProduceOptions(context) {
  * @returns {Promise<string>} A message like "The investor will pay out $3 to Alice, $2 to Bob."
  */
 async function getInvestorMessage(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
 	let s = 'The investor will pay out ';
 
@@ -230,8 +217,7 @@ async function getInvestorMessage(context) {
  *   treasury. Greatness is distributed $1 to Alice, $1 to Bob."
  */
 async function getTaxMessage(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
 
 	let taxInfo = await helper.getTaxInfo(gameState.countryInfo, gameState.playerInfo, country);
@@ -291,12 +277,9 @@ function getAdjacentSeas(fleet, territorySetup) {
  *   one per fleet
  */
 async function getFleetOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	let choices = [];
@@ -326,12 +309,9 @@ async function getFleetOptions(context) {
  *   (e.g. { "North Sea": ["war France fleet", "peace"] })
  */
 async function getFleetPeaceOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 	let damage = {};
 
@@ -493,12 +473,9 @@ function getAdjacentLands(army, territorySetup, country, context) {
  *   one per army
  */
 async function getArmyOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	let choices = [];
@@ -532,12 +509,9 @@ async function getArmyOptions(context) {
  * @returns {Promise<Object<string, string[]>>} Map of territory name to available actions
  */
 async function getArmyPeaceOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 	let damage = {};
 
@@ -649,12 +623,9 @@ async function allArmiesMoved(context) {
  *   - limits.fleet: Remaining fleet capacity
  */
 async function getImportOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = gameState.countryUp;
-	let countrysetup = await database.ref(setup + '/countries').once('value');
+	let countrysetup = await database.ref(gameState.setup + '/countries').once('value');
 	countrysetup = countrysetup.val();
 
 	let armyLocs = await helper.getUnsatTerritories(gameState.countryInfo, country, false, context);
@@ -799,14 +770,11 @@ function getVirtualState(gameState) {
  * @returns {Promise<string[]>} Array of territory names the current unit can move to
  */
 async function getCurrentUnitOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let cm = gameState.currentManeuver;
 	if (!cm) return [];
 
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	let virtualCountryInfo = getVirtualState(gameState);
@@ -874,14 +842,11 @@ async function getCurrentUnitOptions(context) {
  * @returns {Promise<string[]>} Array of action strings (e.g. "war France fleet", "peace", "hostile")
  */
 async function getCurrentUnitActionOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let cm = gameState.currentManeuver;
 	if (!cm || !context.maneuverDest) return [];
 
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	let virtualCountryInfo = getVirtualState(gameState);

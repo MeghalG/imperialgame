@@ -6,6 +6,7 @@ import UserContext from './UserContext.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
+import { invalidateIfStale } from './backendFiles/stateCache.js';
 
 // note this file hardcodes countries + ordering
 
@@ -40,6 +41,7 @@ class StateApp extends React.Component {
 		this.reinitialize();
 		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
 		this.turnRef.on('value', (dataSnapshot) => {
+			invalidateIfStale(this.context.game, dataSnapshot.val());
 			this.reinitialize();
 		});
 	}

@@ -1,4 +1,5 @@
 import { database } from './firebase.js';
+import { readGameState } from './stateCache.js';
 
 /**
  * Retrieves the list of countries for the current game, ordered by their setup order (1-6).
@@ -38,8 +39,8 @@ async function getCountries(context) {
  *   indexed by (order - 1). Falls back to an unsorted array of player names.
  */
 async function getPlayersInOrder(context) {
-	let playerInfo = await database.ref('games/' + context.game + '/playerInfo').once('value');
-	playerInfo = playerInfo.val();
+	let gameState = await readGameState(context);
+	let playerInfo = gameState.playerInfo;
 	let t = [null, null, null, null, null, null];
 	for (let key in playerInfo) {
 		if (playerInfo[key].order) {
@@ -554,8 +555,7 @@ async function getTimer(context) {
 			banked: {},
 		};
 	}
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
+	let gameState = await readGameState(context);
 	let banked = {};
 	for (let key in gameState.playerInfo) {
 		banked[key] = gameState.playerInfo[key].banked;

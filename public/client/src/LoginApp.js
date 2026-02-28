@@ -5,6 +5,7 @@ import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
+import { invalidateIfStale } from './backendFiles/stateCache.js';
 
 class LoginApp extends React.Component {
 	constructor(props) {
@@ -16,6 +17,7 @@ class LoginApp extends React.Component {
 		this.doStuff();
 		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
 		this.turnRef.on('value', async (dataSnapshot) => {
+			invalidateIfStale(this.context.game, dataSnapshot.val());
 			this.doStuff();
 		});
 		this.timerRef = database.ref('games/' + this.context.game + '/timer');

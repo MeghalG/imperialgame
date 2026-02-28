@@ -1,5 +1,6 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
+import { readGameState } from './stateCache.js';
 
 /**
  * Retrieves all military units (fleets and armies) across every country and returns them
@@ -18,11 +19,9 @@ import * as helper from './helper.js';
 async function getUnits(context) {
 	let un = [];
 	let countries = await helper.getCountries(context);
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	let t = {};
@@ -77,12 +76,10 @@ async function getUnits(context) {
  */
 async function getSeaFactories(context) {
 	let fc = [];
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	for (let key of countries) {
@@ -114,12 +111,10 @@ async function getSeaFactories(context) {
  */
 async function getLandFactories(context) {
 	let fc = [];
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	for (let key of countries) {
@@ -154,12 +149,10 @@ async function getLandFactories(context) {
  */
 async function getTaxChips(context) {
 	let tx = [];
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let territorySetup = await database.ref(setup + '/territories').once('value');
+	let territorySetup = await database.ref(gameState.setup + '/territories').once('value');
 	territorySetup = territorySetup.val();
 
 	for (let key of countries) {
@@ -193,8 +186,8 @@ async function getTaxChips(context) {
  */
 async function getPoints(context) {
 	let p = {};
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
 		let point = countryInfo[key].points;
@@ -217,8 +210,8 @@ async function getPoints(context) {
  */
 async function getMoney(context) {
 	let m = {};
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
 		m[key] = countryInfo[key].money;
@@ -238,8 +231,8 @@ async function getMoney(context) {
  */
 async function getAvailStock(context) {
 	let m = {};
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
 		m[key] = countryInfo[key].availStock || [];
@@ -260,8 +253,8 @@ async function getAvailStock(context) {
  */
 async function getLastTax(context) {
 	let m = {};
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
 		m[key] = countryInfo[key].lastTax;
@@ -282,8 +275,8 @@ async function getLastTax(context) {
  */
 async function getCurrentTax(context) {
 	let tx = {};
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
 		let a = await helper.getTaxInfo(countryInfo, null, key);
@@ -306,11 +299,9 @@ async function getCurrentTax(context) {
  */
 async function getRondel(context) {
 	let w = {};
-	let countryInfo = await database.ref('games/' + context.game + '/countryInfo').once('value');
-	countryInfo = countryInfo.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let wheelCoords = await database.ref(setup + '/wheelCoords').once('value');
+	let gameState = await readGameState(context);
+	let countryInfo = gameState.countryInfo;
+	let wheelCoords = await database.ref(gameState.setup + '/wheelCoords').once('value');
 	wheelCoords = wheelCoords.val();
 
 	for (let key in countryInfo) {

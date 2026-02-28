@@ -1,5 +1,6 @@
 import { database } from './firebase.js';
 import * as helper from './helper.js';
+import { readGameState } from './stateCache.js';
 
 /**
  * Computes which stock denominations a player can actually afford to buy, factoring in
@@ -41,13 +42,10 @@ function realStockOpts(availStock, money, returned, costs) {
  * @returns {Promise<string[]>} Array of country names the player can buy from, plus "Punt Buy"
  */
 async function getCountryOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let countries = await helper.getCountries(context);
 	let opts = [];
-	let costs = await database.ref(setup + '/stockCosts').once('value');
+	let costs = await database.ref(gameState.setup + '/stockCosts').once('value');
 	costs = costs.val();
 
 	for (let i in countries) {
@@ -98,10 +96,7 @@ async function getCountryOptions(context) {
  *   including "None". Empty array if buying is not possible or punted.
  */
 async function getReturnStockOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = context.buyCountry;
 	if (country === 'Punt Buy') {
 		return [];
@@ -109,7 +104,7 @@ async function getReturnStockOptions(context) {
 	let owned = gameState.playerInfo[context.name].stock;
 	let availStock = gameState.countryInfo[country].availStock;
 	let money = gameState.playerInfo[context.name].money;
-	let costs = await database.ref(setup + '/stockCosts').once('value');
+	let costs = await database.ref(gameState.setup + '/stockCosts').once('value');
 	costs = costs.val();
 
 	let opts = [];
@@ -143,16 +138,13 @@ async function getReturnStockOptions(context) {
  * @returns {Promise<number[]>} Array of affordable stock denominations
  */
 async function getStockOptions(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
+	let gameState = await readGameState(context);
 	let country = context.buyCountry;
 	if (country === 'Punt Buy') {
 		return [];
 	}
 	let availStock = gameState.countryInfo[country].availStock;
-	let costs = await database.ref(setup + '/stockCosts').once('value');
+	let costs = await database.ref(gameState.setup + '/stockCosts').once('value');
 	costs = costs.val();
 	if (!availStock) {
 		availStock = [];
