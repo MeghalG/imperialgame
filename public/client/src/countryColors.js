@@ -5,7 +5,7 @@ const NORMAL_COLORS = {
 		France: '#177ddc',
 		England: '#d32029',
 		Germany: '#000000',
-		Russia: '#854eca',
+		Russia: '#CC79A7',
 	},
 	mid: {
 		Austria: '#aa9514',
@@ -43,7 +43,7 @@ const COLORBLIND_COLORS = {
 		France: '#0072B2',
 		England: '#D55E00',
 		Germany: '#000000',
-		Russia: '#854eca',
+		Russia: '#CC79A7',
 	},
 	mid: {
 		Austria: '#D4C93B',
@@ -51,7 +51,7 @@ const COLORBLIND_COLORS = {
 		France: '#00669E',
 		England: '#BE5300',
 		Germany: '#292929',
-		Russia: '#6B3CA5',
+		Russia: '#B0688F',
 	},
 	dark: {
 		Austria: '#C4B232',
@@ -59,7 +59,7 @@ const COLORBLIND_COLORS = {
 		France: '#005A8C',
 		England: '#A84900',
 		Germany: '#292929',
-		Russia: '#5C3490',
+		Russia: '#995B7D',
 	},
 	map: {
 		Austria: '#F0E442',
@@ -67,7 +67,7 @@ const COLORBLIND_COLORS = {
 		France: '#0072B2',
 		England: '#D55E00',
 		Germany: '#101010',
-		Russia: '#854eca',
+		Russia: '#CC79A7',
 	},
 };
 
