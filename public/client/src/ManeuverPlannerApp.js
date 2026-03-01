@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 import { Select, Button, Card, Tag, Radio, Steps, Tooltip } from 'antd';
-import { LockOutlined, ArrowUpOutlined, ArrowDownOutlined, SwapOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { LockOutlined, ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
@@ -89,10 +89,6 @@ class ManeuverPlannerApp extends React.Component {
 			// Plan arrays: each entry = { origin, dest, action, destOptions, actionOptions, peaceVote }
 			fleetPlans: [],
 			armyPlans: [],
-
-			// Index of the unit currently being edited (expanded with dropdowns)
-			activePhase: 'fleet',
-			activeIndex: 0,
 
 			// Committed moves from a previous peace vote round (read-only)
 			priorCompleted: [],
@@ -185,14 +181,6 @@ class ManeuverPlannerApp extends React.Component {
 				}
 			}
 
-			// Find first unit that needs planning
-			let activePhase = 'fleet';
-			let activeIndex = 0;
-			if (fleetPlans.length === 0) {
-				activePhase = 'army';
-				activeIndex = 0;
-			}
-
 			this.setState(
 				{
 					loaded: true,
@@ -202,17 +190,28 @@ class ManeuverPlannerApp extends React.Component {
 					fleetPlans,
 					armyPlans,
 					priorCompleted,
-					activePhase,
-					activeIndex,
 					pendingPeace: null,
 				},
 				async () => {
-					// Compute destination options for the first active unit
-					await this.computeOptionsForUnit(activePhase, activeIndex);
+					// Compute destination options for all units
+					let allPromises = [];
+					for (let i = 0; i < fleetPlans.length; i++) {
+						allPromises.push(this.computeOptionsForUnit('fleet', i));
+					}
+					for (let i = 0; i < armyPlans.length; i++) {
+						allPromises.push(this.computeOptionsForUnit('army', i));
+					}
+					await Promise.all(allPromises);
 					// If resuming with pre-populated plans, compute action options too
-					let plans = activePhase === 'fleet' ? fleetPlans : armyPlans;
-					if (plans[activeIndex] && plans[activeIndex].dest) {
-						await this.computeActionOptionsForUnit(activePhase, activeIndex, plans[activeIndex].dest);
+					for (let i = 0; i < this.state.fleetPlans.length; i++) {
+						if (this.state.fleetPlans[i].dest) {
+							await this.computeActionOptionsForUnit('fleet', i, this.state.fleetPlans[i].dest);
+						}
+					}
+					for (let i = 0; i < this.state.armyPlans.length; i++) {
+						if (this.state.armyPlans[i].dest) {
+							await this.computeActionOptionsForUnit('army', i, this.state.armyPlans[i].dest);
+						}
 					}
 				}
 			);
@@ -339,15 +338,21 @@ class ManeuverPlannerApp extends React.Component {
 		let plans = phase === 'fleet' ? [...this.state.fleetPlans] : [...this.state.armyPlans];
 		plans[index] = { ...plans[index], dest: value, action: '', actionOptions: [], peaceVote: false };
 
-		if (phase === 'fleet') {
-			this.setState({ fleetPlans: plans }, async () => {
-				await this.computeActionOptionsForUnit(phase, index, value);
-			});
-		} else {
-			this.setState({ armyPlans: plans }, async () => {
-				await this.computeActionOptionsForUnit(phase, index, value);
-			});
-		}
+		let stateKey = phase === 'fleet' ? 'fleetPlans' : 'armyPlans';
+		this.setState({ [stateKey]: plans }, async () => {
+			await this.computeActionOptionsForUnit(phase, index, value);
+			// Refresh dest options for subsequent units since virtual state changed
+			let currentPlans = phase === 'fleet' ? this.state.fleetPlans : this.state.armyPlans;
+			for (let i = index + 1; i < currentPlans.length; i++) {
+				await this.computeOptionsForUnit(phase, i);
+			}
+			// If a fleet changed, also refresh all army options
+			if (phase === 'fleet') {
+				for (let i = 0; i < this.state.armyPlans.length; i++) {
+					await this.computeOptionsForUnit('army', i);
+				}
+			}
+		});
 	}
 
 	onActionChange(phase, index, value) {
@@ -359,40 +364,6 @@ class ManeuverPlannerApp extends React.Component {
 		} else {
 			this.setState({ armyPlans: plans }, () => this.detectPeaceVotes());
 		}
-	}
-
-	onEditMove(phase, index) {
-		this.setState({ activePhase: phase, activeIndex: index }, async () => {
-			let plans = phase === 'fleet' ? this.state.fleetPlans : this.state.armyPlans;
-			if (plans[index] && plans[index].destOptions.length === 0) {
-				await this.computeOptionsForUnit(phase, index);
-			}
-			if (plans[index] && plans[index].dest && plans[index].actionOptions.length === 0) {
-				await this.computeActionOptionsForUnit(phase, index, plans[index].dest);
-			}
-		});
-	}
-
-	/**
-	 * Confirms the current unit's plan and moves to the next unplanned unit.
-	 */
-	onConfirmMove(phase, index) {
-		let allPlans = [
-			...this.state.fleetPlans.map((p, i) => ({ phase: 'fleet', index: i, ...p })),
-			...this.state.armyPlans.map((p, i) => ({ phase: 'army', index: i, ...p })),
-		];
-
-		// Find the next unplanned unit after this one
-		let currentGlobalIndex = phase === 'fleet' ? index : this.state.fleetPlans.length + index;
-		for (let gi = currentGlobalIndex + 1; gi < allPlans.length; gi++) {
-			let entry = allPlans[gi];
-			if (!entry.dest) {
-				this.onEditMove(entry.phase, entry.index);
-				return;
-			}
-		}
-		// All units planned — no active unit, ready for submit
-		this.setState({ activePhase: '', activeIndex: -1 });
 	}
 
 	async onReorderUnit(phase, fromIndex, toIndex) {
@@ -596,7 +567,6 @@ class ManeuverPlannerApp extends React.Component {
 	}
 
 	renderUnitRow(phase, index, plan, peaceStop) {
-		let isActive = this.state.activePhase === phase && this.state.activeIndex === index;
 		let isPlanned = !!plan.dest;
 		let plans = phase === 'fleet' ? this.state.fleetPlans : this.state.armyPlans;
 		let unitLabel = phase === 'fleet' ? 'Fleet' : 'Army';
@@ -617,17 +587,17 @@ class ManeuverPlannerApp extends React.Component {
 
 		let rowStyle = {
 			borderLeft: '3px solid',
-			borderColor: isActive ? '#177ddc' : plan.peaceVote ? '#fa8c16' : isPlanned ? '#52c41a' : '#434343',
+			borderColor: plan.peaceVote ? '#fa8c16' : isPlanned ? '#52c41a' : '#434343',
 			padding: '8px 12px',
 			marginBottom: 4,
-			background: afterPeaceStop ? 'rgba(255,255,255,0.02)' : isActive ? 'rgba(23,125,220,0.06)' : 'transparent',
+			background: afterPeaceStop ? 'rgba(255,255,255,0.02)' : 'transparent',
 			opacity: afterPeaceStop ? 0.5 : 1,
 			borderRadius: '0 4px 4px 0',
 		};
 
 		return (
 			<div key={phase + '-' + index} style={rowStyle}>
-				<div style={{ display: 'flex', alignItems: 'center', marginBottom: isActive ? 8 : 0 }}>
+				<div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
 					{/* Reorder buttons */}
 					<span style={{ marginRight: 8, display: 'flex', flexDirection: 'column', gap: 0 }}>
 						<Tooltip title="Move up" mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
@@ -652,51 +622,25 @@ class ManeuverPlannerApp extends React.Component {
 						</Tooltip>
 					</span>
 
-					{/* Unit label and summary */}
+					{/* Unit label */}
 					<span style={{ flex: 1 }}>
 						<strong>
 							{unitLabel} {unitNum}:
 						</strong>{' '}
 						{plan.origin}
-						{isPlanned && !isActive && (
-							<span>
-								{' '}
-								<SwapOutlined style={{ fontSize: 11 }} /> {plan.dest}
-								{plan.action && (
-									<Tag color={actionColor(plan.action)} style={{ marginLeft: 6, fontSize: 11, lineHeight: '18px' }}>
-										{formatCompletedAction(plan.action)}
-									</Tag>
-								)}
-								{plan.peaceVote && (
-									<Tag color="orange" style={{ marginLeft: 4, fontSize: 11, lineHeight: '18px' }}>
-										PEACE VOTE
-									</Tag>
-								)}
-							</span>
-						)}
-						{!isPlanned && !isActive && (
-							<span style={{ color: 'rgba(255,255,255,0.35)', marginLeft: 8 }}>{'\u2192'} ?</span>
-						)}
 					</span>
 
-					{/* Edit button for non-active planned units */}
-					{!isActive && isPlanned && (
-						<Button type="link" size="small" onClick={() => this.onEditMove(phase, index)}>
-							Edit
-						</Button>
+					{/* Check mark for planned units */}
+					{isPlanned && <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 4, fontSize: 14 }} />}
+					{plan.peaceVote && (
+						<Tag color="orange" style={{ marginLeft: 4, fontSize: 11, lineHeight: '18px' }}>
+							PEACE VOTE
+						</Tag>
 					)}
-					{/* Activate button for non-active unplanned units */}
-					{!isActive && !isPlanned && (
-						<Button type="link" size="small" onClick={() => this.onEditMove(phase, index)}>
-							Plan
-						</Button>
-					)}
-					{/* Check mark for planned non-active */}
-					{!isActive && isPlanned && <CheckCircleOutlined style={{ color: '#52c41a', marginLeft: 4, fontSize: 14 }} />}
 				</div>
 
-				{/* Expanded planning controls for active unit */}
-				{isActive && this.renderPlanningControls(phase, index, plan)}
+				{/* Planning controls always visible */}
+				{this.renderPlanningControls(phase, index, plan)}
 
 				{/* Inline submit button at the peace stop */}
 				{plan.peaceVote && this.isPeaceStopHere(phase, index, peaceStop) && this.renderInlinePeaceSubmit(phase, index)}
@@ -731,12 +675,6 @@ class ManeuverPlannerApp extends React.Component {
 				</div>
 
 				{this.renderActionControls(phase, index, plan)}
-
-				{plan.dest && (
-					<Button type="dashed" size="small" style={{ marginTop: 6 }} onClick={() => this.onConfirmMove(phase, index)}>
-						Confirm &amp; Next
-					</Button>
-				)}
 			</div>
 		);
 	}
