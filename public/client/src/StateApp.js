@@ -322,6 +322,7 @@ class PlayerCard extends React.Component {
 		return t;
 	}
 	sToTime(s) {
+		if (!s && s !== 0) return '0:00';
 		let secs = s % 60;
 		let mins = Math.floor(s / 60);
 
@@ -329,7 +330,7 @@ class PlayerCard extends React.Component {
 	}
 
 	render() {
-		if (this.props.player !== null) {
+		if (this.props.player) {
 			return (
 				<Card
 					hoverable={true}
