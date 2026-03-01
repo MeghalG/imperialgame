@@ -351,18 +351,11 @@ async function submitBuy(context) {
 		gameState.history = [];
 	}
 	// can be modified later so certain actions don't change turnID
-	gameState.history.push(
-		context.name +
-			' bought the ' +
-			context.buyCountry +
-			' ' +
-			context.buyStock +
-			' returning the ' +
-			context.buyCountry +
-			' ' +
-			context.returnStock +
-			'.'
-	);
+	let buyMsg = context.name + ' bought the ' + context.buyCountry + ' ' + context.buyStock;
+	if (context.returnStock && context.returnStock !== 0 && context.returnStock !== 'None') {
+		buyMsg += ' returning the ' + context.buyCountry + ' ' + context.returnStock;
+	}
+	gameState.history.push(buyMsg + '.');
 	gameState.undo = context.name;
 	await finalizeSubmit(gameState, context.game, context);
 	return 'done';
