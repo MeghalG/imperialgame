@@ -100,23 +100,23 @@ class TurnApp extends React.Component {
 function DisplayMode(props) {
 	switch (props.mode) {
 		case 'bid':
-			return <BidApp key={props.turnID} />;
+			return <BidApp />;
 		case 'buy-bid':
-			return <BuyBidApp key={props.turnID} />;
+			return <BuyBidApp />;
 		case 'buy':
-			return <BuyApp key={props.turnID} />;
+			return <BuyApp />;
 		case 'proposal':
-			return <ProposalApp key={props.turnID} />;
+			return <ProposalApp />;
 		case 'proposal-opp':
-			return <ProposalAppOpp key={props.turnID} />;
+			return <ProposalAppOpp />;
 		case 'vote':
-			return <VoteApp key={props.turnID} />;
+			return <VoteApp />;
 		case 'continue-man':
-			return <ManeuverPlannerApp key={props.turnID} />;
+			return <ManeuverPlannerApp />;
 		case 'peace-vote':
-			return <PeaceVoteApp key={props.turnID} />;
+			return <PeaceVoteApp />;
 		case 'game-over':
-			return <GameOverApp key={props.turnID} />;
+			return <GameOverApp />;
 		default:
 			return null;
 	}
