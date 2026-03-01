@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 
-import { Card, Space } from 'antd';
+import { Card, Space, Tooltip } from 'antd';
 import UserContext from './UserContext.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
 import * as helper from './backendFiles/helper.js';
@@ -288,9 +288,18 @@ class PlayerCard extends React.Component {
 		for (let i = 0; i < s.length; i++) {
 			for (let j = 0; j < s[i].length; j++) {
 				t.push(
-					<mark style={{ backgroundColor: this.props.countryColors[i], color: 'white', borderRadius: 3 }}>
-						{s[i][j]}
-					</mark>
+					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0}>
+						<mark
+							style={{
+								backgroundColor: this.props.countryColors[i],
+								color: 'white',
+								borderRadius: 3,
+								cursor: 'default',
+							}}
+						>
+							{s[i][j]}
+						</mark>
+					</Tooltip>
 				);
 				t.push(<span>&nbsp;</span>);
 			}

@@ -150,15 +150,18 @@ class PlayerCard extends React.Component {
 		for (let i = 0; i < s.length; i++) {
 			for (let j = 0; j < s[i].length; j++) {
 				t.push(
-					<mark
-						style={{
-							backgroundColor: this.props.countryColors[this.state.countries[i]],
-							color: 'white',
-							borderRadius: 2,
-						}}
-					>
-						{s[i][j]}
-					</mark>
+					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0}>
+						<mark
+							style={{
+								backgroundColor: this.props.countryColors[this.state.countries[i]],
+								color: 'white',
+								borderRadius: 2,
+								cursor: 'default',
+							}}
+						>
+							{s[i][j]}
+						</mark>
+					</Tooltip>
 				);
 				t.push(<span>&nbsp;</span>);
 			}
