@@ -313,12 +313,14 @@ async function getFleetPeaceOptions(context) {
 		if (c !== country) {
 			for (let a of gameState.countryInfo[c].armies || []) {
 				if (a.hostile) {
-					damage[a.territory].push(c + ' army');
+					let entry = c + ' army';
+					if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
 				}
 			}
 			for (let f of gameState.countryInfo[c].fleets || []) {
 				if (f.hostile) {
-					damage[f.territory].push(c + ' fleet');
+					let entry = c + ' fleet';
+					if (!damage[f.territory].includes(entry)) damage[f.territory].push(entry);
 				}
 			}
 		}
@@ -510,10 +512,12 @@ async function getArmyPeaceOptions(context) {
 	for (let c in gameState.countryInfo) {
 		if (c !== country) {
 			for (let a of gameState.countryInfo[c].armies || []) {
-				damage[a.territory].push(c + ' army');
+				let entry = c + ' army';
+				if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
 			}
 			for (let f of gameState.countryInfo[c].fleets || []) {
-				damage[f.territory].push(c + ' fleet');
+				let entry = c + ' fleet';
+				if (!damage[f.territory].includes(entry)) damage[f.territory].push(entry);
 			}
 		}
 	}
@@ -894,19 +898,13 @@ async function getCurrentUnitActionOptions(context) {
 	let dest = context.maneuverDest;
 	let actions = [];
 
-	// Check for enemy units at the destination
+	// Check for enemy units at the destination (deduplicate by unit type per country)
 	for (let c in virtualCountryInfo) {
 		if (c !== country) {
-			for (let f of virtualCountryInfo[c].fleets || []) {
-				if (f.hostile && f.territory === dest) {
-					actions.push('war ' + c + ' fleet');
-				}
-			}
-			for (let a of virtualCountryInfo[c].armies || []) {
-				if (a.territory === dest) {
-					actions.push('war ' + c + ' army');
-				}
-			}
+			let hasFleet = (virtualCountryInfo[c].fleets || []).some((f) => f.hostile && f.territory === dest);
+			let hasArmy = (virtualCountryInfo[c].armies || []).some((a) => a.territory === dest);
+			if (hasFleet) actions.push('war ' + c + ' fleet');
+			if (hasArmy) actions.push('war ' + c + ' army');
 		}
 	}
 
@@ -1215,23 +1213,17 @@ async function getUnitActionOptionsFromPlans(context, plan, phase, unitIndex, de
 
 	let virtualCountryInfo = getVirtualStateFromPlans(gameState.countryInfo, partialPlan);
 
-	// Build per-country breakdown of enemy units at destination
+	// Build per-country breakdown of enemy unit types at destination (deduplicated)
 	let countriesAtDest = {};
 	for (let c in virtualCountryInfo) {
 		if (c !== country) {
-			let units = [];
-			for (let f of virtualCountryInfo[c].fleets || []) {
-				if (f.hostile && f.territory === destination) {
-					units.push('fleet');
-				}
-			}
-			for (let a of virtualCountryInfo[c].armies || []) {
-				if (a.territory === destination) {
-					units.push('army');
-				}
-			}
-			if (units.length > 0) {
-				countriesAtDest[c] = units;
+			let unitTypes = [];
+			let hasFleet = (virtualCountryInfo[c].fleets || []).some((f) => f.hostile && f.territory === destination);
+			let hasArmy = (virtualCountryInfo[c].armies || []).some((a) => a.territory === destination);
+			if (hasFleet) unitTypes.push('fleet');
+			if (hasArmy) unitTypes.push('army');
+			if (unitTypes.length > 0) {
+				countriesAtDest[c] = unitTypes;
 			}
 		}
 	}

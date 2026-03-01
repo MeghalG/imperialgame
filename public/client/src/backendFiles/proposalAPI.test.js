@@ -721,10 +721,10 @@ describe('getFleetPeaceOptions', () => {
 			fleetMan: [['Trieste', 'Adriatic Sea', 'war Italy fleet']],
 		};
 		const result = await getFleetPeaceOptions(context);
-		// There were 2 Italy fleets => 2 "war Italy fleet" entries + "peace"
-		// After removing one "war Italy fleet", should have 1 war option + peace
+		// 2 Italy fleets are deduplicated to 1 "war Italy fleet" entry + "peace"
+		// After removing the one "war Italy fleet", only "peace" should remain
 		const warCount = result['Adriatic Sea'].filter((a) => a === 'war Italy fleet').length;
-		expect(warCount).toBe(1);
+		expect(warCount).toBe(0);
 		expect(result['Adriatic Sea']).toContain('peace');
 	});
 
@@ -736,6 +736,20 @@ describe('getFleetPeaceOptions', () => {
 		};
 		const result = await getFleetPeaceOptions(context);
 		// Peace should remain because the code only removes non-peace actions
+		expect(result['Adriatic Sea']).toContain('peace');
+	});
+
+	test('deduplicates war options when multiple units of same type exist', async () => {
+		mockDbData.games.g1.countryInfo.Italy.fleets = [
+			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Adriatic Sea', hostile: true },
+		];
+		const context = { game: 'g1', fleetMan: [] };
+		const result = await getFleetPeaceOptions(context);
+		// 3 Italian fleets should produce only 1 "war Italy fleet" entry
+		const warCount = result['Adriatic Sea'].filter((a) => a === 'war Italy fleet').length;
+		expect(warCount).toBe(1);
 		expect(result['Adriatic Sea']).toContain('peace');
 	});
 
