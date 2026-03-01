@@ -150,7 +150,7 @@ class PlayerCard extends React.Component {
 		for (let i = 0; i < s.length; i++) {
 			for (let j = 0; j < s[i].length; j++) {
 				t.push(
-					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0}>
+					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 						<mark
 							style={{
 								backgroundColor: this.props.countryColors[this.state.countries[i]],
@@ -173,7 +173,7 @@ class PlayerCard extends React.Component {
 		for (let country in this.props.countryInfos) {
 			if ((this.props.countryInfos[country].leadership || [])[0] === this.props.player) {
 				t.push(
-					<Tooltip title={country + ' Leader'} mouseLeaveDelay={0}>
+					<Tooltip title={country + ' Leader'} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 						<FlagFilled style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
 					</Tooltip>
 				);
@@ -183,7 +183,7 @@ class PlayerCard extends React.Component {
 				this.props.countryInfos[country].leadership[1] === this.props.player
 			) {
 				t.push(
-					<Tooltip title={country + ' Opposition'} mouseLeaveDelay={0}>
+					<Tooltip title={country + ' Opposition'} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 						<FlagOutlined style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
 					</Tooltip>
 				);
@@ -196,14 +196,14 @@ class PlayerCard extends React.Component {
 		let t = [];
 		if (this.props.info.investor) {
 			t.push(
-				<Tooltip title="Investor Card" mouseLeaveDelay={0}>
+				<Tooltip title="Investor Card" mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 					<DollarCircleFilled style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />
 				</Tooltip>
 			);
 		}
 		if (this.props.info.swiss) {
 			t.push(
-				<Tooltip title="Swiss" mouseLeaveDelay={0}>
+				<Tooltip title="Swiss" mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 					<DollarCircleOutlined style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />
 				</Tooltip>
 			);

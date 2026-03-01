@@ -630,7 +630,7 @@ class ManeuverPlannerApp extends React.Component {
 				<div style={{ display: 'flex', alignItems: 'center', marginBottom: isActive ? 8 : 0 }}>
 					{/* Reorder buttons */}
 					<span style={{ marginRight: 8, display: 'flex', flexDirection: 'column', gap: 0 }}>
-						<Tooltip title="Move up" mouseLeaveDelay={0}>
+						<Tooltip title="Move up" mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 							<Button
 								type="text"
 								size="small"
@@ -640,7 +640,7 @@ class ManeuverPlannerApp extends React.Component {
 								style={{ padding: '0 4px', height: 18, fontSize: 10 }}
 							/>
 						</Tooltip>
-						<Tooltip title="Move down" mouseLeaveDelay={0}>
+						<Tooltip title="Move down" mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 							<Button
 								type="text"
 								size="small"

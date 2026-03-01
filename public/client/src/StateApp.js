@@ -319,7 +319,7 @@ class PlayerCard extends React.Component {
 		for (let i = 0; i < s.length; i++) {
 			for (let j = 0; j < s[i].length; j++) {
 				t.push(
-					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0}>
+					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 						<mark
 							style={{
 								backgroundColor: this.props.countryColors[i],
