@@ -1312,12 +1312,14 @@ async function makeHistory(gameState, context) {
 		case WHEEL_ACTIONS.R_MANEUVER:
 			let sortedF = [...(context.fleetMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
 			let f = sortedF.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
-			f = f.join(', ');
 
 			let sortedA = [...(context.armyMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
 			let a = sortedA.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
-			a = a.join(', ');
-			return country + ' ' + context.wheelSpot + 's fleets from ' + f + '. It moves armies from ' + a + '.';
+
+			let parts = [];
+			if (f.length > 0) parts.push('fleets from ' + f.join(', '));
+			if (a.length > 0) parts.push('armies from ' + a.join(', '));
+			return country + ' ' + context.wheelSpot + 's ' + parts.join('. It moves ') + '.';
 		default:
 			break;
 	}
