@@ -1295,18 +1295,22 @@ async function makeHistory(gameState, context) {
 			return s;
 		case WHEEL_ACTIONS.FACTORY:
 			return country + ' builds a factory in ' + context.factoryLoc + '.';
-		case WHEEL_ACTIONS.IMPORT:
-			let fleets = [];
-			let armies = [];
+		case WHEEL_ACTIONS.IMPORT: {
+			let importFleets = [];
+			let importArmies = [];
 			for (let i in context.import.types) {
 				if (context.import.types[i] === 'fleet') {
-					fleets.push(context.import.territories[i]);
+					importFleets.push(context.import.territories[i]);
 				}
 				if (context.import.types[i] === 'army') {
-					armies.push(context.import.territories[i]);
+					importArmies.push(context.import.territories[i]);
 				}
 			}
-			return country + ' imports fleets in ' + fleets.join(', ') + ' and armies in ' + armies.join(', ') + '.';
+			let importParts = [];
+			if (importFleets.length > 0) importParts.push('fleets in ' + importFleets.join(', '));
+			if (importArmies.length > 0) importParts.push('armies in ' + importArmies.join(', '));
+			return country + ' imports ' + importParts.join(' and ') + '.';
+		}
 		case WHEEL_ACTIONS.L_MANEUVER:
 		case WHEEL_ACTIONS.R_MANEUVER:
 			let sortedF = [...(context.fleetMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
