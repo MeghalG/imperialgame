@@ -1310,11 +1310,11 @@ async function makeHistory(gameState, context) {
 			return country + ' imports fleets in ' + fleets.join(', ') + ' and armies in ' + armies.join(', ') + '.';
 		case WHEEL_ACTIONS.L_MANEUVER:
 		case WHEEL_ACTIONS.R_MANEUVER:
-			let sortedF = [...context.fleetMan].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
+			let sortedF = [...(context.fleetMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
 			let f = sortedF.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
 			f = f.join(', ');
 
-			let sortedA = [...context.armyMan].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
+			let sortedA = [...(context.armyMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
 			let a = sortedA.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
 			a = a.join(', ');
 			return country + ' ' + context.wheelSpot + 's fleets from ' + f + '. It moves armies from ' + a + '.';
@@ -1458,7 +1458,7 @@ async function executeProposal(gameState, context) {
 		case WHEEL_ACTIONS.L_MANEUVER:
 		case WHEEL_ACTIONS.R_MANEUVER:
 			let fleets = [];
-			for (let fleet of context.fleetMan) {
+			for (let fleet of context.fleetMan || []) {
 				let split = fleet[2].split(' ');
 				if (split[0] === MANEUVER_ACTIONS.WAR_PREFIX) {
 					if (split[2] === 'fleet') {
@@ -1500,7 +1500,7 @@ async function executeProposal(gameState, context) {
 
 			let armies = [];
 			let blowUpConsumed = {};
-			let sortedArmyMan = [...context.armyMan].sort((a, b) => {
+			let sortedArmyMan = [...(context.armyMan || [])].sort((a, b) => {
 				// Sort order: war > blow up > peace > hostile > normal move
 				// War actions ('w') need to execute first so destroyed units are removed
 				// before peace/hostile units are placed.
