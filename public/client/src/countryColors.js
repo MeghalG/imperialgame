@@ -35,38 +35,39 @@ const NORMAL_COLORS = {
 
 // Okabe-Ito palette — tested and verified distinguishable across
 // protanopia, deuteranopia, and tritanopia by colorblind researchers.
+// Kept bright to preserve the luminance contrast the palette relies on.
 const COLORBLIND_COLORS = {
 	bright: {
 		Austria: '#F0E442',
 		Italy: '#009E73',
 		France: '#0072B2',
 		England: '#D55E00',
-		Germany: '#BBBBBB',
-		Russia: '#CC79A7',
+		Germany: '#000000',
+		Russia: '#854eca',
 	},
 	mid: {
-		Austria: '#B3AA31',
-		Italy: '#007656',
-		France: '#005586',
-		England: '#A04600',
-		Germany: '#888888',
-		Russia: '#995B7D',
+		Austria: '#D4C93B',
+		Italy: '#008C66',
+		France: '#00669E',
+		England: '#BE5300',
+		Germany: '#292929',
+		Russia: '#6B3CA5',
 	},
 	dark: {
-		Austria: '#847C24',
-		Italy: '#00563F',
-		France: '#003D60',
-		England: '#763400',
-		Germany: '#555555',
-		Russia: '#734159',
+		Austria: '#C4B232',
+		Italy: '#007A59',
+		France: '#005A8C',
+		England: '#A84900',
+		Germany: '#292929',
+		Russia: '#5C3490',
 	},
 	map: {
-		Austria: '#B3AA31',
-		Italy: '#007656',
-		France: '#005586',
-		England: '#A04600',
-		Germany: '#222222',
-		Russia: '#995B7D',
+		Austria: '#F0E442',
+		Italy: '#009E73',
+		France: '#0072B2',
+		England: '#D55E00',
+		Germany: '#101010',
+		Russia: '#854eca',
 	},
 };
 
