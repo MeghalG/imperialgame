@@ -80,12 +80,14 @@ class StateApp extends React.Component {
 								color={this.state.colors[this.state.countries[0]]}
 								darkColor={this.state.darkColors[this.state.countries[0]]}
 								info={clean(this.state.countryInfo[this.state.countries[0]])}
+								playerInfo={this.state.playerInfo}
 							/>
 							<CountryCard
 								country={this.state.countries[1]}
 								color={this.state.colors[this.state.countries[1]]}
 								darkColor={this.state.darkColors[this.state.countries[1]]}
 								info={clean(this.state.countryInfo[this.state.countries[1]])}
+								playerInfo={this.state.playerInfo}
 							/>
 						</Space>
 						<Space size="large" style={{ display: 'flex' }}>
@@ -94,12 +96,14 @@ class StateApp extends React.Component {
 								color={this.state.colors[this.state.countries[2]]}
 								darkColor={this.state.darkColors[this.state.countries[2]]}
 								info={clean(this.state.countryInfo[this.state.countries[2]])}
+								playerInfo={this.state.playerInfo}
 							/>
 							<CountryCard
 								country={this.state.countries[3]}
 								color={this.state.colors[this.state.countries[3]]}
 								darkColor={this.state.darkColors[this.state.countries[3]]}
 								info={clean(this.state.countryInfo[this.state.countries[3]])}
+								playerInfo={this.state.playerInfo}
 							/>
 						</Space>
 						<Space size="large" style={{ display: 'flex' }}>
@@ -108,12 +112,14 @@ class StateApp extends React.Component {
 								color={this.state.colors[this.state.countries[4]]}
 								darkColor={this.state.darkColors[this.state.countries[4]]}
 								info={clean(this.state.countryInfo[this.state.countries[4]])}
+								playerInfo={this.state.playerInfo}
 							/>
 							<CountryCard
 								country={this.state.countries[5]}
 								color={this.state.colors[this.state.countries[5]]}
 								darkColor={this.state.darkColors[this.state.countries[5]]}
 								info={clean(this.state.countryInfo[this.state.countries[5]])}
+								playerInfo={this.state.playerInfo}
 							/>
 						</Space>
 					</Space>
@@ -205,6 +211,30 @@ class CountryCard extends React.Component {
 		return t;
 	}
 
+	formatOwnership() {
+		let playerInfo = this.props.playerInfo || {};
+		let owners = {};
+		for (let player in playerInfo) {
+			let stock = playerInfo[player].stock || [];
+			for (let s of stock) {
+				if (s.country === this.props.country) {
+					if (!owners[player]) owners[player] = [];
+					owners[player].push(s.stock);
+				}
+			}
+		}
+		let t = [];
+		for (let player in owners) {
+			t.push(
+				<span key={player}>
+					{player}: {owners[player].join(', ')}
+				</span>
+			);
+			t.push(<span key={player + '-sep'}>&nbsp;&nbsp;</span>);
+		}
+		return t;
+	}
+
 	leadershipText(countryInfo) {
 		if (!countryInfo.gov) {
 			return '';
@@ -260,6 +290,7 @@ class CountryCard extends React.Component {
 						{this.formatAvailStock(clean(this.props.info.availStock))}
 					</span>
 				</p>
+				<p style={{ textAlign: 'left', fontSize: 12 }}>&nbsp;&nbsp;Owned: {this.formatOwnership()}</p>
 			</Card>
 		);
 	}
