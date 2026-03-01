@@ -1268,17 +1268,16 @@ async function makeHistory(gameState, context) {
 			let msgs = amt.map((x) => '$' + x[1] + ' to ' + x[0]);
 			return country + ' investors, paying ' + msgs.join(', ') + '.';
 		case WHEEL_ACTIONS.L_PRODUCE:
-		case WHEEL_ACTIONS.R_PRODUCE:
-			return (
-				country +
-				' ' +
-				context.wheelSpot +
-				's armies in ' +
-				(context.armyProduce || []).join(', ') +
-				' and fleets in ' +
-				(context.fleetProduce || []).join(', ') +
-				'.'
-			);
+		case WHEEL_ACTIONS.R_PRODUCE: {
+			let produceParts = [];
+			if ((context.armyProduce || []).length > 0) {
+				produceParts.push('armies in ' + context.armyProduce.join(', '));
+			}
+			if ((context.fleetProduce || []).length > 0) {
+				produceParts.push('fleets in ' + context.fleetProduce.join(', '));
+			}
+			return country + ' ' + context.wheelSpot + 's ' + produceParts.join(' and ') + '.';
+		}
 		case WHEEL_ACTIONS.TAXATION:
 			let taxInfo = await helper.getTaxInfo(gameState.countryInfo, gameState.playerInfo, country);
 			let s =
