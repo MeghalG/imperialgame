@@ -132,12 +132,36 @@ class PlayerCard extends React.Component {
 				Germany: '#000000',
 				Russia: '#854eca',
 			},
+			activeTooltip: null,
 		};
+	}
+
+	showTooltip(id) {
+		this.setState({ activeTooltip: id });
+	}
+
+	hideTooltip(id) {
+		if (this.state.activeTooltip === id) {
+			this.setState({ activeTooltip: null });
+		}
 	}
 
 	async componentDidMount() {
 		let countries = await helper.getCountries(this.context);
 		this.setState({ countries: countries });
+	}
+
+	tip(id, title, content) {
+		return (
+			<Tooltip
+				title={title}
+				visible={this.state.activeTooltip === id}
+				onVisibleChange={(v) => (v ? this.showTooltip(id) : this.hideTooltip(id))}
+				destroyTooltipOnHide
+			>
+				{content}
+			</Tooltip>
+		);
 	}
 
 	formatStock(stock) {
@@ -149,8 +173,11 @@ class PlayerCard extends React.Component {
 		let t = [];
 		for (let i = 0; i < s.length; i++) {
 			for (let j = 0; j < s[i].length; j++) {
+				let tipId = 'stock-' + i + '-' + j;
 				t.push(
-					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
+					this.tip(
+						tipId,
+						this.state.countries[i],
 						<mark
 							style={{
 								backgroundColor: this.props.countryColors[this.state.countries[i]],
@@ -161,7 +188,7 @@ class PlayerCard extends React.Component {
 						>
 							{s[i][j]}
 						</mark>
-					</Tooltip>
+					)
 				);
 				t.push(<span>&nbsp;</span>);
 			}
@@ -173,9 +200,11 @@ class PlayerCard extends React.Component {
 		for (let country in this.props.countryInfos) {
 			if ((this.props.countryInfos[country].leadership || [])[0] === this.props.player) {
 				t.push(
-					<Tooltip title={country + ' Leader'} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
+					this.tip(
+						'leader-' + country,
+						country + ' Leader',
 						<FlagFilled style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
-					</Tooltip>
+					)
 				);
 			}
 			if (
@@ -183,9 +212,11 @@ class PlayerCard extends React.Component {
 				this.props.countryInfos[country].leadership[1] === this.props.player
 			) {
 				t.push(
-					<Tooltip title={country + ' Opposition'} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
+					this.tip(
+						'opp-' + country,
+						country + ' Opposition',
 						<FlagOutlined style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
-					</Tooltip>
+					)
 				);
 			}
 		}
@@ -196,16 +227,16 @@ class PlayerCard extends React.Component {
 		let t = [];
 		if (this.props.info.investor) {
 			t.push(
-				<Tooltip title="Investor Card" mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
+				this.tip(
+					'investor',
+					'Investor Card',
 					<DollarCircleFilled style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />
-				</Tooltip>
+				)
 			);
 		}
 		if (this.props.info.swiss) {
 			t.push(
-				<Tooltip title="Swiss" mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
-					<DollarCircleOutlined style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />
-				</Tooltip>
+				this.tip('swiss', 'Swiss', <DollarCircleOutlined style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />)
 			);
 		}
 		return t;
