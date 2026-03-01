@@ -39,7 +39,7 @@ class MapApp extends React.Component {
 	}
 	getColors() {
 		let palette = getCountryColorPalette(this.context.colorblindMode);
-		return { countryColors: palette.dark, iconColors: palette.bright };
+		return { countryColors: palette.map, iconColors: palette.bright };
 	}
 	async componentDidMount() {
 		let countries = await helper.getCountries(this.context);
