@@ -170,7 +170,7 @@ class PlayerCard extends React.Component {
 		for (let country in this.props.countryInfos) {
 			if ((this.props.countryInfos[country].leadership || [])[0] === this.props.player) {
 				t.push(
-					<Tooltip title={country + ' Leader'}>
+					<Tooltip title={country + ' Leader'} mouseLeaveDelay={0}>
 						<FlagFilled style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
 					</Tooltip>
 				);
@@ -180,7 +180,7 @@ class PlayerCard extends React.Component {
 				this.props.countryInfos[country].leadership[1] === this.props.player
 			) {
 				t.push(
-					<Tooltip title={country + ' Opposition'}>
+					<Tooltip title={country + ' Opposition'} mouseLeaveDelay={0}>
 						<FlagOutlined style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
 					</Tooltip>
 				);
@@ -193,14 +193,14 @@ class PlayerCard extends React.Component {
 		let t = [];
 		if (this.props.info.investor) {
 			t.push(
-				<Tooltip title="Investor Card">
+				<Tooltip title="Investor Card" mouseLeaveDelay={0}>
 					<DollarCircleFilled style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />
 				</Tooltip>
 			);
 		}
 		if (this.props.info.swiss) {
 			t.push(
-				<Tooltip title="Swiss">
+				<Tooltip title="Swiss" mouseLeaveDelay={0}>
 					<DollarCircleOutlined style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />
 				</Tooltip>
 			);
