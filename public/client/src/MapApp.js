@@ -10,6 +10,7 @@ import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
 import { Popover } from 'antd';
+import { getCountryColorPalette } from './countryColors.js';
 
 class MapApp extends React.Component {
 	constructor(props) {
@@ -21,22 +22,6 @@ class MapApp extends React.Component {
 			landFactories: [],
 			taxChips: [],
 			units: [],
-			countryColors: {
-				Austria: '#aa9514',
-				Italy: '#306317',
-				France: '#164c7e',
-				England: '#791a1f',
-				Germany: '#101010',
-				Russia: '#3e2069',
-			},
-			iconColors: {
-				Austria: '#d8bd14',
-				Italy: '#49aa19',
-				France: '#177ddc',
-				England: '#d32029',
-				Germany: '#000000',
-				Russia: '#854eca',
-			},
 			points: {},
 			money: {},
 			availStock: {},
@@ -51,6 +36,10 @@ class MapApp extends React.Component {
 				Russia: null,
 			},
 		};
+	}
+	getColors() {
+		let palette = getCountryColorPalette(this.context.colorblindMode);
+		return { countryColors: palette.dark, iconColors: palette.bright };
 	}
 	async componentDidMount() {
 		let countries = await helper.getCountries(this.context);
@@ -94,6 +83,7 @@ class MapApp extends React.Component {
 		});
 	}
 	buildComponents = () => {
+		let { countryColors } = this.getColors();
 		let table = [];
 		// sea factories
 		for (let i = 0; i < this.state.seaFactories.length; i++) {
@@ -146,7 +136,7 @@ class MapApp extends React.Component {
 							top: this.state.taxChips[i][j][1],
 							width: 50,
 							height: 50,
-							color: this.state.countryColors[this.state.countries[i]],
+							color: countryColors[this.state.countries[i]],
 							fontSize: '1.1vw',
 						}}
 					>
@@ -160,20 +150,13 @@ class MapApp extends React.Component {
 			let t = [];
 			for (let j = 0; j < this.state.units[i][1].length; j++) {
 				for (let k = 0; k < this.state.units[i][1][j][0]; k++) {
-					t.push(
-						<i
-							style={{ color: this.state.countryColors[this.state.countries[j]] }}
-							class="fas fa-play fa-rotate-90"
-						></i>
-					);
+					t.push(<i style={{ color: countryColors[this.state.countries[j]] }} class="fas fa-play fa-rotate-90"></i>);
 				}
 				for (let k = 0; k < this.state.units[i][1][j][1]; k++) {
-					t.push(<i style={{ color: this.state.countryColors[this.state.countries[j]] }} class="fas fa-circle fa"></i>);
+					t.push(<i style={{ color: countryColors[this.state.countries[j]] }} class="fas fa-circle fa"></i>);
 				}
 				for (let k = 0; k < this.state.units[i][1][j][2]; k++) {
-					t.push(
-						<i style={{ color: this.state.countryColors[this.state.countries[j]] }} class="fas fa-plus-circle fa"></i>
-					);
+					t.push(<i style={{ color: countryColors[this.state.countries[j]] }} class="fas fa-plus-circle fa"></i>);
 				}
 			}
 			table.push(
@@ -201,14 +184,14 @@ class MapApp extends React.Component {
 					//                            <p>${(this.state.money[country] || 0).toFixed(2).toString()}</p>
 					//                            <p>Last Tax: {this.state.lastTax[country]}</p>
 					//                            <p>Current Tax: {this.state.currentTax[country]}</p>
-					//                            <p>{this.formatAvailStock((this.state.availStock[country] || []), this.state.countryColors[country])}</p>
+					//                            <p>{this.formatAvailStock((this.state.availStock[country] || []), countryColors[country])}</p>
 					//                        </div>} >
 					//    <div style={{backgroundColor:this.state.iconColors[country],
 					//                width:15, height:15, borderRadius:"50%", fontSize:10, textAlign:"center", color:"#FFFFFF", marginRight:3
 					//        }}>
 					//    </div>
 					//</Popover>
-					<i style={{ color: this.state.countryColors[country] }} class="fas fa-square fa"></i>
+					<i style={{ color: countryColors[country] }} class="fas fa-square fa"></i>
 				);
 			}
 			table.push(
@@ -242,6 +225,7 @@ class MapApp extends React.Component {
 		}));
 	}
 	makePoints() {
+		let { countryColors, iconColors } = this.getColors();
 		let d = [];
 		let t = [];
 		for (let i = 0; i < 26; i++) {
@@ -275,9 +259,7 @@ class MapApp extends React.Component {
 									<p>${(this.state.money[country] || 0).toFixed(2).toString()}</p>
 									<p>Last Tax: {this.state.lastTax[country]}</p>
 									<p>Current Tax: {this.state.currentTax[country]}</p>
-									<p>
-										{this.formatAvailStock(this.state.availStock[country] || [], this.state.countryColors[country])}
-									</p>
+									<p>{this.formatAvailStock(this.state.availStock[country] || [], countryColors[country])}</p>
 								</div>
 							}
 						>
@@ -286,7 +268,7 @@ class MapApp extends React.Component {
 									display: 'inline',
 									verticalAlign: 'top',
 									position: 'absolute',
-									backgroundColor: this.state.iconColors[country],
+									backgroundColor: iconColors[country],
 									width: 15,
 									height: 15,
 									borderRadius: '50%',

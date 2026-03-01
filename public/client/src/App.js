@@ -90,6 +90,11 @@ class App extends React.Component {
 			setPeaceVoteChoice: (x) => {
 				this.setState({ peaceVoteChoice: x });
 			},
+			colorblindMode: localStorage.getItem('colorblindMode') === 'true',
+			setColorblindMode: (x) => {
+				this.setState({ colorblindMode: x });
+				localStorage.setItem('colorblindMode', x.toString());
+			},
 			title: '',
 		};
 	}

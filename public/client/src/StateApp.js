@@ -7,6 +7,7 @@ import * as stateAPI from './backendFiles/stateAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
+import { getCountryColorPalette } from './countryColors.js';
 
 // note this file hardcodes countries + ordering
 
@@ -14,27 +15,16 @@ class StateApp extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			colors: {
-				Austria: '#aa9514',
-				Italy: '#3c8618',
-				France: '#1765ad',
-				England: '#a61d24',
-				Germany: '#292929',
-				Russia: '#51258f',
-			},
-			darkColors: {
-				Austria: '#7c6e14',
-				Italy: '#306317',
-				France: '#164c7e',
-				England: '#791a1f',
-				Germany: '#292929',
-				Russia: '#3e2069',
-			},
 			countries: [],
 			countryInfo: {},
 			playerInfo: {},
 			playersOrdered: [],
 		};
+	}
+
+	getColors() {
+		let palette = getCountryColorPalette(this.context.colorblindMode);
+		return { colors: palette.mid, darkColors: palette.dark };
 	}
 
 	componentDidMount() {
@@ -67,6 +57,7 @@ class StateApp extends React.Component {
 	}
 
 	render() {
+		let { colors, darkColors } = this.getColors();
 		return (
 			<div style={{ display: 'flex' }}>
 				<Card
@@ -77,15 +68,15 @@ class StateApp extends React.Component {
 						<Space size="large" style={{ display: 'flex' }}>
 							<CountryCard
 								country={this.state.countries[0]}
-								color={this.state.colors[this.state.countries[0]]}
-								darkColor={this.state.darkColors[this.state.countries[0]]}
+								color={colors[this.state.countries[0]]}
+								darkColor={darkColors[this.state.countries[0]]}
 								info={clean(this.state.countryInfo[this.state.countries[0]])}
 								playerInfo={this.state.playerInfo}
 							/>
 							<CountryCard
 								country={this.state.countries[1]}
-								color={this.state.colors[this.state.countries[1]]}
-								darkColor={this.state.darkColors[this.state.countries[1]]}
+								color={colors[this.state.countries[1]]}
+								darkColor={darkColors[this.state.countries[1]]}
 								info={clean(this.state.countryInfo[this.state.countries[1]])}
 								playerInfo={this.state.playerInfo}
 							/>
@@ -93,15 +84,15 @@ class StateApp extends React.Component {
 						<Space size="large" style={{ display: 'flex' }}>
 							<CountryCard
 								country={this.state.countries[2]}
-								color={this.state.colors[this.state.countries[2]]}
-								darkColor={this.state.darkColors[this.state.countries[2]]}
+								color={colors[this.state.countries[2]]}
+								darkColor={darkColors[this.state.countries[2]]}
 								info={clean(this.state.countryInfo[this.state.countries[2]])}
 								playerInfo={this.state.playerInfo}
 							/>
 							<CountryCard
 								country={this.state.countries[3]}
-								color={this.state.colors[this.state.countries[3]]}
-								darkColor={this.state.darkColors[this.state.countries[3]]}
+								color={colors[this.state.countries[3]]}
+								darkColor={darkColors[this.state.countries[3]]}
 								info={clean(this.state.countryInfo[this.state.countries[3]])}
 								playerInfo={this.state.playerInfo}
 							/>
@@ -109,15 +100,15 @@ class StateApp extends React.Component {
 						<Space size="large" style={{ display: 'flex' }}>
 							<CountryCard
 								country={this.state.countries[4]}
-								color={this.state.colors[this.state.countries[4]]}
-								darkColor={this.state.darkColors[this.state.countries[4]]}
+								color={colors[this.state.countries[4]]}
+								darkColor={darkColors[this.state.countries[4]]}
 								info={clean(this.state.countryInfo[this.state.countries[4]])}
 								playerInfo={this.state.playerInfo}
 							/>
 							<CountryCard
 								country={this.state.countries[5]}
-								color={this.state.colors[this.state.countries[5]]}
-								darkColor={this.state.darkColors[this.state.countries[5]]}
+								color={colors[this.state.countries[5]]}
+								darkColor={darkColors[this.state.countries[5]]}
 								info={clean(this.state.countryInfo[this.state.countries[5]])}
 								playerInfo={this.state.playerInfo}
 							/>
@@ -132,13 +123,13 @@ class StateApp extends React.Component {
 						<Space size="large" style={{ display: 'flex' }}>
 							<PlayerCard
 								player={this.state.playersOrdered[0]}
-								countryColors={this.order(this.state.darkColors)}
+								countryColors={this.order(darkColors)}
 								info={clean(this.state.playerInfo[this.state.playersOrdered[0]])}
 								countryInfos={this.state.countryInfo}
 							/>
 							<PlayerCard
 								player={this.state.playersOrdered[1]}
-								countryColors={this.order(this.state.darkColors)}
+								countryColors={this.order(darkColors)}
 								info={clean(this.state.playerInfo[this.state.playersOrdered[1]])}
 								countryInfos={this.state.countryInfo}
 							/>
@@ -146,13 +137,13 @@ class StateApp extends React.Component {
 						<Space size="large" style={{ display: 'flex' }}>
 							<PlayerCard
 								player={this.state.playersOrdered[2]}
-								countryColors={this.order(this.state.darkColors)}
+								countryColors={this.order(darkColors)}
 								info={clean(this.state.playerInfo[this.state.playersOrdered[2]])}
 								countryInfos={this.state.countryInfo}
 							/>
 							<PlayerCard
 								player={this.state.playersOrdered[3]}
-								countryColors={this.order(this.state.darkColors)}
+								countryColors={this.order(darkColors)}
 								info={clean(this.state.playerInfo[this.state.playersOrdered[3]])}
 								countryInfos={this.state.countryInfo}
 							/>
@@ -160,13 +151,13 @@ class StateApp extends React.Component {
 						<Space size="large" style={{ display: 'flex' }}>
 							<PlayerCard
 								player={this.state.playersOrdered[4]}
-								countryColors={this.order(this.state.darkColors)}
+								countryColors={this.order(darkColors)}
 								info={clean(this.state.playerInfo[this.state.playersOrdered[4]])}
 								countryInfos={this.state.countryInfo}
 							/>
 							<PlayerCard
 								player={this.state.playersOrdered[5]}
-								countryColors={this.order(this.state.darkColors)}
+								countryColors={this.order(darkColors)}
 								info={clean(this.state.playerInfo[this.state.playersOrdered[5]])}
 								countryInfos={this.state.countryInfo}
 							/>

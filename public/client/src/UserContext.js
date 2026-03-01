@@ -39,6 +39,8 @@ const UserContext = React.createContext({
 	setManeuverAction: () => {},
 	peaceVoteChoice: '',
 	setPeaceVoteChoice: () => {},
+	colorblindMode: false,
+	setColorblindMode: () => {},
 });
 
 export default UserContext;

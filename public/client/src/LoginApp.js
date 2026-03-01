@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.css';
-import { Input, Divider, Button } from 'antd';
+import { Input, Divider, Button, Tooltip } from 'antd';
 import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as helper from './backendFiles/helper.js';
@@ -149,6 +149,20 @@ class LoginApp extends React.Component {
 		return t;
 	}
 
+	buildColorblindToggle() {
+		return (
+			<Tooltip title="Colorblind Mode" mouseLeaveDelay={0}>
+				<Button
+					type="link"
+					onClick={() => this.context.setColorblindMode(!this.context.colorblindMode)}
+					style={this.context.colorblindMode ? { color: '#13a8a8' } : {}}
+				>
+					<i className={this.context.colorblindMode ? 'fas fa-eye' : 'fas fa-low-vision'}></i>
+				</Button>
+			</Tooltip>
+		);
+	}
+
 	buildExitGame() {
 		let t = [];
 		if (this.context.game) {
@@ -177,6 +191,7 @@ class LoginApp extends React.Component {
 						onPressEnter={(e) => this.handleEnter(e)}
 					></Input>{' '}
 					&nbsp;
+					{this.buildColorblindToggle()}
 					{this.buildExitGame()}
 				</div>
 			);
@@ -189,6 +204,7 @@ class LoginApp extends React.Component {
 						{' '}
 						<i class="fas fa-sign-out-alt"></i>{' '}
 					</Button>
+					{this.buildColorblindToggle()}
 					{this.buildExitGame()}
 					&nbsp; &nbsp; &nbsp;
 				</div>

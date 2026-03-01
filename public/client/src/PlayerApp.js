@@ -8,19 +8,12 @@ import * as stateAPI from './backendFiles/stateAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
+import { getCountryColorPalette } from './countryColors.js';
 
 class PlayerApp extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			darkColors: {
-				Austria: '#7c6e14',
-				Italy: '#306317',
-				France: '#164c7e',
-				England: '#791a1f',
-				Germany: '#292929',
-				Russia: '#3e2069',
-			},
 			countries: [],
 			countryInfo: {},
 			playerInfo: {},
@@ -58,42 +51,43 @@ class PlayerApp extends React.Component {
 	}
 
 	render() {
+		let darkColors = getCountryColorPalette(this.context.colorblindMode).dark;
 		return (
 			<div style={{ display: 'flex' }}>
 				<Space size="small" direction="vertical">
 					<PlayerCard
 						player={this.state.playersOrdered[0]}
-						countryColors={this.state.darkColors}
+						countryColors={darkColors}
 						info={clean(this.state.playerInfo[this.state.playersOrdered[0]])}
 						countryInfos={this.state.countryInfo}
 					/>
 					<PlayerCard
 						player={this.state.playersOrdered[1]}
-						countryColors={this.state.darkColors}
+						countryColors={darkColors}
 						info={clean(this.state.playerInfo[this.state.playersOrdered[1]])}
 						countryInfos={this.state.countryInfo}
 					/>
 					<PlayerCard
 						player={this.state.playersOrdered[2]}
-						countryColors={this.state.darkColors}
+						countryColors={darkColors}
 						info={clean(this.state.playerInfo[this.state.playersOrdered[2]])}
 						countryInfos={this.state.countryInfo}
 					/>
 					<PlayerCard
 						player={this.state.playersOrdered[3]}
-						countryColors={this.state.darkColors}
+						countryColors={darkColors}
 						info={clean(this.state.playerInfo[this.state.playersOrdered[3]])}
 						countryInfos={this.state.countryInfo}
 					/>
 					<PlayerCard
 						player={this.state.playersOrdered[4]}
-						countryColors={this.state.darkColors}
+						countryColors={darkColors}
 						info={clean(this.state.playerInfo[this.state.playersOrdered[4]])}
 						countryInfos={this.state.countryInfo}
 					/>
 					<PlayerCard
 						player={this.state.playersOrdered[5]}
-						countryColors={this.state.darkColors}
+						countryColors={darkColors}
 						info={clean(this.state.playerInfo[this.state.playersOrdered[5]])}
 						countryInfos={this.state.countryInfo}
 					/>
@@ -124,14 +118,6 @@ class PlayerCard extends React.Component {
 		super(props);
 		this.state = {
 			countries: ['Austria', 'Italy', 'France', 'England', 'Germany', 'Russia'],
-			colors: {
-				Austria: '#d8bd14',
-				Italy: '#49aa19',
-				France: '#177ddc',
-				England: '#d32029',
-				Germany: '#000000',
-				Russia: '#854eca',
-			},
 			activeTooltip: null,
 		};
 	}
@@ -196,6 +182,7 @@ class PlayerCard extends React.Component {
 		return t;
 	}
 	gov() {
+		let brightColors = getCountryColorPalette(this.context.colorblindMode).bright;
 		let t = [];
 		for (let country in this.props.countryInfos) {
 			if ((this.props.countryInfos[country].leadership || [])[0] === this.props.player) {
@@ -203,7 +190,7 @@ class PlayerCard extends React.Component {
 					this.tip(
 						'leader-' + country,
 						country + ' Leader',
-						<FlagFilled style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
+						<FlagFilled style={{ fontSize: 16, color: brightColors[country], marginRight: 3 }} />
 					)
 				);
 			}
@@ -215,7 +202,7 @@ class PlayerCard extends React.Component {
 					this.tip(
 						'opp-' + country,
 						country + ' Opposition',
-						<FlagOutlined style={{ fontSize: 16, color: this.state.colors[country], marginRight: 3 }} />
+						<FlagOutlined style={{ fontSize: 16, color: brightColors[country], marginRight: 3 }} />
 					)
 				);
 			}

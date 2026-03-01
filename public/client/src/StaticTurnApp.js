@@ -4,6 +4,7 @@ import UserContext from './UserContext.js';
 import { Card, Collapse, Divider, Alert } from 'antd';
 import { CountryCard, PlayerCard } from './StateApp.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
+import { getCountryColorPalette } from './countryColors.js';
 
 const { Panel } = Collapse;
 
@@ -65,15 +66,9 @@ class StaticTurnApp extends React.Component {
 			return null;
 		}
 
-		let colors = {
-			Austria: '#aa9514',
-			Italy: '#306317',
-			France: '#164c7e',
-			England: '#791a1f',
-			Germany: '#202020',
-			Russia: '#3e2069',
-		};
-		let countryColors = ['#7c6e14', '#306317', '#164c7e', '#791a1f', '#292929', '#3e2069'];
+		let palette = getCountryColorPalette(this.context.colorblindMode);
+		let colors = palette.dark;
+		let countryColors = ['Austria', 'Italy', 'France', 'England', 'Germany', 'Russia'].map((c) => palette.dark[c]);
 		let country = this.state.gameState.countryUp;
 		// if in players only
 		let pc = (
