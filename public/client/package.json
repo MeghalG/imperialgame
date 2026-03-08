@@ -11,12 +11,12 @@
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-medium-image-zoom": "^4.3.1",
-    "react-scripts": "3.4.3"
+    "react-scripts": "5.0.1"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^4.2.4",
-    "@testing-library/react": "^9.5.0",
-    "@testing-library/user-event": "^7.2.1",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^12.1.5",
+    "@testing-library/user-event": "^13.5.0",
     "prettier": "^2.8.0"
   },
   "scripts": {
@@ -38,6 +38,9 @@
   },
   "homepage": "/",
   "private": true,
+  "jest": {
+    "resetMocks": false
+  },
   "eslintConfig": {
     "extends": "react-app"
   },

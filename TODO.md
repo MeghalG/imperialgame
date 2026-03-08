@@ -26,14 +26,14 @@ Tracked improvements, technical debt, and feature ideas for Imperial Game.
 - [x] ~~Remove `eval()` usage in `helper.unstringifyFunctions()`~~ (replaced with no-op stubs)
 
 ### Firebase SDK Upgrade
-- [ ] Upgrade from Firebase SDK v8 to v10+ (modular SDK)
-- [ ] Use tree-shaking-friendly modular imports
-- [ ] Update `firebase.js` initialization
+- [x] ~~Upgrade from Firebase SDK v8 to v10+ (modular SDK)~~ (upgraded to v11, modular API with v8-compat wrapper)
+- [x] ~~Use tree-shaking-friendly modular imports~~ (firebase.js uses modular imports internally)
+- [x] ~~Update `firebase.js` initialization~~ (rewritten with v10+ modular API)
 
 ### Build Tooling
-- [ ] Upgrade from react-scripts 3.4.3 to current version
-- [ ] Upgrade from Node 16 to current LTS
-- [ ] Evaluate migration from Create React App to Vite
+- [x] ~~Upgrade from react-scripts 3.4.3 to current version~~ (upgraded to react-scripts 5.0.1, webpack 5)
+- [x] ~~Upgrade from Node 16 to current LTS~~ (upgraded to Node 20)
+- [x] ~~Evaluate migration from Create React App to Vite~~ (decided to skip: Vite requires Jest→Vitest migration of all 12 test suites, low ROI)
 
 ### Testing
 - [ ] Add integration tests for full game flows (create game -> play -> game over)

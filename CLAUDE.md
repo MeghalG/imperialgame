@@ -9,8 +9,8 @@ A multiplayer online strategy board game (based on the board game "Imperial") bu
 - **Backend:** Firebase Realtime Database (no server -- all game logic runs client-side)
 - **Auth:** Firebase Authentication
 - **Email:** emailjs-com for turn notifications
-- **Build:** Create React App (react-scripts 3.4.3)
-- **Node:** Requires Node 16 (see `.nvmrc`). Use `nvm use` before running commands.
+- **Build:** Create React App (react-scripts 5.0.1)
+- **Node:** Requires Node 20 (see `.nvmrc`). Use `nvm use` before running commands.
 - **CI:** GitHub Actions (`.github/workflows/ci.yml`) - format check, test, build
 
 ## Project Layout
@@ -19,7 +19,7 @@ imperialgame/
   CLAUDE.md                  # This file
   firebase.json              # Firebase config (hosting, emulators, rules)
   database.rules.json        # Realtime DB rules (auth-gated)
-  .nvmrc                     # Node version (16)
+  .nvmrc                     # Node version (20)
   docs/
     firebase-schema.md       # Complete Firebase data model reference
     game-logic.md            # Game flow, state machine, and rules documentation
@@ -158,7 +158,7 @@ Each mode component:
 
 In democracy mode, proposals must be stored in Firebase across turns (leader proposes → opposition proposes → vote). But the context object contains React setState function references that can't be serialized to JSON.
 
-Solution: `helper.stringifyFunctions()` converts any context key starting with `"set"` or `"reset"` to its `.toString()` representation. `helper.unstringifyFunctions()` uses `eval()` to restore them. This is stored in `gameState['proposal 1']` and `gameState['proposal 2']`.
+Solution: `helper.stringifyFunctions()` converts any context key starting with `"set"` or `"reset"` to its `.toString()` representation. `helper.unstringifyFunctions()` replaces them with no-op function stubs (the set/reset functions are never actually called during proposal execution). This is stored in `gameState['proposal 1']` and `gameState['proposal 2']`.
 
 ### Backend Files Responsibility
 
@@ -220,5 +220,5 @@ Run: `npm test -- --watchAll=false --ci`
 - All components are class-based React (no hooks)
 - `ContinueManeuverApp.js` and `ManeuverPlannerApp.js` handle continue-man mode (fully implemented)
 - No server-side game logic validation (all logic runs in browser)
-- Firebase SDK is v8 (current is v10+)
-- `proposalAPI.js` has several unused functions
+- Firebase SDK v11 modular API is wrapped in a v8-compatible shim in `firebase.js`; call sites still use the old `database.ref(path).once()` pattern
+- `proposalAPI.js` has several test-only exported helpers
