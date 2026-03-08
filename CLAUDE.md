@@ -52,7 +52,8 @@ imperialgame/
       RulesApp.js            # Game rules display
       LoginApp.js            # Login + timer + name entry
       ComponentTemplates.js  # Reusable UI components (ActionComponent, OptionComponent, RadioComponent)
-      ContinueManeuverApp.js # Multi-step maneuver continuation (commented out)
+      ContinueManeuverApp.js # Multi-step maneuver continuation
+      ManeuverPlannerApp.js  # Plan-based maneuver UI (used for continue-man mode)
       backendFiles/
         firebase.js          # Firebase init (reads from process.env)
         submitAPI.js         # Core game engine: turn submission, state transitions, all game logic
@@ -72,6 +73,9 @@ imperialgame/
         miscAPI.test.js      # Tests for miscAPI.js
       App.test.js            # 2 smoke tests for App.js
       GameOverApp.test.js    # Tests for GameOverApp.js
+      ManeuverPlannerApp.test.js # Tests for ManeuverPlannerApp.js
+      ModeComponents.test.js # Smoke tests for BidApp, HistoryApp
+      GameOverApp.test.js    # Tests for GameOverApp.js
   functions/                 # Firebase Cloud Functions (empty skeleton, unused)
 ```
 
@@ -80,7 +84,7 @@ All commands run from `public/client/`:
 ```bash
 npm start             # Dev server at localhost:3000
 npm run build         # Production build to build/ (zero warnings)
-npm test              # Jest tests (370 tests across 9 suites)
+npm test              # Jest tests (609 tests across 12 suites)
 npm run format        # Format all source with Prettier
 npm run format:check  # Check formatting without writing
 bash verify.sh        # Pre-push verification (mirrors CI pipeline)
@@ -214,8 +218,7 @@ Run: `npm test -- --watchAll=false --ci`
 
 ## Known Issues / Tech Debt
 - All components are class-based React (no hooks)
-- `ContinueManeuverApp.js` is entirely commented out (continue-man mode is a stub)
+- `ContinueManeuverApp.js` and `ManeuverPlannerApp.js` handle continue-man mode (fully implemented)
 - No server-side game logic validation (all logic runs in browser)
 - Firebase SDK is v8 (current is v10+)
 - `proposalAPI.js` has several unused functions
-- `stateAPI.getCashValue()` is a stub that always returns 5

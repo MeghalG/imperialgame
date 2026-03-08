@@ -15,15 +15,15 @@ Tracked improvements, technical debt, and feature ideas for Imperial Game.
 - [ ] Validate moves, purchases, and proposals server-side
 
 ### Continue Maneuver Mode
-- [ ] `ContinueManeuverApp.js` is entirely commented out (continue-man mode is a stub)
-- [ ] Implement the full continue-maneuver flow for multi-step maneuvers
+- [x] ~~`ContinueManeuverApp.js` is entirely commented out~~ (fully implemented)
+- [x] ~~Implement the full continue-maneuver flow~~ (done via `ManeuverPlannerApp` + `ContinueManeuverApp`)
 
 ## Medium Priority
 
 ### React Modernization
 - [ ] Migrate class components to functional components with hooks
 - [ ] Replace `contextType` pattern with `useContext`
-- [ ] Remove `eval()` usage in `helper.unstringifyFunctions()` (used for proposal serialization)
+- [x] ~~Remove `eval()` usage in `helper.unstringifyFunctions()`~~ (replaced with no-op stubs)
 
 ### Firebase SDK Upgrade
 - [ ] Upgrade from Firebase SDK v8 to v10+ (modular SDK)
@@ -37,9 +37,9 @@ Tracked improvements, technical debt, and feature ideas for Imperial Game.
 
 ### Testing
 - [ ] Add integration tests for full game flows (create game -> play -> game over)
-- [ ] Add tests for UI components (currently only backend files are tested)
-- [ ] Add tests for `ManeuverPlannerApp` plan-based logic
-- [ ] Add tests for `GameOverApp` scoring edge cases
+- [x] ~~Add tests for UI components~~ (smoke tests for BidApp, HistoryApp, GameOverApp, ManeuverPlannerApp)
+- [x] ~~Add tests for `ManeuverPlannerApp` plan-based logic~~ (9 tests added)
+- [x] ~~Add tests for `GameOverApp` scoring edge cases~~ (7 new tests added)
 
 ## Low Priority
 
@@ -51,8 +51,6 @@ Tracked improvements, technical debt, and feature ideas for Imperial Game.
 - [ ] In-game chat between players
 
 ### Code Cleanup
-- [ ] Remove unused functions in `proposalAPI.js`
-- [ ] `stateAPI.getCashValue()` is a stub that always returns 5 -- implement properly
 - [ ] Clean up antd dark theme (currently a large extracted CSS file)
 - [ ] Extract magic numbers and strings into `gameConstants.js`
 

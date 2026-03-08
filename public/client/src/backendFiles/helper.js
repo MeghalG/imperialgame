@@ -531,27 +531,23 @@ function stringifyFunctions(d) {
 }
 
 /**
- * Reconverts stringified function values back into executable functions using eval().
+ * Reconverts stringified function values back into no-op function stubs.
  * Only converts keys that start with "set" or "reset" (React state setter functions).
  * Other values are passed through unchanged. This restores game state loaded from Firebase
- * back to a usable form with working setter functions.
+ * back to a usable form with function-typed setter keys.
  *
- * Called from: submitAPI after loading proposal context from Firebase to restore
- * the setter functions.
- *
- * @caveat Uses eval() to reconstruct functions, which is a security concern if the
- *   stored strings are ever tampered with. The ESLint no-eval warning is suppressed.
+ * Called from: submitAPI after loading proposal context from Firebase. The restored
+ * setter functions are never actually called — executeProposal only reads data values
+ * from the context — so no-op stubs are sufficient and avoid the security risk of eval().
  *
  * @param {Object} d - Dictionary with stringified function values
- * @returns {Object} New dictionary with string function representations converted back
- *   to executable functions via eval()
+ * @returns {Object} New dictionary with string function representations replaced by no-ops
  */
 function unstringifyFunctions(d) {
 	let newDict = {};
 	for (let key in d) {
 		if (key.substring(0, 3) === 'set' || key.substring(0, 5) === 'reset') {
-			// eslint-disable-next-line no-eval
-			newDict[key] = eval('(' + d[key] + ')');
+			newDict[key] = function () {};
 		} else {
 			newDict[key] = d[key];
 		}

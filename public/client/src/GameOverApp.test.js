@@ -37,6 +37,7 @@ jest.mock('./backendFiles/firebase.js', () => ({
 
 import GameOverApp from './GameOverApp.js';
 import UserContext from './UserContext.js';
+import { clearCache } from './backendFiles/stateCache.js';
 
 async function flushPromises() {
 	for (let i = 0; i < 10; i++) {
@@ -115,6 +116,7 @@ beforeAll(() => {
 
 beforeEach(() => {
 	mockDbData = {};
+	clearCache();
 	jest.clearAllMocks();
 });
 
@@ -173,6 +175,226 @@ describe('GameOverApp', () => {
 		expect(div.textContent).toContain('Player Standings');
 		expect(div.textContent).toContain('Country Standings');
 
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('displays correct winner name', async () => {
+		const gs = buildGameState();
+		mockDbData = { games: { testGame: gs } };
+
+		const div = document.createElement('div');
+		const contextValue = { game: 'testGame', name: 'Alice' };
+
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+
+		expect(div.textContent).toContain('Alice wins');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('player with no stock but most money wins when others have low-value stock', async () => {
+		const gs = buildGameState();
+		// Give Bob lots of money and no stock; Alice has stock but low-point countries
+		gs.playerInfo.Alice.money = 5;
+		gs.playerInfo.Alice.stock = [{ country: 'France', stock: 1 }];
+		gs.playerInfo.Bob.money = 50;
+		gs.playerInfo.Bob.stock = [];
+		gs.countryInfo.Austria.points = 25;
+		gs.countryInfo.France.points = 5;
+
+		mockDbData = { games: { testGame: gs } };
+
+		const div = document.createElement('div');
+		const contextValue = { game: 'testGame', name: 'Alice' };
+
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+
+		// Alice: floor(5/5)*1 + 5 = 6
+		// Bob:   0 + 50 = 50
+		expect(div.textContent).toContain('Bob wins');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('scoreModifier affects final standings', async () => {
+		const gs = buildGameState();
+		// Give Alice a negative scoreModifier (timer penalty)
+		gs.playerInfo.Alice.scoreModifier = -40;
+		mockDbData = { games: { testGame: gs } };
+
+		const div = document.createElement('div');
+		const contextValue = { game: 'testGame', name: 'Alice' };
+
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+
+		// Alice: 25+6+15 - 40 = 6
+		// Bob:   10+30 = 40
+		expect(div.textContent).toContain('Bob wins');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('displays player with zero stock and zero money', async () => {
+		const gs = buildGameState();
+		gs.playerInfo.Charlie = {
+			money: 0,
+			stock: [],
+			scoreModifier: 0,
+			investor: false,
+			swiss: false,
+			order: 3,
+		};
+		mockDbData = { games: { testGame: gs } };
+
+		const div = document.createElement('div');
+		const contextValue = { game: 'testGame', name: 'Alice' };
+
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+
+		// Charlie should appear with score 0 and "None" for stocks
+		expect(div.textContent).toContain('Charlie');
+		expect(div.textContent).toContain('None');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('country with zero points renders correctly', async () => {
+		const gs = buildGameState();
+		gs.countryInfo.France.points = 0;
+		mockDbData = { games: { testGame: gs } };
+
+		const div = document.createElement('div');
+		const contextValue = { game: 'testGame', name: 'Alice' };
+
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+
+		// France row should show 0 points
+		expect(div.textContent).toContain('France');
+		expect(div.textContent).toContain('Game Over');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('country with no leadership shows None', async () => {
+		const gs = buildGameState();
+		gs.countryInfo.France.leadership = [];
+		mockDbData = { games: { testGame: gs } };
+
+		const div = document.createElement('div');
+		const contextValue = { game: 'testGame', name: 'Alice' };
+
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+
+		expect(div.textContent).toContain('None');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('many players sorted by score descending', async () => {
+		const gs = buildGameState();
+		gs.playerInfo.Charlie = {
+			money: 100,
+			stock: [],
+			scoreModifier: 0,
+			investor: false,
+			swiss: false,
+			order: 3,
+		};
+		mockDbData = { games: { testGame: gs } };
+
+		const div = document.createElement('div');
+		const contextValue = { game: 'testGame', name: 'Alice' };
+
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+		ReactDOM.render(
+			<UserContext.Provider value={contextValue}>
+				<GameOverApp />
+			</UserContext.Provider>,
+			div
+		);
+		await flushPromises();
+
+		// Charlie: 100, Alice: 46, Bob: 40
+		// Charlie should win
+		expect(div.textContent).toContain('Charlie wins');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 });
