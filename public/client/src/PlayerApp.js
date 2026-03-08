@@ -12,7 +12,7 @@ import { getCountryColorPalette } from './countryColors.js';
 
 function PlayerApp() {
 	const context = useContext(UserContext);
-	const [countries, setCountries] = useState([]);
+	const [, setCountries] = useState([]);
 	const [countryInfo, setCountryInfo] = useState({});
 	const [playerInfo, setPlayerInfo] = useState({});
 	const [playersOrdered, setPlayersOrdered] = useState([]);

@@ -25,7 +25,7 @@ function MapApp() {
 	const [lastTax, setLastTax] = useState({});
 	const [currentTax, setCurrentTax] = useState({});
 	const [rondel, setRondel] = useState();
-	const [vis, setVis] = useState({
+	const [, setVis] = useState({
 		Austria: undefined,
 		Italy: null,
 		France: false,

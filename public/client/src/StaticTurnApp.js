@@ -21,35 +21,6 @@ function StaticTurnApp() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	function twoDec(money) {
-		if (!money) {
-			return 0;
-		} else {
-			return parseFloat(money).toFixed(2).toString();
-		}
-	}
-
-	function formatAvailStock(availStock, color) {
-		let t = [];
-		for (let i = 0; i < availStock.length; i++) {
-			t.push(<mark style={{ backgroundColor: color, color: 'white', borderRadius: 3 }}>{availStock[i]}</mark>);
-			t.push(<span>&nbsp;</span>);
-		}
-		return t;
-	}
-
-	function leadershipText(countryInfo) {
-		if (!countryInfo.gov) {
-			return '';
-		}
-		if (countryInfo.gov === 'dictatorship') {
-			return countryInfo.leadership[0];
-		}
-		if (countryInfo.gov === 'democracy') {
-			return countryInfo.leadership[0] + ' / ' + countryInfo.leadership[1];
-		}
-	}
-
 	function clean(x) {
 		if (x) {
 			return x;
