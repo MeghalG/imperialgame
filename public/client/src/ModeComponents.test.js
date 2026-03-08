@@ -4,6 +4,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { act } from 'react-dom/test-utils';
 
 let mockDbData = {};
 
@@ -147,7 +148,9 @@ describe('BidApp', () => {
 
 		const div = document.createElement('div');
 		const ctx = { game: 'testGame', name: 'Alice', setBid: jest.fn() };
-		renderWithContext(BidApp, ctx, div);
+		act(() => {
+			renderWithContext(BidApp, ctx, div);
+		});
 
 		// Before loading, renders null (empty)
 		expect(div.innerHTML).toBe('');
@@ -160,10 +163,12 @@ describe('BidApp', () => {
 
 		const div = document.createElement('div');
 		const ctx = { game: 'testGame', name: 'Alice', setBid: jest.fn() };
-		renderWithContext(BidApp, ctx, div);
-		await flushPromises();
-		renderWithContext(BidApp, ctx, div);
-		await flushPromises();
+		act(() => {
+			renderWithContext(BidApp, ctx, div);
+		});
+		await act(async () => {
+			await flushPromises();
+		});
 
 		expect(div.textContent).toContain('bid');
 		expect(div.textContent).toContain('Austria');
@@ -171,16 +176,21 @@ describe('BidApp', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('calls setBid on mount', () => {
+	test('calls setBid on mount', async () => {
 		const gs = buildGameState();
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
 		const setBid = jest.fn();
 		const ctx = { game: 'testGame', name: 'Alice', setBid };
-		renderWithContext(BidApp, ctx, div);
+		act(() => {
+			renderWithContext(BidApp, ctx, div);
+		});
+		await act(async () => {
+			await flushPromises();
+		});
 
-		// record(0) is called in componentDidMount
+		// record(0) is called in useEffect
 		expect(setBid).toHaveBeenCalledWith(0);
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -190,14 +200,19 @@ describe('BidApp', () => {
 // HistoryApp
 // ---------------------------------------------------------------------------
 describe('HistoryApp', () => {
-	test('renders history list from Firebase listener', () => {
+	test('renders history list from Firebase listener', async () => {
 		const gs = buildGameState();
 		gs.history = ['The game has begun.', 'Alice bid $5 on Austria.', 'Bob bid $3 on Austria.'];
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
 		const ctx = { game: 'testGame', name: 'Alice' };
-		renderWithContext(HistoryApp, ctx, div);
+		act(() => {
+			renderWithContext(HistoryApp, ctx, div);
+		});
+		await act(async () => {
+			await flushPromises();
+		});
 
 		// History is reversed, so most recent first
 		expect(div.textContent).toContain('Bob bid $3 on Austria.');
@@ -211,19 +226,26 @@ describe('HistoryApp', () => {
 
 		const div = document.createElement('div');
 		const ctx = { game: 'testGame', name: 'Alice' };
-		renderWithContext(HistoryApp, ctx, div);
+		act(() => {
+			renderWithContext(HistoryApp, ctx, div);
+		});
 
 		// Should not crash even with no data
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('shows numbered entries in reverse order', () => {
+	test('shows numbered entries in reverse order', async () => {
 		const history = ['Entry 1', 'Entry 2', 'Entry 3'];
 		mockDbData = { games: { testGame: { history: history } } };
 
 		const div = document.createElement('div');
 		const ctx = { game: 'testGame', name: 'Alice' };
-		renderWithContext(HistoryApp, ctx, div);
+		act(() => {
+			renderWithContext(HistoryApp, ctx, div);
+		});
+		await act(async () => {
+			await flushPromises();
+		});
 
 		// The numbering should show [3] for most recent, [1] for oldest
 		expect(div.textContent).toContain('[3]');

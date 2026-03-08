@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 import { Input, Divider, Button, Tooltip } from 'antd';
 import UserContext from './UserContext.js';
@@ -7,78 +7,82 @@ import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
 
-class LoginApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = { validNames: [], timer: false, time: 0, myTurn: false };
-	}
+function LoginApp() {
+	const context = useContext(UserContext);
+	const [validNames, setValidNames] = useState([]);
+	const [timer, setTimer] = useState(false);
+	const [time, setTime] = useState(0);
+	const [myTurn, setMyTurn] = useState(false);
+	const turnRef = useRef(null);
+	const timerRef = useRef(null);
+	const intervalRef = useRef(null);
+	const contextRef = useRef(context);
+	contextRef.current = context;
 
-	componentDidMount() {
-		this.doStuff();
-		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
-		this.turnRef.on('value', async (dataSnapshot) => {
-			invalidateIfStale(this.context.game, dataSnapshot.val());
-			this.doStuff();
-		});
-		this.timerRef = database.ref('games/' + this.context.game + '/timer');
-		this.timerRef.on('child_changed', async (dataSnapshot) => {
-			this.doStuff();
-		});
-		this.intervalId = setInterval(
-			function () {
-				database.ref('/.info/serverTimeOffset').once(
-					'value',
-					function (offset) {
-						let offsetVal = offset.val() || 0;
-						let serverTime = Date.now() + offsetVal;
-						this.setState({ time: serverTime });
-					}.bind(this)
-				);
-			}.bind(this),
-			500
-		);
-	}
-
-	componentWillUnmount() {
-		if (this.turnRef) this.turnRef.off();
-		if (this.timerRef) this.timerRef.off();
-		if (this.intervalId) clearInterval(this.intervalId);
-	}
-
-	async doStuff() {
-		let [res, timer, myTurn] = await Promise.all([
-			helper.getPlayersInOrder(this.context),
-			helper.getTimer(this.context),
-			turnAPI.getMyTurn(this.context),
+	const doStuff = useCallback(async () => {
+		let [res, timerData, myTurnData] = await Promise.all([
+			helper.getPlayersInOrder(contextRef.current),
+			helper.getTimer(contextRef.current),
+			turnAPI.getMyTurn(contextRef.current),
 		]);
-		this.setState({ validNames: res, timer: timer, myTurn: myTurn });
-	}
+		setValidNames(res);
+		setTimer(timerData);
+		setMyTurn(myTurnData);
+	}, []);
 
-	handleEnter(e) {
-		this.context['setName'](e.target.value);
+	useEffect(() => {
+		doStuff();
+		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
+		turnRef.current.on('value', async (dataSnapshot) => {
+			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
+			doStuff();
+		});
+		timerRef.current = database.ref('games/' + contextRef.current.game + '/timer');
+		timerRef.current.on('child_changed', async (dataSnapshot) => {
+			doStuff();
+		});
+		intervalRef.current = setInterval(function () {
+			database.ref('/.info/serverTimeOffset').once('value', function (offset) {
+				let offsetVal = offset.val() || 0;
+				let serverTime = Date.now() + offsetVal;
+				setTime(serverTime);
+			});
+		}, 500);
+		return () => {
+			if (turnRef.current) turnRef.current.off();
+			if (timerRef.current) timerRef.current.off();
+			if (intervalRef.current) clearInterval(intervalRef.current);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	function handleEnter(e) {
+		context['setName'](e.target.value);
 		localStorage.setItem('name', e.target.value);
-		this.doStuff();
+		doStuff();
 	}
 
-	logout() {
-		this.context['setName']('');
+	function logout() {
+		context['setName']('');
 		localStorage.setItem('name', '');
 	}
-	exitGame() {
-		this.context['setGame']('');
+
+	function exitGame() {
+		context['setGame']('');
 		localStorage.setItem('game', '');
 	}
-	async pause() {
-		await database.ref('games/' + this.context.game + '/timer/pause').set(this.state.time);
+
+	async function pause() {
+		await database.ref('games/' + context.game + '/timer/pause').set(time);
 	}
-	async play() {
-		await this.doStuff();
-		await database
-			.ref('games/' + this.context.game + '/timer/lastMove')
-			.set(this.state.time - this.state.timer.pause + this.state.timer.lastMove);
-		await database.ref('games/' + this.context.game + '/timer/pause').set(0);
+
+	async function play() {
+		await doStuff();
+		await database.ref('games/' + context.game + '/timer/lastMove').set(time - timer.pause + timer.lastMove);
+		await database.ref('games/' + context.game + '/timer/pause').set(0);
 	}
-	msToTime(s) {
+
+	function msToTime(s) {
 		s = Math.floor(s / 1000);
 		let secs = s % 60;
 		let mins = Math.floor(s / 60);
@@ -86,58 +90,48 @@ class LoginApp extends React.Component {
 		return mins + ':' + secs.toString().padStart(2, '0');
 	}
 
-	buildTimer() {
+	function buildTimer() {
 		let t = [];
-		if (this.state.timer.timed && this.state.time > 0) {
+		if (timer.timed && time > 0) {
 			let ti = 0;
-			if (this.state.timer.pause) {
-				ti = this.state.timer.pause - this.state.timer.lastMove;
+			if (timer.pause) {
+				ti = timer.pause - timer.lastMove;
 			} else {
-				ti = this.state.time - this.state.timer.lastMove;
+				ti = time - timer.lastMove;
 			}
-			t.push(<span>{this.msToTime(ti)}</span>);
+			t.push(<span>{msToTime(ti)}</span>);
 
-			if (this.state.timer.timed && this.state.validNames.includes(this.context.name) && this.state.myTurn) {
+			if (timer.timed && validNames.includes(context.name) && myTurn) {
 				let inc = 0;
 				let banked = 0;
-				if (this.state.timer.pause) {
-					inc = Math.max(this.state.timer.increment * 1000 - this.state.timer.pause + this.state.timer.lastMove, 0);
+				if (timer.pause) {
+					inc = Math.max(timer.increment * 1000 - timer.pause + timer.lastMove, 0);
 					banked = Math.min(
-						Math.max(
-							this.state.timer.banked[this.context.name] * 1000 -
-								this.state.timer.pause +
-								this.state.timer.increment * 1000 +
-								this.state.timer.lastMove,
-							0
-						),
-						this.state.timer.banked[this.context.name] * 1000
+						Math.max(timer.banked[context.name] * 1000 - timer.pause + timer.increment * 1000 + timer.lastMove, 0),
+						timer.banked[context.name] * 1000
 					);
 				} else {
-					inc = Math.max(this.state.timer.increment * 1000 - this.state.time + this.state.timer.lastMove, 0);
-					let ti =
-						this.state.timer.banked[this.context.name] * 1000 -
-						this.state.time +
-						this.state.timer.increment * 1000 +
-						this.state.timer.lastMove;
-					banked = Math.min(Math.max(ti, 0), this.state.timer.banked[this.context.name] * 1000);
+					inc = Math.max(timer.increment * 1000 - time + timer.lastMove, 0);
+					let ti = timer.banked[context.name] * 1000 - time + timer.increment * 1000 + timer.lastMove;
+					banked = Math.min(Math.max(ti, 0), timer.banked[context.name] * 1000);
 				}
 				t.push(<Divider style={{ fontSize: '30px', marginRight: 20, marginLeft: 20 }} type="vertical" />);
 				t.push(
 					<span>
-						{this.msToTime(inc)} + {this.msToTime(banked)}
+						{msToTime(inc)} + {msToTime(banked)}
 					</span>
 				);
 			}
-			if (this.state.timer.pause) {
+			if (timer.pause) {
 				t.push(
-					<Button type="link" onClick={() => this.play()}>
+					<Button type="link" onClick={() => play()}>
 						{' '}
 						<i class="fas fa-play"></i>{' '}
 					</Button>
 				);
 			} else {
 				t.push(
-					<Button type="link" onClick={() => this.pause()}>
+					<Button type="link" onClick={() => pause()}>
 						{' '}
 						<i class="fas fa-pause"></i>{' '}
 					</Button>
@@ -149,26 +143,26 @@ class LoginApp extends React.Component {
 		return t;
 	}
 
-	buildColorblindToggle() {
+	function buildColorblindToggle() {
 		return (
 			<Tooltip title="Colorblind Mode" mouseLeaveDelay={0}>
 				<Button
 					type="link"
-					onClick={() => this.context.setColorblindMode(!this.context.colorblindMode)}
-					style={this.context.colorblindMode ? { color: '#13a8a8' } : {}}
+					onClick={() => context.setColorblindMode(!context.colorblindMode)}
+					style={context.colorblindMode ? { color: '#13a8a8' } : {}}
 				>
-					<i className={this.context.colorblindMode ? 'fas fa-eye' : 'fas fa-low-vision'}></i>
+					<i className={context.colorblindMode ? 'fas fa-eye' : 'fas fa-low-vision'}></i>
 				</Button>
 			</Tooltip>
 		);
 	}
 
-	buildExitGame() {
+	function buildExitGame() {
 		let t = [];
-		if (this.context.game) {
+		if (context.game) {
 			t.push(<Divider style={{ fontSize: '30px' }} type="vertical" />);
 			t.push(
-				<Button type="link" onClick={() => this.exitGame()}>
+				<Button type="link" onClick={() => exitGame()}>
 					{' '}
 					Exit Game{' '}
 				</Button>
@@ -178,34 +172,34 @@ class LoginApp extends React.Component {
 		return t;
 	}
 
-	buildComponent() {
+	function buildComponent() {
 		let t = [];
-		if (!this.context.name) {
+		if (!context.name) {
 			t.push(
 				<div style={{ fontSize: '18px', textAlign: 'right' }}>
-					{this.buildTimer()}
+					{buildTimer()}
 					<Input
 						placeholder="Name"
 						allowClear={true}
 						style={{ background: 'black', width: 150 }}
-						onPressEnter={(e) => this.handleEnter(e)}
+						onPressEnter={(e) => handleEnter(e)}
 					></Input>{' '}
 					&nbsp;
-					{this.buildColorblindToggle()}
-					{this.buildExitGame()}
+					{buildColorblindToggle()}
+					{buildExitGame()}
 				</div>
 			);
 		} else {
 			t.push(
 				<div style={{ fontSize: '18px', textAlign: 'right' }}>
-					{this.buildTimer()}
-					{this.context.name} &nbsp;
-					<Button type="link" onClick={() => this.logout()}>
+					{buildTimer()}
+					{context.name} &nbsp;
+					<Button type="link" onClick={() => logout()}>
 						{' '}
 						<i class="fas fa-sign-out-alt"></i>{' '}
 					</Button>
-					{this.buildColorblindToggle()}
-					{this.buildExitGame()}
+					{buildColorblindToggle()}
+					{buildExitGame()}
 					&nbsp; &nbsp; &nbsp;
 				</div>
 			);
@@ -213,10 +207,7 @@ class LoginApp extends React.Component {
 		return t;
 	}
 
-	render() {
-		return <div>{this.buildComponent()}</div>;
-	}
+	return <div>{buildComponent()}</div>;
 }
-LoginApp.contextType = UserContext;
 
 export default LoginApp;

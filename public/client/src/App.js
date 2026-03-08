@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './App.css';
 
 import EnterApp from './EnterApp.js';
@@ -7,133 +7,143 @@ import GameApp from './GameApp.js';
 import UserContext from './UserContext.js';
 import { clearCache } from './backendFiles/stateCache.js';
 
-class App extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
+function App() {
+	const [game, setGameRaw] = useState('');
+	const [name, setNameRaw] = useState('');
+	const [bid, setBid] = useState(0);
+	const [buyBid, setBuyBid] = useState('');
+	const [buyCountry, setBuyCountry] = useState('');
+	const [returnStock, setReturnStock] = useState(0);
+	const [buyStock, setBuyStock] = useState('');
+	const [vote, setVote] = useState('');
+	const [wheelSpot, setWheelSpot] = useState('');
+	const [factoryLoc, setFactoryLoc] = useState('');
+	const [fleetProduce, setFleetProduce] = useState('');
+	const [armyProduce, setArmyProduce] = useState('');
+	const [fleetMan, setFleetMan] = useState('');
+	const [armyMan, setArmyMan] = useState('');
+	const [importVal, setImport] = useState({});
+	const [maneuverDest, setManeuverDest] = useState('');
+	const [maneuverAction, setManeuverAction] = useState('');
+	const [peaceVoteChoice, setPeaceVoteChoice] = useState('');
+	const [colorblindMode, setColorblindModeRaw] = useState(localStorage.getItem('colorblindMode') === 'true');
+
+	const setGame = useCallback(
+		(x) => {
+			if (game !== x) {
+				clearCache();
+			}
+			setGameRaw(x);
+		},
+		[game]
+	);
+
+	const setName = useCallback((x) => {
+		setNameRaw(x);
+	}, []);
+
+	const setColorblindMode = useCallback((x) => {
+		setColorblindModeRaw(x);
+		localStorage.setItem('colorblindMode', x.toString());
+	}, []);
+
+	const resetValues = useCallback(() => {
+		setBid(0);
+		setBuyBid('');
+		setBuyCountry('');
+		setReturnStock('');
+		setBuyStock('');
+		setVote('');
+		setWheelSpot('');
+		setFactoryLoc('');
+		setFleetProduce('');
+		setArmyProduce('');
+		setFleetMan('');
+		setArmyMan('');
+		setImport('');
+		setManeuverDest('');
+		setManeuverAction('');
+		setPeaceVoteChoice('');
+	}, []);
+
+	useEffect(() => {
+		setNameRaw(localStorage.getItem('name'));
+		setGameRaw(localStorage.getItem('game'));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	const contextValue = useMemo(
+		() => ({
 			host: 'localhost:9001',
-			game: '',
-			setGame: (x) => {
-				if (this.state.game !== x) {
-					clearCache();
-				}
-				this.setState({ game: x });
-			},
-			name: '',
-			setName: (x) => {
-				this.setState({ name: x });
-			},
-			resetValues: () => {
-				this.resetState();
-			},
-			bid: 0,
-			setBid: (x) => {
-				this.setState({ bid: x });
-			},
-			buyBid: '',
-			setBuyBid: (x) => {
-				this.setState({ buyBid: x });
-			},
-			buyCountry: '',
-			setBuyCountry: (x) => {
-				this.setState({ buyCountry: x });
-			},
-			returnStock: 0,
-			setReturnStock: (x) => {
-				this.setState({ returnStock: x });
-			},
-			buyStock: '',
-			setBuyStock: (x) => {
-				this.setState({ buyStock: x });
-			},
-			vote: '',
-			setVote: (x) => {
-				this.setState({ vote: x });
-			},
-			wheelSpot: '',
-			setWheelSpot: (x) => {
-				this.setState({ wheelSpot: x });
-			},
-			factoryLoc: '',
-			setFactoryLoc: (x) => {
-				this.setState({ factoryLoc: x });
-			},
-			fleetProduce: '',
-			setFleetProduce: (x) => {
-				this.setState({ fleetProduce: x });
-			},
-			armyProduce: '',
-			setArmyProduce: (x) => {
-				this.setState({ armyProduce: x });
-			},
-			fleetMan: '',
-			setFleetMan: (x) => {
-				this.setState({ fleetMan: x });
-			},
-			armyMan: '',
-			setArmyMan: (x) => {
-				this.setState({ armyMan: x });
-			},
-			import: {},
-			setImport: (x) => {
-				this.setState({ import: x });
-			},
-			maneuverDest: '',
-			setManeuverDest: (x) => {
-				this.setState({ maneuverDest: x });
-			},
-			maneuverAction: '',
-			setManeuverAction: (x) => {
-				this.setState({ maneuverAction: x });
-			},
-			peaceVoteChoice: '',
-			setPeaceVoteChoice: (x) => {
-				this.setState({ peaceVoteChoice: x });
-			},
-			colorblindMode: localStorage.getItem('colorblindMode') === 'true',
-			setColorblindMode: (x) => {
-				this.setState({ colorblindMode: x });
-				localStorage.setItem('colorblindMode', x.toString());
-			},
+			game,
+			setGame,
+			name,
+			setName,
+			resetValues,
+			bid,
+			setBid,
+			buyBid,
+			setBuyBid,
+			buyCountry,
+			setBuyCountry,
+			returnStock,
+			setReturnStock,
+			buyStock,
+			setBuyStock,
+			vote,
+			setVote,
+			wheelSpot,
+			setWheelSpot,
+			factoryLoc,
+			setFactoryLoc,
+			fleetProduce,
+			setFleetProduce,
+			armyProduce,
+			setArmyProduce,
+			fleetMan,
+			setFleetMan,
+			armyMan,
+			setArmyMan,
+			import: importVal,
+			setImport,
+			maneuverDest,
+			setManeuverDest,
+			maneuverAction,
+			setManeuverAction,
+			peaceVoteChoice,
+			setPeaceVoteChoice,
+			colorblindMode,
+			setColorblindMode,
 			title: '',
-		};
-	}
-	resetState() {
-		this.setState({
-			bid: 0,
-			buyBid: '',
-			buyCountry: '',
-			returnStock: '',
-			buyStock: '',
-			vote: '',
-			wheelSpot: '',
-			factoryLoc: '',
-			fleetProduce: '',
-			armyProduce: '',
-			fleetMan: '',
-			armyMan: '',
-			import: '',
-			maneuverDest: '',
-			maneuverAction: '',
-			peaceVoteChoice: '',
-		});
-	}
+		}),
+		[
+			game,
+			setGame,
+			name,
+			setName,
+			resetValues,
+			bid,
+			buyBid,
+			buyCountry,
+			returnStock,
+			buyStock,
+			vote,
+			wheelSpot,
+			factoryLoc,
+			fleetProduce,
+			armyProduce,
+			fleetMan,
+			armyMan,
+			importVal,
+			maneuverDest,
+			maneuverAction,
+			peaceVoteChoice,
+			colorblindMode,
+			setColorblindMode,
+		]
+	);
 
-	componentDidMount() {
-		this.setState({ name: localStorage.getItem('name'), game: localStorage.getItem('game') });
-	}
-
-	buildComponents() {
-		if (this.state.game) {
-			return <GameApp />;
-		} else {
-			return <EnterApp />;
-		}
-	}
-
-	render() {
-		return <UserContext.Provider value={this.state}>{this.buildComponents()}</UserContext.Provider>;
-	}
+	return <UserContext.Provider value={contextValue}>{game ? <GameApp /> : <EnterApp />}</UserContext.Provider>;
 }
 
 export default App;

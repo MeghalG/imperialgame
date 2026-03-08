@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 import { Select, Button, Card, List, Tag, Radio } from 'antd';
 import UserContext from './UserContext.js';
@@ -70,70 +70,20 @@ function formatCompletedAction(action) {
  *
  * When a dictatorship peace vote is pending, the dictator sees accept/reject buttons.
  */
-class ContinueManeuverApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			loaded: false,
-			currentManeuver: null,
-			destinations: [],
-			actionOptions: [],
-			completedMoves: [],
-			currentUnit: null,
-			pendingPeace: null,
-			submitting: false,
-		};
-	}
+function ContinueManeuverApp() {
+	const context = useContext(UserContext);
+	const [loaded, setLoaded] = useState(false);
+	const [currentManeuver, setCurrentManeuver] = useState(null);
+	const [destinations, setDestinations] = useState([]);
+	const [actionOptions, setActionOptions] = useState([]);
+	const [completedMoves, setCompletedMoves] = useState([]);
+	const [currentUnit, setCurrentUnit] = useState(null);
+	const [pendingPeace, setPendingPeace] = useState(null);
+	const [submitting, setSubmitting] = useState(false);
+	const contextRef = useRef(context);
+	contextRef.current = context;
 
-	async componentDidMount() {
-		await this.loadData();
-	}
-
-	async loadData() {
-		try {
-			let gameState = await readGameState(this.context);
-			let cm = gameState.currentManeuver;
-			if (!cm) return;
-
-			// Check if there's a pending peace vote for dictator
-			if (cm.pendingPeace) {
-				let targetCountry = cm.pendingPeace.targetCountry;
-				let dictator = gameState.countryInfo[targetCountry].leadership[0];
-				if (dictator === this.context.name) {
-					this.setState({
-						loaded: true,
-						currentManeuver: cm,
-						pendingPeace: cm.pendingPeace,
-						completedMoves: this.buildCompletedMovesList(cm),
-					});
-					return;
-				}
-			}
-
-			// Build the completed moves list
-			let completedMoves = this.buildCompletedMovesList(cm);
-
-			// Get options for current unit
-			let destinations = await proposalAPI.getCurrentUnitOptions(this.context);
-
-			// Determine current unit info
-			let pendingUnits = cm.phase === 'fleet' ? cm.pendingFleets : cm.pendingArmies;
-			let currentUnit = pendingUnits[cm.unitIndex];
-
-			this.setState({
-				loaded: true,
-				currentManeuver: cm,
-				destinations: destinations,
-				currentUnit: currentUnit,
-				completedMoves: completedMoves,
-				pendingPeace: null,
-			});
-		} catch (e) {
-			console.error('ContinueManeuverApp failed to load:', e);
-		}
-	}
-
-	buildCompletedMovesList(cm) {
+	function buildCompletedMovesList(cm) {
 		let moves = [];
 		for (let i = 0; i < (cm.completedFleetMoves || []).length; i++) {
 			let m = cm.completedFleetMoves[i];
@@ -150,158 +100,194 @@ class ContinueManeuverApp extends React.Component {
 		return moves;
 	}
 
-	async onDestChange(value) {
-		this.context.setManeuverDest(value);
+	const loadData = useCallback(async () => {
+		try {
+			let gameState = await readGameState(contextRef.current);
+			let cm = gameState.currentManeuver;
+			if (!cm) return;
+
+			// Check if there's a pending peace vote for dictator
+			if (cm.pendingPeace) {
+				let targetCountry = cm.pendingPeace.targetCountry;
+				let dictator = gameState.countryInfo[targetCountry].leadership[0];
+				if (dictator === contextRef.current.name) {
+					setLoaded(true);
+					setCurrentManeuver(cm);
+					setPendingPeace(cm.pendingPeace);
+					setCompletedMoves(buildCompletedMovesList(cm));
+					return;
+				}
+			}
+
+			// Build the completed moves list
+			let completedMovesData = buildCompletedMovesList(cm);
+
+			// Get options for current unit
+			let destinationsData = await proposalAPI.getCurrentUnitOptions(contextRef.current);
+
+			// Determine current unit info
+			let pendingUnits = cm.phase === 'fleet' ? cm.pendingFleets : cm.pendingArmies;
+			let currentUnitData = pendingUnits[cm.unitIndex];
+
+			setLoaded(true);
+			setCurrentManeuver(cm);
+			setDestinations(destinationsData);
+			setCurrentUnit(currentUnitData);
+			setCompletedMoves(completedMovesData);
+			setPendingPeace(null);
+		} catch (e) {
+			console.error('ContinueManeuverApp failed to load:', e);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	useEffect(() => {
+		loadData();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	async function onDestChange(value) {
+		context.setManeuverDest(value);
 		// Reset action when destination changes
-		this.context.setManeuverAction('');
-		this.setState({ actionOptions: [] });
+		context.setManeuverAction('');
+		setActionOptions([]);
 		// Fetch action options for the selected destination
-		let actionOptions = await proposalAPI.getCurrentUnitActionOptions({
-			...this.context,
+		let actionOpts = await proposalAPI.getCurrentUnitActionOptions({
+			...context,
 			maneuverDest: value,
 		});
-		this.setState({ actionOptions: actionOptions });
+		setActionOptions(actionOpts);
 		// Auto-select: default to hostile if available, otherwise first option if only one
-		if (actionOptions.includes('hostile')) {
-			this.context.setManeuverAction('hostile');
-		} else if (actionOptions.length === 1) {
-			this.context.setManeuverAction(actionOptions[0]);
+		if (actionOpts.includes('hostile')) {
+			context.setManeuverAction('hostile');
+		} else if (actionOpts.length === 1) {
+			context.setManeuverAction(actionOpts[0]);
 		}
 	}
 
-	onActionChange(e) {
-		this.context.setManeuverAction(e.target.value);
+	function onActionChange(e) {
+		context.setManeuverAction(e.target.value);
 	}
 
-	async submitMove() {
-		this.setState({ submitting: true });
+	async function submitMove() {
+		setSubmitting(true);
 		try {
-			await submitAPI.submitManeuver(this.context);
+			await submitAPI.submitManeuver(context);
 		} finally {
-			this.setState({ submitting: false });
+			setSubmitting(false);
 		}
 	}
 
-	async submitDictatorVote(choice) {
-		this.setState({ submitting: true });
+	async function submitDictatorVote(choice) {
+		setSubmitting(true);
 		try {
-			this.context.setPeaceVoteChoice(choice);
+			context.setPeaceVoteChoice(choice);
 			await submitAPI.submitDictatorPeaceVote({
-				...this.context,
+				...context,
 				peaceVoteChoice: choice,
 			});
 		} finally {
-			this.setState({ submitting: false });
+			setSubmitting(false);
 		}
 	}
 
-	render() {
-		if (!this.state.loaded) {
-			return <div style={{ textAlign: 'center', padding: 40 }}>Loading maneuver...</div>;
-		}
+	function renderCompletedMoves() {
+		if (completedMoves.length === 0) return null;
+		return (
+			<Card title="Completed Moves" size="small" style={{ marginBottom: 8 }}>
+				<List size="small" dataSource={completedMoves} renderItem={(item) => <List.Item>{item}</List.Item>} />
+			</Card>
+		);
+	}
 
-		let cm = this.state.currentManeuver;
+	if (!loaded) {
+		return <div style={{ textAlign: 'center', padding: 40 }}>Loading maneuver...</div>;
+	}
 
-		// Dictator peace vote pending
-		if (this.state.pendingPeace) {
-			let peace = this.state.pendingPeace;
-			return (
-				<div>
-					{this.renderCompletedMoves()}
-					<Card title="Peace Offer" style={{ marginTop: 16 }}>
-						<p>
-							{peace.targetCountry}'s decision: <strong>{cm.country}</strong> wants to move a{' '}
-							<strong>{peace.unitType}</strong> from {peace.origin} into <strong>{peace.destination}</strong>{' '}
-							peacefully.
-						</p>
-						<Button
-							type="primary"
-							style={{ marginRight: 10 }}
-							loading={this.state.submitting}
-							onClick={() => this.submitDictatorVote('accept')}
-						>
-							Accept
-						</Button>
-						<Button danger loading={this.state.submitting} onClick={() => this.submitDictatorVote('reject')}>
-							Reject
-						</Button>
-					</Card>
-				</div>
-			);
-		}
+	let cm = currentManeuver;
 
-		let currentUnit = this.state.currentUnit;
-		if (!currentUnit) {
-			return <div style={{ textAlign: 'center', padding: 40 }}>Waiting for maneuver...</div>;
-		}
-
-		let phaseLabel = cm.phase === 'fleet' ? 'Fleet' : 'Army';
-		let unitNum = cm.unitIndex + 1;
-		let totalUnits = cm.phase === 'fleet' ? (cm.pendingFleets || []).length : (cm.pendingArmies || []).length;
-
+	// Dictator peace vote pending
+	if (pendingPeace) {
+		let peace = pendingPeace;
 		return (
 			<div>
-				{this.renderCompletedMoves()}
-				<Card
-					title={
-						<span>
-							Move {phaseLabel} {unitNum}/{totalUnits}
-							<Tag color={cm.phase === 'fleet' ? 'blue' : 'green'} style={{ marginLeft: 8 }}>
-								{cm.phase} phase
-							</Tag>
-						</span>
-					}
-					style={{ marginTop: 16 }}
-				>
+				{renderCompletedMoves()}
+				<Card title="Peace Offer" style={{ marginTop: 16 }}>
 					<p>
-						Current position: <strong>{currentUnit.territory}</strong>
+						{peace.targetCountry}'s decision: <strong>{cm.country}</strong> wants to move a{' '}
+						<strong>{peace.unitType}</strong> from {peace.origin} into <strong>{peace.destination}</strong> peacefully.
 					</p>
-					<div style={{ marginBottom: 16 }}>
-						<label style={{ marginRight: 8 }}>Destination:</label>
-						<Select style={{ width: 200 }} placeholder="Select destination" onChange={(v) => this.onDestChange(v)}>
-							{this.state.destinations.map((d) => (
-								<Option key={d} value={d}>
-									{d}
-								</Option>
-							))}
-						</Select>
-					</div>
-
-					{this.state.actionOptions.length > 0 && (
-						<div style={{ marginBottom: 16 }}>
-							<label style={{ display: 'block', marginBottom: 8 }}>Action:</label>
-							<Radio.Group onChange={(e) => this.onActionChange(e)} value={this.context.maneuverAction}>
-								{this.state.actionOptions.map((a) => (
-									<Radio key={a} value={a} style={{ display: 'block', marginBottom: 6 }}>
-										{formatActionLabel(a)}
-									</Radio>
-								))}
-							</Radio.Group>
-						</div>
-					)}
-
-					<Button type="primary" loading={this.state.submitting} onClick={() => this.submitMove()}>
-						Submit Move
+					<Button
+						type="primary"
+						style={{ marginRight: 10 }}
+						loading={submitting}
+						onClick={() => submitDictatorVote('accept')}
+					>
+						Accept
+					</Button>
+					<Button danger loading={submitting} onClick={() => submitDictatorVote('reject')}>
+						Reject
 					</Button>
 				</Card>
 			</div>
 		);
 	}
 
-	renderCompletedMoves() {
-		if (this.state.completedMoves.length === 0) return null;
-		return (
-			<Card title="Completed Moves" size="small" style={{ marginBottom: 8 }}>
-				<List
-					size="small"
-					dataSource={this.state.completedMoves}
-					renderItem={(item) => <List.Item>{item}</List.Item>}
-				/>
-			</Card>
-		);
+	if (!currentUnit) {
+		return <div style={{ textAlign: 'center', padding: 40 }}>Waiting for maneuver...</div>;
 	}
-}
 
-ContinueManeuverApp.contextType = UserContext;
+	let phaseLabel = cm.phase === 'fleet' ? 'Fleet' : 'Army';
+	let unitNum = cm.unitIndex + 1;
+	let totalUnits = cm.phase === 'fleet' ? (cm.pendingFleets || []).length : (cm.pendingArmies || []).length;
+
+	return (
+		<div>
+			{renderCompletedMoves()}
+			<Card
+				title={
+					<span>
+						Move {phaseLabel} {unitNum}/{totalUnits}
+						<Tag color={cm.phase === 'fleet' ? 'blue' : 'green'} style={{ marginLeft: 8 }}>
+							{cm.phase} phase
+						</Tag>
+					</span>
+				}
+				style={{ marginTop: 16 }}
+			>
+				<p>
+					Current position: <strong>{currentUnit.territory}</strong>
+				</p>
+				<div style={{ marginBottom: 16 }}>
+					<label style={{ marginRight: 8 }}>Destination:</label>
+					<Select style={{ width: 200 }} placeholder="Select destination" onChange={(v) => onDestChange(v)}>
+						{destinations.map((d) => (
+							<Option key={d} value={d}>
+								{d}
+							</Option>
+						))}
+					</Select>
+				</div>
+
+				{actionOptions.length > 0 && (
+					<div style={{ marginBottom: 16 }}>
+						<label style={{ display: 'block', marginBottom: 8 }}>Action:</label>
+						<Radio.Group onChange={(e) => onActionChange(e)} value={context.maneuverAction}>
+							{actionOptions.map((a) => (
+								<Radio key={a} value={a} style={{ display: 'block', marginBottom: 6 }}>
+									{formatActionLabel(a)}
+								</Radio>
+							))}
+						</Radio.Group>
+					</div>
+				)}
+
+				<Button type="primary" loading={submitting} onClick={() => submitMove()}>
+					Submit Move
+				</Button>
+			</Card>
+		</div>
+	);
+}
 
 export default ContinueManeuverApp;

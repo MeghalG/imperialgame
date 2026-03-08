@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 import map from './map.jpg';
 import wheel from './wheel.png';
@@ -12,88 +12,94 @@ import { invalidateIfStale } from './backendFiles/stateCache.js';
 import { Popover } from 'antd';
 import { getCountryColorPalette } from './countryColors.js';
 
-class MapApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			fullscreen: true,
-			countries: [],
-			seaFactories: [],
-			landFactories: [],
-			taxChips: [],
-			units: [],
-			points: {},
-			money: {},
-			availStock: {},
-			lastTax: {},
-			currentTax: {},
-			vis: {
-				Austria: undefined,
-				Italy: null,
-				France: false,
-				England: null,
-				Germany: null,
-				Russia: null,
-			},
-		};
-	}
-	getColors() {
-		let palette = getCountryColorPalette(this.context.colorblindMode);
+function MapApp() {
+	const context = useContext(UserContext);
+	const [countries, setCountries] = useState([]);
+	const [seaFactories, setSeaFactories] = useState([]);
+	const [landFactories, setLandFactories] = useState([]);
+	const [taxChips, setTaxChips] = useState([]);
+	const [units, setUnits] = useState([]);
+	const [points, setPoints] = useState({});
+	const [money, setMoney] = useState({});
+	const [availStock, setAvailStock] = useState({});
+	const [lastTax, setLastTax] = useState({});
+	const [currentTax, setCurrentTax] = useState({});
+	const [rondel, setRondel] = useState();
+	const [vis, setVis] = useState({
+		Austria: undefined,
+		Italy: null,
+		France: false,
+		England: null,
+		Germany: null,
+		Russia: null,
+	});
+	const turnRef = useRef(null);
+	const contextRef = useRef(context);
+	contextRef.current = context;
+
+	function getColors() {
+		let palette = getCountryColorPalette(context.colorblindMode);
 		return { countryColors: palette.map, iconColors: palette.bright };
 	}
-	async componentDidMount() {
-		let countries = await helper.getCountries(this.context);
-		this.setState({ countries: countries });
-		this.getMapItems();
-		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
-		this.turnRef.on('value', (dataSnapshot) => {
-			invalidateIfStale(this.context.game, dataSnapshot.val());
-			this.getMapItems();
-		});
-	}
-	componentWillUnmount() {
-		if (this.turnRef) {
-			this.turnRef.off();
+
+	const getMapItems = useCallback(async () => {
+		let [sea, land, unitsData, rondelData, tax, pointsData, moneyData, availStockData, lastTaxData, currentTaxData] =
+			await Promise.all([
+				mapAPI.getSeaFactories(contextRef.current),
+				mapAPI.getLandFactories(contextRef.current),
+				mapAPI.getUnits(contextRef.current),
+				mapAPI.getRondel(contextRef.current),
+				mapAPI.getTaxChips(contextRef.current),
+				mapAPI.getPoints(contextRef.current),
+				mapAPI.getMoney(contextRef.current),
+				mapAPI.getAvailStock(contextRef.current),
+				mapAPI.getLastTax(contextRef.current),
+				mapAPI.getCurrentTax(contextRef.current),
+			]);
+		setSeaFactories(sea);
+		setLandFactories(land);
+		setUnits(unitsData);
+		setRondel(rondelData);
+		setTaxChips(tax);
+		setPoints(pointsData);
+		setMoney(moneyData);
+		setAvailStock(availStockData);
+		setLastTax(lastTaxData);
+		setCurrentTax(currentTaxData);
+	}, []);
+
+	useEffect(() => {
+		async function init() {
+			let countriesData = await helper.getCountries(contextRef.current);
+			setCountries(countriesData);
+			getMapItems();
+			turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
+			turnRef.current.on('value', (dataSnapshot) => {
+				invalidateIfStale(contextRef.current.game, dataSnapshot.val());
+				getMapItems();
+			});
 		}
-	}
-	async getMapItems() {
-		let [sea, land, units, rondel, tax, points, money, availStock, lastTax, currentTax] = await Promise.all([
-			mapAPI.getSeaFactories(this.context),
-			mapAPI.getLandFactories(this.context),
-			mapAPI.getUnits(this.context),
-			mapAPI.getRondel(this.context),
-			mapAPI.getTaxChips(this.context),
-			mapAPI.getPoints(this.context),
-			mapAPI.getMoney(this.context),
-			mapAPI.getAvailStock(this.context),
-			mapAPI.getLastTax(this.context),
-			mapAPI.getCurrentTax(this.context),
-		]);
-		this.setState({
-			seaFactories: sea,
-			landFactories: land,
-			units: units,
-			rondel: rondel,
-			taxChips: tax,
-			points: points,
-			money: money,
-			availStock: availStock,
-			lastTax: lastTax,
-			currentTax: currentTax,
-		});
-	}
-	buildComponents = () => {
-		let { countryColors } = this.getColors();
+		init();
+		return () => {
+			if (turnRef.current) {
+				turnRef.current.off();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	function buildComponents() {
+		let { countryColors } = getColors();
 		let table = [];
 		// sea factories
-		for (let i = 0; i < this.state.seaFactories.length; i++) {
-			for (let j = 0; j < this.state.seaFactories[i].length; j++) {
+		for (let i = 0; i < seaFactories.length; i++) {
+			for (let j = 0; j < seaFactories[i].length; j++) {
 				table.push(
 					<div
 						style={{
 							position: 'absolute',
-							left: this.state.seaFactories[i][j][0],
-							top: this.state.seaFactories[i][j][1],
+							left: seaFactories[i][j][0],
+							top: seaFactories[i][j][1],
 							width: 50,
 							height: 50,
 							color: '#13a8a8',
@@ -106,14 +112,14 @@ class MapApp extends React.Component {
 			}
 		}
 		// land factories
-		for (let i = 0; i < this.state.landFactories.length; i++) {
-			for (let j = 0; j < this.state.landFactories[i].length; j++) {
+		for (let i = 0; i < landFactories.length; i++) {
+			for (let j = 0; j < landFactories[i].length; j++) {
 				table.push(
 					<div
 						style={{
 							position: 'absolute',
-							left: this.state.landFactories[i][j][0],
-							top: this.state.landFactories[i][j][1],
+							left: landFactories[i][j][0],
+							top: landFactories[i][j][1],
 							width: 50,
 							height: 50,
 							color: '#8B4513',
@@ -126,17 +132,17 @@ class MapApp extends React.Component {
 			}
 		}
 		// tax chips
-		for (let i = 0; i < this.state.taxChips.length; i++) {
-			for (let j = 0; j < this.state.taxChips[i].length; j++) {
+		for (let i = 0; i < taxChips.length; i++) {
+			for (let j = 0; j < taxChips[i].length; j++) {
 				table.push(
 					<div
 						style={{
 							position: 'absolute',
-							left: this.state.taxChips[i][j][0],
-							top: this.state.taxChips[i][j][1],
+							left: taxChips[i][j][0],
+							top: taxChips[i][j][1],
 							width: 50,
 							height: 50,
-							color: countryColors[this.state.countries[i]],
+							color: countryColors[countries[i]],
 							fontSize: '1.1vw',
 						}}
 					>
@@ -146,25 +152,25 @@ class MapApp extends React.Component {
 			}
 		}
 		// units
-		for (let i = 0; i < this.state.units.length; i++) {
+		for (let i = 0; i < units.length; i++) {
 			let t = [];
-			for (let j = 0; j < this.state.units[i][1].length; j++) {
-				for (let k = 0; k < this.state.units[i][1][j][0]; k++) {
-					t.push(<i style={{ color: countryColors[this.state.countries[j]] }} class="fas fa-play fa-rotate-90"></i>);
+			for (let j = 0; j < units[i][1].length; j++) {
+				for (let k = 0; k < units[i][1][j][0]; k++) {
+					t.push(<i style={{ color: countryColors[countries[j]] }} class="fas fa-play fa-rotate-90"></i>);
 				}
-				for (let k = 0; k < this.state.units[i][1][j][1]; k++) {
-					t.push(<i style={{ color: countryColors[this.state.countries[j]] }} class="fas fa-circle fa"></i>);
+				for (let k = 0; k < units[i][1][j][1]; k++) {
+					t.push(<i style={{ color: countryColors[countries[j]] }} class="fas fa-circle fa"></i>);
 				}
-				for (let k = 0; k < this.state.units[i][1][j][2]; k++) {
-					t.push(<i style={{ color: countryColors[this.state.countries[j]] }} class="fas fa-plus-circle fa"></i>);
+				for (let k = 0; k < units[i][1][j][2]; k++) {
+					t.push(<i style={{ color: countryColors[countries[j]] }} class="fas fa-plus-circle fa"></i>);
 				}
 			}
 			table.push(
 				<div
 					style={{
 						position: 'absolute',
-						left: this.state.units[i][0][0],
-						top: this.state.units[i][0][1],
+						left: units[i][0][0],
+						top: units[i][0][1],
 						width: 100,
 						height: 50,
 						fontSize: '1vw',
@@ -175,31 +181,18 @@ class MapApp extends React.Component {
 			);
 		}
 		// rondel
-		for (let key in this.state.rondel) {
+		for (let key in rondel) {
 			let t = [];
-			for (let j = 0; j < this.state.rondel[key][1].length; j++) {
-				let country = this.state.rondel[key][1][j];
-				t.push(
-					//<Popover dataHtml="true" content={<div style={{lineHeight:0.8}}>
-					//                            <p>${(this.state.money[country] || 0).toFixed(2).toString()}</p>
-					//                            <p>Last Tax: {this.state.lastTax[country]}</p>
-					//                            <p>Current Tax: {this.state.currentTax[country]}</p>
-					//                            <p>{this.formatAvailStock((this.state.availStock[country] || []), countryColors[country])}</p>
-					//                        </div>} >
-					//    <div style={{backgroundColor:this.state.iconColors[country],
-					//                width:15, height:15, borderRadius:"50%", fontSize:10, textAlign:"center", color:"#FFFFFF", marginRight:3
-					//        }}>
-					//    </div>
-					//</Popover>
-					<i style={{ color: countryColors[country] }} class="fas fa-square fa"></i>
-				);
+			for (let j = 0; j < rondel[key][1].length; j++) {
+				let country = rondel[key][1][j];
+				t.push(<i style={{ color: countryColors[country] }} class="fas fa-square fa"></i>);
 			}
 			table.push(
 				<div
 					style={{
 						position: 'absolute',
-						left: this.state.rondel[key][0].x,
-						top: this.state.rondel[key][0].y,
+						left: rondel[key][0].x,
+						top: rondel[key][0].y,
 						width: 100,
 						height: 50,
 						fontSize: '20',
@@ -210,22 +203,26 @@ class MapApp extends React.Component {
 			);
 		}
 		return <div style={{ textShadow: '-0.5px 0 #000, 0 0.5px #255, 0.5px 0 #000, 0 -0.5px #000' }}> {table} </div>;
-	};
-	formatAvailStock(availStock, color) {
+	}
+
+	function formatAvailStock(availStockArr, color) {
 		let t = [];
-		for (let i = 0; i < availStock.length; i++) {
-			t.push(<mark style={{ backgroundColor: color, color: 'white', borderRadius: 3 }}>{availStock[i]}</mark>);
+		for (let i = 0; i < availStockArr.length; i++) {
+			t.push(<mark style={{ backgroundColor: color, color: 'white', borderRadius: 3 }}>{availStockArr[i]}</mark>);
 			t.push(<span>&nbsp;</span>);
 		}
 		return t;
 	}
-	clicked(country) {
-		this.setState((prevState) => ({
-			vis: { ...prevState.vis, [country]: !prevState.vis[country] },
+
+	function clicked(country) {
+		setVis((prevState) => ({
+			...prevState,
+			[country]: !prevState[country],
 		}));
 	}
-	makePoints() {
-		let { countryColors, iconColors } = this.getColors();
+
+	function makePoints() {
+		let { countryColors, iconColors } = getColors();
 		let d = [];
 		let t = [];
 		for (let i = 0; i < 26; i++) {
@@ -246,20 +243,20 @@ class MapApp extends React.Component {
 					{i}{' '}
 				</div>
 			);
-			if (this.state.points[i + 1]) {
-				for (let j in this.state.points[i + 1]) {
-					let country = this.state.points[i + 1][j];
+			if (points[i + 1]) {
+				for (let j in points[i + 1]) {
+					let country = points[i + 1][j];
 					let h = parseInt(j) * 1.2 + 1 + '%';
 					t.push(
 						<Popover
 							dataHtml="true"
-							onClick={() => this.clicked(country)}
+							onClick={() => clicked(country)}
 							content={
 								<div style={{ lineHeight: 0.8 }}>
-									<p>${(this.state.money[country] || 0).toFixed(2).toString()}</p>
-									<p>Last Tax: {this.state.lastTax[country]}</p>
-									<p>Current Tax: {this.state.currentTax[country]}</p>
-									<p>{this.formatAvailStock(this.state.availStock[country] || [], countryColors[country])}</p>
+									<p>${(money[country] || 0).toFixed(2).toString()}</p>
+									<p>Last Tax: {lastTax[country]}</p>
+									<p>Current Tax: {currentTax[country]}</p>
+									<p>{formatAvailStock(availStock[country] || [], countryColors[country])}</p>
 								</div>
 							}
 						>
@@ -289,38 +286,35 @@ class MapApp extends React.Component {
 		return d;
 	}
 
-	render() {
-		return (
-			<div style={{ height: '82vh' }}>
-				<Zoom>
-					<img src={map} alt="Map" style={{ maxWidth: '100%', maxHeight: '82vh' }} />
-					<mark
-						style={{
-							backgroundColor: 'black',
-							color: 'white',
-							position: 'absolute',
-							fontSize: 7,
-							lineHeight: 1,
-							transform: 'rotate(335deg)',
-							left: '53%',
-							top: '39.5%',
-						}}
-					>
-						{' '}
-						Mountain Range{' '}
-					</mark>
-					<img
-						src={wheel}
-						alt="Wheel"
-						style={{ width: '17.5%', height: '23%', position: 'absolute', left: '2%', top: '3%' }}
-					/>
-					{this.buildComponents()}
-				</Zoom>
-				{this.makePoints()}
-			</div>
-		);
-	}
+	return (
+		<div style={{ height: '82vh' }}>
+			<Zoom>
+				<img src={map} alt="Map" style={{ maxWidth: '100%', maxHeight: '82vh' }} />
+				<mark
+					style={{
+						backgroundColor: 'black',
+						color: 'white',
+						position: 'absolute',
+						fontSize: 7,
+						lineHeight: 1,
+						transform: 'rotate(335deg)',
+						left: '53%',
+						top: '39.5%',
+					}}
+				>
+					{' '}
+					Mountain Range{' '}
+				</mark>
+				<img
+					src={wheel}
+					alt="Wheel"
+					style={{ width: '17.5%', height: '23%', position: 'absolute', left: '2%', top: '3%' }}
+				/>
+				{buildComponents()}
+			</Zoom>
+			{makePoints()}
+		</div>
+	);
 }
-MapApp.contextType = UserContext;
 
 export default MapApp;

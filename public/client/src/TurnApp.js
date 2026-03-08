@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 import BidApp from './BidApp.js';
 import BuyBidApp from './BuyBidApp.js';
@@ -17,60 +17,58 @@ import * as submitAPI from './backendFiles/submitAPI.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
 
-class TurnApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			name: '',
-			turnTitle: '',
-			mode: '',
-			turnID: '',
-			undoable: false,
-		};
-	}
+function TurnApp() {
+	const context = useContext(UserContext);
+	const [turnTitle, setTurnTitle] = useState('');
+	const [mode, setMode] = useState('');
+	const [turnID, setTurnID] = useState('');
+	const [undoable, setUndoable] = useState(false);
+	const [trackedName, setTrackedName] = useState('');
+	const turnRef = useRef(null);
+	const contextRef = useRef(context);
+	contextRef.current = context;
 
-	async newTurn() {
-		let { turnTitle, mode, undoable, turnID } = await turnAPI.getTurnState(this.context);
-		this.setState({ turnTitle: turnTitle, mode: mode, undoable: undoable, turnID: turnID });
-	}
+	const newTurn = useCallback(async () => {
+		let result = await turnAPI.getTurnState(contextRef.current);
+		setTurnTitle(result.turnTitle);
+		setMode(result.mode);
+		setUndoable(result.undoable);
+		setTurnID(result.turnID);
+	}, []);
 
-	async componentDidMount() {
-		this.newTurn();
-		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
-		this.turnRef.on('value', async (dataSnapshot) => {
-			invalidateIfStale(this.context.game, dataSnapshot.val());
-			this.newTurn();
+	useEffect(() => {
+		newTurn();
+		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
+		turnRef.current.on('value', async (dataSnapshot) => {
+			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
+			newTurn();
 		});
-	}
+		return () => {
+			if (turnRef.current) {
+				turnRef.current.off();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	componentWillUnmount() {
-		if (this.turnRef) {
-			this.turnRef.off();
+	useEffect(() => {
+		if (context.name !== trackedName) {
+			setTrackedName(context.name);
+			newTurn();
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [context.name]);
+
+	async function undo() {
+		await submitAPI.undo(context);
 	}
 
-	componentDidUpdate() {
-		if (this.context.name !== this.state.name) {
-			this.setState({ name: this.context.name });
-			this.newTurn();
-		}
-	}
-
-	async undo() {
-		await submitAPI.undo(this.context);
-	}
-
-	undoButton() {
-		if (!this.state.undoable) {
+	function undoButton() {
+		if (!undoable) {
 			return;
 		}
 		return (
-			<Popconfirm
-				title="Sure you want to undo your last move?"
-				onConfirm={() => this.undo()}
-				okText="Yes"
-				cancelText="No"
-			>
+			<Popconfirm title="Sure you want to undo your last move?" onConfirm={() => undo()} okText="Yes" cancelText="No">
 				<span style={{ float: 'right', fontSize: 14 }}>
 					<span style={{ color: '#177ddc', cursor: 'pointer' }}>Undo</span>
 				</span>
@@ -78,23 +76,21 @@ class TurnApp extends React.Component {
 		);
 	}
 
-	render() {
-		return (
-			<div style={{ height: '100%' }}>
-				<StaticTurnApp key={this.state.turnID} />
-				<Card
-					style={{ height: '100%', overflow: 'auto' }}
-					title={
-						<div>
-							{this.state.turnTitle} {this.undoButton()}{' '}
-						</div>
-					}
-				>
-					<DisplayMode mode={this.state.mode} turnID={this.state.turnID} />
-				</Card>
-			</div>
-		);
-	}
+	return (
+		<div style={{ height: '100%' }}>
+			<StaticTurnApp key={turnID} />
+			<Card
+				style={{ height: '100%', overflow: 'auto' }}
+				title={
+					<div>
+						{turnTitle} {undoButton()}{' '}
+					</div>
+				}
+			>
+				<DisplayMode mode={mode} turnID={turnID} />
+			</Card>
+		</div>
+	);
 }
 
 function DisplayMode(props) {
@@ -121,6 +117,5 @@ function DisplayMode(props) {
 			return null;
 	}
 }
-TurnApp.contextType = UserContext;
 
 export default TurnApp;

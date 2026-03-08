@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import './App.css';
 import UserContext from './UserContext.js';
 import { Card, Collapse, Divider, Alert } from 'antd';
@@ -8,22 +8,20 @@ import { getCountryColorPalette } from './countryColors.js';
 
 const { Panel } = Collapse;
 
-class StaticTurnApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {};
-	}
+function StaticTurnApp() {
+	const context = useContext(UserContext);
+	const [gameState, setGameState] = useState(null);
 
-	componentDidMount() {
-		this.getGameState();
-	}
+	useEffect(() => {
+		async function getGameState() {
+			let gs = await miscAPI.getGameState(context);
+			setGameState(gs);
+		}
+		getGameState();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	async getGameState() {
-		let gameState = await miscAPI.getGameState(this.context);
-		this.setState({ gameState: gameState });
-	}
-
-	twoDec(money) {
+	function twoDec(money) {
 		if (!money) {
 			return 0;
 		} else {
@@ -31,7 +29,7 @@ class StaticTurnApp extends React.Component {
 		}
 	}
 
-	formatAvailStock(availStock, color) {
+	function formatAvailStock(availStock, color) {
 		let t = [];
 		for (let i = 0; i < availStock.length; i++) {
 			t.push(<mark style={{ backgroundColor: color, color: 'white', borderRadius: 3 }}>{availStock[i]}</mark>);
@@ -40,7 +38,7 @@ class StaticTurnApp extends React.Component {
 		return t;
 	}
 
-	leadershipText(countryInfo) {
+	function leadershipText(countryInfo) {
 		if (!countryInfo.gov) {
 			return '';
 		}
@@ -52,7 +50,7 @@ class StaticTurnApp extends React.Component {
 		}
 	}
 
-	clean(x) {
+	function clean(x) {
 		if (x) {
 			return x;
 		} else {
@@ -60,16 +58,15 @@ class StaticTurnApp extends React.Component {
 		}
 	}
 
-	// fix
-	buildComponents = () => {
-		if (!this.state.gameState) {
+	function buildComponents() {
+		if (!gameState) {
 			return null;
 		}
 
-		let palette = getCountryColorPalette(this.context.colorblindMode);
+		let palette = getCountryColorPalette(context.colorblindMode);
 		let colors = palette.dark;
 		let countryColors = ['Austria', 'Italy', 'France', 'England', 'Germany', 'Russia'].map((c) => palette.dark[c]);
-		let country = this.state.gameState.countryUp;
+		let country = gameState.countryUp;
 		// if in players only
 		let pc = (
 			<Panel header={'View your details'} key="player">
@@ -84,8 +81,8 @@ class StaticTurnApp extends React.Component {
 						b="#707070"
 						player={''}
 						countryColors={countryColors}
-						info={this.clean(this.state.gameState.playerInfo[this.context.name])}
-						countryInfos={this.state.gameState.countryInfo}
+						info={clean(gameState.playerInfo[context.name])}
+						countryInfos={gameState.countryInfo}
 					/>
 				</div>
 			</Panel>
@@ -103,11 +100,11 @@ class StaticTurnApp extends React.Component {
 					b={colors[country]}
 					color={colors[country]}
 					darkColor={colors[country]}
-					info={this.clean(this.state.gameState.countryInfo[country])}
+					info={clean(gameState.countryInfo[country])}
 				/>
 			</Panel>
 		);
-		switch (this.state.gameState.mode) {
+		switch (gameState.mode) {
 			case 'bid':
 			case 'buy':
 				return (
@@ -119,7 +116,7 @@ class StaticTurnApp extends React.Component {
 					</div>
 				);
 			case 'buy-bid':
-				let bids = (this.state.gameState.bidBuyOrder || []).map((x) => [x, this.state.gameState.playerInfo[x].bid]);
+				let bids = (gameState.bidBuyOrder || []).map((x) => [x, gameState.playerInfo[x].bid]);
 				let t = [];
 				for (let bid of bids) {
 					t.push(
@@ -156,11 +153,11 @@ class StaticTurnApp extends React.Component {
 			case 'proposal':
 			case 'vote':
 				let pr = null;
-				if (this.state.gameState.mode === 'proposal-opp') {
+				if (gameState.mode === 'proposal-opp') {
 					pr = (
 						<Alert
 							style={{ marginBottom: 10, width: '100%' }}
-							message={this.state.gameState.history[this.state.gameState.history.length - 1]}
+							message={gameState.history[gameState.history.length - 1]}
 							type="info"
 						/>
 					);
@@ -179,12 +176,9 @@ class StaticTurnApp extends React.Component {
 				break;
 		}
 		return '';
-	};
-
-	render() {
-		return <div>{this.buildComponents()}</div>;
 	}
+
+	return <div>{buildComponents()}</div>;
 }
-StaticTurnApp.contextType = UserContext;
 
 export default StaticTurnApp;

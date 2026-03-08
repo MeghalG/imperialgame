@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 import { StateApp } from './StateApp.js';
 import LoginApp from './LoginApp.js';
@@ -17,62 +17,58 @@ const { Header, Content } = Layout;
 
 const { TabPane } = Tabs;
 
-class GameApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			maxMoney: -1,
-		};
-	}
+function GameApp() {
+	const context = useContext(UserContext);
+	const [title, setTitle] = useState('');
+	const turnRef = useRef(null);
+	const contextRef = useRef(context);
+	contextRef.current = context;
 
-	componentDidMount() {
-		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
-		this.turnRef.on('value', (dataSnapshot) => {
-			invalidateIfStale(this.context.game, dataSnapshot.val());
-			this.makeTitle();
+	const makeTitle = useCallback(async () => {
+		let t = await turnAPI.getTitle(contextRef.current);
+		setTitle(t);
+	}, []);
+
+	useEffect(() => {
+		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
+		turnRef.current.on('value', (dataSnapshot) => {
+			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
+			makeTitle();
 		});
-	}
+		return () => {
+			if (turnRef.current) {
+				turnRef.current.off();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	componentWillUnmount() {
-		if (this.turnRef) {
-			this.turnRef.off();
-		}
-	}
-
-	async makeTitle() {
-		let title = await turnAPI.getTitle(this.context);
-		this.setState({ title: title });
-	}
-
-	render() {
-		return (
-			<Layout style={{ fontFamily: 'Arial' }}>
-				<Header style={{ position: 'fixed', zIndex: 1, width: '100%', fontSize: '28px', display: 'inline' }}>
-					{this.state.title}
-					<span style={{ float: 'right', fontSize: 14 }}>
-						<LoginApp />
-					</span>
-				</Header>
-				<Content className="site-layout" style={{ padding: '0vh 3vw', marginTop: 64 }}>
-					<Tabs defaultActiveKey="1" centered>
-						<TabPane tab="Map" key="1">
-							<MainApp />
-						</TabPane>
-						<TabPane tab="Detailed Info" key="2">
-							<StateApp ref={this.GameState} />
-						</TabPane>
-						<TabPane tab="History" key="3">
-							<HistoryApp />
-						</TabPane>
-						<TabPane tab="Rules" key="4">
-							<RulesApp />
-						</TabPane>
-					</Tabs>
-				</Content>
-			</Layout>
-		);
-	}
+	return (
+		<Layout style={{ fontFamily: 'Arial' }}>
+			<Header style={{ position: 'fixed', zIndex: 1, width: '100%', fontSize: '28px', display: 'inline' }}>
+				{title}
+				<span style={{ float: 'right', fontSize: 14 }}>
+					<LoginApp />
+				</span>
+			</Header>
+			<Content className="site-layout" style={{ padding: '0vh 3vw', marginTop: 64 }}>
+				<Tabs defaultActiveKey="1" centered>
+					<TabPane tab="Map" key="1">
+						<MainApp />
+					</TabPane>
+					<TabPane tab="Detailed Info" key="2">
+						<StateApp />
+					</TabPane>
+					<TabPane tab="History" key="3">
+						<HistoryApp />
+					</TabPane>
+					<TabPane tab="Rules" key="4">
+						<RulesApp />
+					</TabPane>
+				</Tabs>
+			</Content>
+		</Layout>
+	);
 }
-GameApp.contextType = UserContext;
 
 export default GameApp;

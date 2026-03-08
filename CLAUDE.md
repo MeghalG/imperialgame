@@ -4,7 +4,7 @@
 A multiplayer online strategy board game (based on the board game "Imperial") built with React and Firebase Realtime Database. Players manage countries, buy stocks, make proposals, vote, and maneuver armies/fleets on a map.
 
 ## Tech Stack
-- **Frontend:** React 16.13.1 (class components, Context API for state)
+- **Frontend:** React 16.13.1 (functional components with hooks, Context API for state)
 - **UI:** Ant Design 4.x with a custom dark theme (`src/antd-dark-theme.css`)
 - **Backend:** Firebase Realtime Database (no server -- all game logic runs client-side)
 - **Auth:** Firebase Authentication
@@ -134,7 +134,7 @@ User Action → Component → UserContext (setState) → submit*() in submitAPI.
 
 ### Component Architecture
 
-All components are React class components using `contextType = UserContext`.
+All components are functional React components using `useContext(UserContext)`.
 
 **Mode Components** (one per game mode, rendered by TurnApp):
 - `BidApp` → mode `bid`
@@ -145,14 +145,20 @@ All components are React class components using `contextType = UserContext`.
 - `VoteApp` → mode `vote`
 
 Each mode component:
-1. In `componentDidMount`: fetches options from the relevant API file (buyAPI, proposalAPI, etc.)
-2. Renders form controls using `ComponentTemplates.js` (ActionComponent, OptionComponent, RadioComponent)
+1. In `useEffect`: fetches options from the relevant API file (buyAPI, proposalAPI, etc.)
+2. Renders form controls using `ComponentTemplates.js` (ActionFlow, OptionSelect, RadioSelect)
 3. Has a Submit button that calls the corresponding `submit*()` function from submitAPI.js
 
-**ComponentTemplates.js Pattern:**
-- `ActionComponent` — Container with a "Submit" button. Has a `trigger` prop: a function that gets called when Submit is clicked. Child components register their values through context.
-- `OptionComponent` — Select dropdown that writes its value to UserContext via a setter.
-- `RadioComponent` — Radio group that writes its value to UserContext via a setter.
+**ComponentTemplates.js Pattern (composition, not inheritance):**
+- `ActionFlow` — Container with a "Submit" button. Accepts `objects`, `components`, `triggers`, and `submitMethod` props. Manages visible layers and progressive disclosure of form fields. Each object's value is written to UserContext via its setter.
+- `OptionSelect` — Select dropdown that writes its value to UserContext via a setter prop.
+- `RadioSelect` — Radio group that writes its value to UserContext via a setter prop.
+- `CheckboxSelect` — Checkbox group for multi-select values.
+- `MessageDisplay` — Displays API-fetched content with optional divider.
+- `SimpleMessage` — Static text display.
+- `ImportSelect` — Select for import actions with country-aware options.
+- `MultiOptionSelect` — Cascading selects for fleet/army maneuver actions (origin → destination → action type).
+- `SubmitButton` — Standalone submit button with loading state.
 
 ### The Stringification Pattern
 
@@ -187,7 +193,7 @@ Solution: `helper.stringifyFunctions()` converts any context key starting with `
 
 1. Add the mode string to `MODES` in `gameConstants.js`
 2. Add a `case` in `TurnApp.js` → `DisplayMode` switch to render the new component
-3. Create a new `{Mode}App.js` component (class component, `contextType = UserContext`)
+3. Create a new `{Mode}App.js` functional component (use `useContext(UserContext)`)
 4. Add a `submit{Mode}()` function in `submitAPI.js` that reads state, mutates it, and calls `finalizeSubmit()`
 5. Add a `case` in `turnAPI.js` → `getTitle()` switch for the title bar text
 6. Set `gameState.mode` to the new mode at the appropriate transition point in submitAPI.js
@@ -217,8 +223,6 @@ For async functions (with Firebase): mock `database.ref().once()` to return test
 Run: `npm test -- --watchAll=false --ci`
 
 ## Known Issues / Tech Debt
-- All components are class-based React (no hooks)
-- `ContinueManeuverApp.js` and `ManeuverPlannerApp.js` handle continue-man mode (fully implemented)
 - No server-side game logic validation (all logic runs in browser)
 - Firebase SDK v11 modular API is wrapped in a v8-compatible shim in `firebase.js`; call sites still use the old `database.ref(path).once()` pattern
 - `proposalAPI.js` has several test-only exported helpers

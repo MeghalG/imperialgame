@@ -1,47 +1,41 @@
-import React from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import './App.css';
 import UserContext from './UserContext.js';
 import { Card, List } from 'antd';
 import { database } from './backendFiles/firebase.js';
 
-class HistoryApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			history: [],
-		};
-	}
+function HistoryApp() {
+	const context = useContext(UserContext);
+	const [history, setHistory] = useState([]);
+	const historyRef = useRef(null);
 
-	componentDidMount() {
-		this.historyRef = database.ref('games/' + this.context.game + '/history');
-		this.historyRef.on('value', (dataSnapshot) => {
-			let history = dataSnapshot.val();
-			this.setState({ history: history.reverse() });
+	useEffect(() => {
+		historyRef.current = database.ref('games/' + context.game + '/history');
+		historyRef.current.on('value', (dataSnapshot) => {
+			let h = dataSnapshot.val();
+			setHistory(h.reverse());
 		});
-	}
+		return () => {
+			if (historyRef.current) {
+				historyRef.current.off();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	componentWillUnmount() {
-		if (this.historyRef) {
-			this.historyRef.off();
-		}
-	}
-
-	render() {
-		return (
-			<Card style={{ maxHeight: 'calc(100vh + -135px)', overflow: 'auto' }}>
-				<List
-					bordered
-					dataSource={this.state.history}
-					renderItem={(item, index) => (
-						<List.Item>
-							<span style={{ color: '#13a8a8' }}>[{this.state.history.length - index}]</span>&nbsp; &nbsp; {item}
-						</List.Item>
-					)}
-				/>
-			</Card>
-		);
-	}
+	return (
+		<Card style={{ maxHeight: 'calc(100vh + -135px)', overflow: 'auto' }}>
+			<List
+				bordered
+				dataSource={history}
+				renderItem={(item, index) => (
+					<List.Item>
+						<span style={{ color: '#13a8a8' }}>[{history.length - index}]</span>&nbsp; &nbsp; {item}
+					</List.Item>
+				)}
+			/>
+		</Card>
+	);
 }
-HistoryApp.contextType = UserContext;
 
 export default HistoryApp;

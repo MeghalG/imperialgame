@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 import UserContext from './UserContext.js';
 import LoginApp from './LoginApp.js';
@@ -15,68 +15,70 @@ import { database } from './backendFiles/firebase.js';
 const { Header, Content } = Layout;
 const { TabPane } = Tabs;
 
-class EnterApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			choices: [],
-			newGame: false,
-			newGameID: '',
-			newGamePlayers: ['', '', '', '', '', ''],
-			validNewGame: false,
-		};
-	}
+function EnterApp() {
+	const context = useContext(UserContext);
+	const [choices, setChoices] = useState([]);
+	const [newGameVisible, setNewGameVisible] = useState(false);
+	const [newGameID, setNewGameID] = useState('');
+	const [newGamePlayers, setNewGamePlayers] = useState(['', '', '', '', '', '']);
+	const [validNewGame, setValidNewGame] = useState(false);
+	const gamesRef = useRef(null);
+	const choicesRef = useRef(choices);
+	choicesRef.current = choices;
 
-	componentDidMount() {
-		this.gamesRef = database.ref('games');
-		this.gamesRef.on('child_added', (dataSnapshot) => {
-			this.getChoices();
-		});
-		this.gamesRef.on('child_removed', (dataSnapshot) => {
-			this.getChoices();
-		});
-	}
-
-	componentWillUnmount() {
-		if (this.gamesRef) {
-			this.gamesRef.off();
-		}
-	}
-
-	async getChoices() {
+	const getChoices = useCallback(async () => {
 		let ids = await miscAPI.getGameIDs();
-		this.setState({ choices: ids });
-	}
+		setChoices(ids);
+		return ids;
+	}, []);
 
-	handleClick(value) {
-		this.context.setGame(value);
+	useEffect(() => {
+		gamesRef.current = database.ref('games');
+		gamesRef.current.on('child_added', (dataSnapshot) => {
+			getChoices();
+		});
+		gamesRef.current.on('child_removed', (dataSnapshot) => {
+			getChoices();
+		});
+		return () => {
+			if (gamesRef.current) {
+				gamesRef.current.off();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	function handleClick(value) {
+		context.setGame(value);
 		localStorage.setItem('game', value);
 	}
 
-	async updateID(e) {
-		await this.setState({ newGameID: e.target.value });
-		this.setState({ validNewGame: await this.validGame() });
+	async function updateID(e) {
+		let id = e.target.value;
+		setNewGameID(id);
+		let ids = await getChoices();
+		setValidNewGame(checkValidGame(id, newGamePlayers, ids));
 	}
 
-	async updatePlayers(e, i) {
-		let t = this.state.newGamePlayers;
+	async function updatePlayers(e, i) {
+		let t = [...newGamePlayers];
 		t[i] = e.target.value;
-		await this.setState({ newGamePlayers: t });
-		this.setState({ validNewGame: await this.validGame() });
+		setNewGamePlayers(t);
+		let ids = await getChoices();
+		setValidNewGame(checkValidGame(newGameID, t, ids));
 	}
 
-	async validGame() {
-		await this.getChoices();
-		if (!this.state.newGameID || this.state.choices.includes(this.state.newGameID)) {
+	function checkValidGame(id, players, ids) {
+		if (!id || ids.includes(id)) {
 			return false;
 		}
 		let count = 0;
-		for (let i in this.state.newGamePlayers) {
-			if (this.state.newGamePlayers[i]) {
+		for (let i in players) {
+			if (players[i]) {
 				count += 1;
 			}
 		}
-		let s = new Set(this.state.newGamePlayers);
+		let s = new Set(players);
 		s.delete('');
 		if (s.size === count && count >= 1) {
 			return true;
@@ -84,13 +86,13 @@ class EnterApp extends React.Component {
 		return false;
 	}
 
-	async makeNewGame() {
-		await submitAPI.newGame(this.state);
-		this.context.setGame(this.state.newGameID);
+	async function makeNewGame() {
+		await submitAPI.newGame({ newGameID, newGamePlayers });
+		context.setGame(newGameID);
 	}
 
-	newGame() {
-		if (this.state.newGame) {
+	function newGame() {
+		if (newGameVisible) {
 			return (
 				<Card style={{ lineHeight: 3, backgroundColor: '#202020', width: '420px', textAlign: 'center' }}>
 					<Row>
@@ -100,7 +102,7 @@ class EnterApp extends React.Component {
 						<Col span={13}>
 							<Input
 								allowClear={true}
-								onChange={(e) => this.updateID(e)}
+								onChange={(e) => updateID(e)}
 								style={{ background: 'black', width: '200px' }}
 							></Input>
 							<br />
@@ -114,48 +116,48 @@ class EnterApp extends React.Component {
 							<Input
 								placeholder="Player 1"
 								allowClear={true}
-								onChange={(e) => this.updatePlayers(e, 0)}
+								onChange={(e) => updatePlayers(e, 0)}
 								style={{ background: 'black', width: '200px' }}
 							></Input>
 							<br />
 							<Input
 								placeholder="Player 2"
 								allowClear={true}
-								onChange={(e) => this.updatePlayers(e, 1)}
+								onChange={(e) => updatePlayers(e, 1)}
 								style={{ background: 'black', width: '200px' }}
 							></Input>
 							<br />
 							<Input
 								placeholder="Player 3"
 								allowClear={true}
-								onChange={(e) => this.updatePlayers(e, 2)}
+								onChange={(e) => updatePlayers(e, 2)}
 								style={{ background: 'black', width: '200px' }}
 							></Input>
 							<br />
 							<Input
 								placeholder="Player 4"
 								allowClear={true}
-								onChange={(e) => this.updatePlayers(e, 3)}
+								onChange={(e) => updatePlayers(e, 3)}
 								style={{ background: 'black', width: '200px' }}
 							></Input>
 							<br />
 							<Input
 								placeholder="Player 5"
 								allowClear={true}
-								onChange={(e) => this.updatePlayers(e, 4)}
+								onChange={(e) => updatePlayers(e, 4)}
 								style={{ background: 'black', width: '200px' }}
 							></Input>
 							<br />
 							<Input
 								placeholder="Player 6"
 								allowClear={true}
-								onChange={(e) => this.updatePlayers(e, 5)}
+								onChange={(e) => updatePlayers(e, 5)}
 								style={{ background: 'black', width: '200px' }}
 							></Input>
 							<br />
 						</Col>
 					</Row>
-					<Button type="primary" disabled={!this.state.validNewGame} onClick={() => this.makeNewGame()}>
+					<Button type="primary" disabled={!validNewGame} onClick={() => makeNewGame()}>
 						{' '}
 						Create{' '}
 					</Button>
@@ -163,7 +165,7 @@ class EnterApp extends React.Component {
 			);
 		} else {
 			return (
-				<Button onClick={() => this.setState({ newGame: true })} shape="circle">
+				<Button onClick={() => setNewGameVisible(true)} shape="circle">
 					{' '}
 					+{' '}
 				</Button>
@@ -171,11 +173,11 @@ class EnterApp extends React.Component {
 		}
 	}
 
-	buildOptions() {
+	function buildOptions() {
 		let table = [];
 		let t = [];
-		for (let i in this.state.choices) {
-			t.push(<Button onClick={() => this.handleClick(this.state.choices[i])}> {this.state.choices[i]} </Button>);
+		for (let i in choices) {
+			t.push(<Button onClick={() => handleClick(choices[i])}> {choices[i]} </Button>);
 		}
 		table.push(
 			<Row>
@@ -198,7 +200,7 @@ class EnterApp extends React.Component {
 				</Col>{' '}
 				<Col span={13}>
 					{' '}
-					<Space size="middle"> {this.newGame()} </Space>{' '}
+					<Space size="middle"> {newGame()} </Space>{' '}
 				</Col>{' '}
 			</Row>
 		);
@@ -206,33 +208,28 @@ class EnterApp extends React.Component {
 		return table;
 	}
 
-	render() {
-		return (
-			<Layout style={{ fontFamily: 'Arial' }}>
-				<Header
-					style={{ position: 'fixed', zIndex: 1, width: '100%', fontSize: 'calc(10px + 2vmin)', display: 'inline' }}
-				>
-					Welcome to Imperial!
-					<span style={{ float: 'right', fontSize: 14 }}>
-						<LoginApp />
-					</span>
-				</Header>
-				<Content className="site-layout" style={{ padding: '0vh 3vw', marginTop: 64 }}>
-					<Tabs defaultActiveKey="1" centered>
-						<TabPane tab="Join a Game" key="1">
-							<Card style={{ height: 'calc(100vh + -135px)', overflow: 'auto', lineHeight: '4' }}>
-								{this.buildOptions()}
-							</Card>
-						</TabPane>
-						<TabPane tab="Rules" key="2">
-							<RulesApp />
-						</TabPane>
-					</Tabs>
-				</Content>
-			</Layout>
-		);
-	}
+	return (
+		<Layout style={{ fontFamily: 'Arial' }}>
+			<Header
+				style={{ position: 'fixed', zIndex: 1, width: '100%', fontSize: 'calc(10px + 2vmin)', display: 'inline' }}
+			>
+				Welcome to Imperial!
+				<span style={{ float: 'right', fontSize: 14 }}>
+					<LoginApp />
+				</span>
+			</Header>
+			<Content className="site-layout" style={{ padding: '0vh 3vw', marginTop: 64 }}>
+				<Tabs defaultActiveKey="1" centered>
+					<TabPane tab="Join a Game" key="1">
+						<Card style={{ height: 'calc(100vh + -135px)', overflow: 'auto', lineHeight: '4' }}>{buildOptions()}</Card>
+					</TabPane>
+					<TabPane tab="Rules" key="2">
+						<RulesApp />
+					</TabPane>
+				</Tabs>
+			</Content>
+		</Layout>
+	);
 }
-EnterApp.contextType = UserContext;
 
 export default EnterApp;

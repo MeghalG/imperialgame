@@ -21,8 +21,8 @@ Tracked improvements, technical debt, and feature ideas for Imperial Game.
 ## Medium Priority
 
 ### React Modernization
-- [ ] Migrate class components to functional components with hooks
-- [ ] Replace `contextType` pattern with `useContext`
+- [x] ~~Migrate class components to functional components with hooks~~ (all 28 class components converted)
+- [x] ~~Replace `contextType` pattern with `useContext`~~ (all components use `useContext`)
 - [x] ~~Remove `eval()` usage in `helper.unstringifyFunctions()`~~ (replaced with no-op stubs)
 
 ### Firebase SDK Upgrade

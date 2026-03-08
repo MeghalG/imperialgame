@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 
 import { Card, Space, Tooltip } from 'antd';
@@ -11,164 +11,161 @@ import { getCountryColorPalette } from './countryColors.js';
 
 // note this file hardcodes countries + ordering
 
-class StateApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			countries: [],
-			countryInfo: {},
-			playerInfo: {},
-			playersOrdered: [],
-		};
-	}
+function StateApp() {
+	const context = useContext(UserContext);
+	const [countries, setCountries] = useState([]);
+	const [countryInfo, setCountryInfo] = useState({});
+	const [playerInfo, setPlayerInfo] = useState({});
+	const [playersOrdered, setPlayersOrdered] = useState([]);
+	const turnRef = useRef(null);
+	const contextRef = useRef(context);
+	contextRef.current = context;
 
-	getColors() {
-		let palette = getCountryColorPalette(this.context.colorblindMode);
-		return { colors: palette.mid, darkColors: palette.dark };
-	}
-
-	componentDidMount() {
-		this.reinitialize();
-		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
-		this.turnRef.on('value', (dataSnapshot) => {
-			invalidateIfStale(this.context.game, dataSnapshot.val());
-			this.reinitialize();
-		});
-	}
-
-	componentWillUnmount() {
-		if (this.turnRef) {
-			this.turnRef.off();
-		}
-	}
-
-	reinitialize = async () => {
-		let [countries, countryInfo, playerInfo, playersOrdered] = await Promise.all([
-			helper.getCountries(this.context),
-			stateAPI.getCountryInfo(this.context),
-			stateAPI.getPlayerInfo(this.context),
-			helper.getPlayersInOrder(this.context),
+	const reinitialize = useCallback(async () => {
+		let [countriesData, countryInfoData, playerInfoData, playersOrderedData] = await Promise.all([
+			helper.getCountries(contextRef.current),
+			stateAPI.getCountryInfo(contextRef.current),
+			stateAPI.getPlayerInfo(contextRef.current),
+			helper.getPlayersInOrder(contextRef.current),
 		]);
-		this.setState({ countries, countryInfo, playerInfo, playersOrdered });
-	};
+		setCountries(countriesData);
+		setCountryInfo(countryInfoData);
+		setPlayerInfo(playerInfoData);
+		setPlayersOrdered(playersOrderedData);
+	}, []);
 
-	order(d) {
-		return this.state.countries.map((x) => d[x]);
+	useEffect(() => {
+		reinitialize();
+		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
+		turnRef.current.on('value', (dataSnapshot) => {
+			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
+			reinitialize();
+		});
+		return () => {
+			if (turnRef.current) {
+				turnRef.current.off();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	function order(d) {
+		return countries.map((x) => d[x]);
 	}
 
-	render() {
-		let { colors, darkColors } = this.getColors();
-		return (
-			<div style={{ display: 'flex' }}>
-				<Card
-					style={{ width: '46vw', height: 'calc(100vh + -135px)', overflow: 'auto', marginRight: '2vw' }}
-					bodyStyle={{ padding: '0 2vw' }}
-				>
-					<Space size="middle" direction="vertical">
-						<Space size="large" style={{ display: 'flex' }}>
-							<CountryCard
-								country={this.state.countries[0]}
-								color={colors[this.state.countries[0]]}
-								darkColor={darkColors[this.state.countries[0]]}
-								info={clean(this.state.countryInfo[this.state.countries[0]])}
-								playerInfo={this.state.playerInfo}
-							/>
-							<CountryCard
-								country={this.state.countries[1]}
-								color={colors[this.state.countries[1]]}
-								darkColor={darkColors[this.state.countries[1]]}
-								info={clean(this.state.countryInfo[this.state.countries[1]])}
-								playerInfo={this.state.playerInfo}
-							/>
-						</Space>
-						<Space size="large" style={{ display: 'flex' }}>
-							<CountryCard
-								country={this.state.countries[2]}
-								color={colors[this.state.countries[2]]}
-								darkColor={darkColors[this.state.countries[2]]}
-								info={clean(this.state.countryInfo[this.state.countries[2]])}
-								playerInfo={this.state.playerInfo}
-							/>
-							<CountryCard
-								country={this.state.countries[3]}
-								color={colors[this.state.countries[3]]}
-								darkColor={darkColors[this.state.countries[3]]}
-								info={clean(this.state.countryInfo[this.state.countries[3]])}
-								playerInfo={this.state.playerInfo}
-							/>
-						</Space>
-						<Space size="large" style={{ display: 'flex' }}>
-							<CountryCard
-								country={this.state.countries[4]}
-								color={colors[this.state.countries[4]]}
-								darkColor={darkColors[this.state.countries[4]]}
-								info={clean(this.state.countryInfo[this.state.countries[4]])}
-								playerInfo={this.state.playerInfo}
-							/>
-							<CountryCard
-								country={this.state.countries[5]}
-								color={colors[this.state.countries[5]]}
-								darkColor={darkColors[this.state.countries[5]]}
-								info={clean(this.state.countryInfo[this.state.countries[5]])}
-								playerInfo={this.state.playerInfo}
-							/>
-						</Space>
+	let palette = getCountryColorPalette(context.colorblindMode);
+	let colors = palette.mid;
+	let darkColors = palette.dark;
+
+	return (
+		<div style={{ display: 'flex' }}>
+			<Card
+				style={{ width: '46vw', height: 'calc(100vh + -135px)', overflow: 'auto', marginRight: '2vw' }}
+				bodyStyle={{ padding: '0 2vw' }}
+			>
+				<Space size="middle" direction="vertical">
+					<Space size="large" style={{ display: 'flex' }}>
+						<CountryCard
+							country={countries[0]}
+							color={colors[countries[0]]}
+							darkColor={darkColors[countries[0]]}
+							info={clean(countryInfo[countries[0]])}
+							playerInfo={playerInfo}
+						/>
+						<CountryCard
+							country={countries[1]}
+							color={colors[countries[1]]}
+							darkColor={darkColors[countries[1]]}
+							info={clean(countryInfo[countries[1]])}
+							playerInfo={playerInfo}
+						/>
 					</Space>
-				</Card>
-				<Card
-					style={{ width: '46vw', height: 'calc(100vh + -135px)', overflow: 'auto' }}
-					bodyStyle={{ padding: '0 2vw' }}
-				>
-					<Space size="middle" direction="vertical">
-						<Space size="large" style={{ display: 'flex' }}>
-							<PlayerCard
-								player={this.state.playersOrdered[0]}
-								countryColors={this.order(darkColors)}
-								info={clean(this.state.playerInfo[this.state.playersOrdered[0]])}
-								countryInfos={this.state.countryInfo}
-							/>
-							<PlayerCard
-								player={this.state.playersOrdered[1]}
-								countryColors={this.order(darkColors)}
-								info={clean(this.state.playerInfo[this.state.playersOrdered[1]])}
-								countryInfos={this.state.countryInfo}
-							/>
-						</Space>
-						<Space size="large" style={{ display: 'flex' }}>
-							<PlayerCard
-								player={this.state.playersOrdered[2]}
-								countryColors={this.order(darkColors)}
-								info={clean(this.state.playerInfo[this.state.playersOrdered[2]])}
-								countryInfos={this.state.countryInfo}
-							/>
-							<PlayerCard
-								player={this.state.playersOrdered[3]}
-								countryColors={this.order(darkColors)}
-								info={clean(this.state.playerInfo[this.state.playersOrdered[3]])}
-								countryInfos={this.state.countryInfo}
-							/>
-						</Space>
-						<Space size="large" style={{ display: 'flex' }}>
-							<PlayerCard
-								player={this.state.playersOrdered[4]}
-								countryColors={this.order(darkColors)}
-								info={clean(this.state.playerInfo[this.state.playersOrdered[4]])}
-								countryInfos={this.state.countryInfo}
-							/>
-							<PlayerCard
-								player={this.state.playersOrdered[5]}
-								countryColors={this.order(darkColors)}
-								info={clean(this.state.playerInfo[this.state.playersOrdered[5]])}
-								countryInfos={this.state.countryInfo}
-							/>
-						</Space>
+					<Space size="large" style={{ display: 'flex' }}>
+						<CountryCard
+							country={countries[2]}
+							color={colors[countries[2]]}
+							darkColor={darkColors[countries[2]]}
+							info={clean(countryInfo[countries[2]])}
+							playerInfo={playerInfo}
+						/>
+						<CountryCard
+							country={countries[3]}
+							color={colors[countries[3]]}
+							darkColor={darkColors[countries[3]]}
+							info={clean(countryInfo[countries[3]])}
+							playerInfo={playerInfo}
+						/>
 					</Space>
-				</Card>
-			</div>
-		);
-	}
+					<Space size="large" style={{ display: 'flex' }}>
+						<CountryCard
+							country={countries[4]}
+							color={colors[countries[4]]}
+							darkColor={darkColors[countries[4]]}
+							info={clean(countryInfo[countries[4]])}
+							playerInfo={playerInfo}
+						/>
+						<CountryCard
+							country={countries[5]}
+							color={colors[countries[5]]}
+							darkColor={darkColors[countries[5]]}
+							info={clean(countryInfo[countries[5]])}
+							playerInfo={playerInfo}
+						/>
+					</Space>
+				</Space>
+			</Card>
+			<Card
+				style={{ width: '46vw', height: 'calc(100vh + -135px)', overflow: 'auto' }}
+				bodyStyle={{ padding: '0 2vw' }}
+			>
+				<Space size="middle" direction="vertical">
+					<Space size="large" style={{ display: 'flex' }}>
+						<PlayerCard
+							player={playersOrdered[0]}
+							countryColors={order(darkColors)}
+							info={clean(playerInfo[playersOrdered[0]])}
+							countryInfos={countryInfo}
+						/>
+						<PlayerCard
+							player={playersOrdered[1]}
+							countryColors={order(darkColors)}
+							info={clean(playerInfo[playersOrdered[1]])}
+							countryInfos={countryInfo}
+						/>
+					</Space>
+					<Space size="large" style={{ display: 'flex' }}>
+						<PlayerCard
+							player={playersOrdered[2]}
+							countryColors={order(darkColors)}
+							info={clean(playerInfo[playersOrdered[2]])}
+							countryInfos={countryInfo}
+						/>
+						<PlayerCard
+							player={playersOrdered[3]}
+							countryColors={order(darkColors)}
+							info={clean(playerInfo[playersOrdered[3]])}
+							countryInfos={countryInfo}
+						/>
+					</Space>
+					<Space size="large" style={{ display: 'flex' }}>
+						<PlayerCard
+							player={playersOrdered[4]}
+							countryColors={order(darkColors)}
+							info={clean(playerInfo[playersOrdered[4]])}
+							countryInfos={countryInfo}
+						/>
+						<PlayerCard
+							player={playersOrdered[5]}
+							countryColors={order(darkColors)}
+							info={clean(playerInfo[playersOrdered[5]])}
+							countryInfos={countryInfo}
+						/>
+					</Space>
+				</Space>
+			</Card>
+		</div>
+	);
 }
-StateApp.contextType = UserContext;
 
 function clean(x) {
 	if (x) {
@@ -185,30 +182,25 @@ function twoDec(money) {
 	}
 }
 
-class CountryCard extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {};
-	}
-
-	formatAvailStock(availStock) {
+function CountryCard(props) {
+	function formatAvailStock(availStock) {
 		let t = [];
 		for (let i = 0; i < availStock.length; i++) {
 			t.push(
-				<mark style={{ backgroundColor: this.props.darkColor, color: 'white', borderRadius: 3 }}>{availStock[i]}</mark>
+				<mark style={{ backgroundColor: props.darkColor, color: 'white', borderRadius: 3 }}>{availStock[i]}</mark>
 			);
 			t.push(<span>&nbsp;</span>);
 		}
 		return t;
 	}
 
-	formatOwnership() {
-		let playerInfo = this.props.playerInfo || {};
+	function formatOwnership() {
+		let playerInfoData = props.playerInfo || {};
 		let owners = {};
-		for (let player in playerInfo) {
-			let stock = playerInfo[player].stock || [];
+		for (let player in playerInfoData) {
+			let stock = playerInfoData[player].stock || [];
 			for (let s of stock) {
-				if (s.country === this.props.country) {
+				if (s.country === props.country) {
 					if (!owners[player]) owners[player] = [];
 					owners[player].push(s.stock);
 				}
@@ -226,94 +218,90 @@ class CountryCard extends React.Component {
 		return t;
 	}
 
-	leadershipText(countryInfo) {
-		if (!countryInfo.gov) {
+	function leadershipText(info) {
+		if (!info.gov) {
 			return '';
 		}
-		if (countryInfo.gov === 'dictatorship') {
-			return countryInfo.leadership[0];
+		if (info.gov === 'dictatorship') {
+			return info.leadership[0];
 		}
-		if (countryInfo.gov === 'democracy') {
-			return countryInfo.leadership[0] + ' / ' + countryInfo.leadership[1];
+		if (info.gov === 'democracy') {
+			return info.leadership[0] + ' / ' + info.leadership[1];
 		}
 	}
 
-	render() {
-		return (
-			<Card
-				hoverable={true}
-				style={{
-					width: this.props.w || '20vw',
-					height: this.props.h || '24vh',
-					lineHeight: '0.8',
-					minHeight: this.props.h || 185,
-					minWidth: 250,
-					borderRadius: this.props.br || 5,
-					borderColor: this.props.b,
-					backgroundColor: this.props.bg,
-					marginLeft: this.props.ml,
-				}}
-				headStyle={{ backgroundColor: this.props.color, borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
-				title={this.props.country}
-				bodyStyle={{ padding: this.props.p || '20px 20px 20px 20px' }}
-			>
-				<p style={{ textAlign: 'left' }}>
-					&nbsp;&nbsp;Points (Last Tax):
-					<span style={{ float: 'right' }}>
-						{this.props.info.points} ({this.props.info.lastTax})&nbsp;&nbsp;
-					</span>
-				</p>
-				<p style={{ textAlign: 'left' }}>
-					&nbsp;&nbsp;Treasury:
-					<span style={{ float: 'right' }}>${twoDec(this.props.info.money)}&nbsp;&nbsp;</span>
-				</p>
-				<p style={{ textAlign: 'left' }}>
-					&nbsp;&nbsp;Wheel Position:
-					<span style={{ float: 'right' }}>{this.props.info.wheelSpot}&nbsp;&nbsp;</span>
-				</p>
-				<p style={{ textAlign: 'left' }}>
-					&nbsp;&nbsp;Government:
-					<span style={{ float: 'right' }}>{this.leadershipText(this.props.info)}&nbsp;&nbsp;</span>
-				</p>
-				<p style={{ textAlign: 'left' }}>
-					&nbsp;&nbsp;Available:
-					<span style={{ float: 'right', color: this.props.color }}>
-						{this.formatAvailStock(clean(this.props.info.availStock))}
-					</span>
-				</p>
-				<p style={{ textAlign: 'left', fontSize: 12 }}>&nbsp;&nbsp;Owned: {this.formatOwnership()}</p>
-			</Card>
-		);
-	}
+	return (
+		<Card
+			hoverable={true}
+			style={{
+				width: props.w || '20vw',
+				height: props.h || '24vh',
+				lineHeight: '0.8',
+				minHeight: props.h || 185,
+				minWidth: 250,
+				borderRadius: props.br || 5,
+				borderColor: props.b,
+				backgroundColor: props.bg,
+				marginLeft: props.ml,
+			}}
+			headStyle={{ backgroundColor: props.color, borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
+			title={props.country}
+			bodyStyle={{ padding: props.p || '20px 20px 20px 20px' }}
+		>
+			<p style={{ textAlign: 'left' }}>
+				&nbsp;&nbsp;Points (Last Tax):
+				<span style={{ float: 'right' }}>
+					{props.info.points} ({props.info.lastTax})&nbsp;&nbsp;
+				</span>
+			</p>
+			<p style={{ textAlign: 'left' }}>
+				&nbsp;&nbsp;Treasury:
+				<span style={{ float: 'right' }}>${twoDec(props.info.money)}&nbsp;&nbsp;</span>
+			</p>
+			<p style={{ textAlign: 'left' }}>
+				&nbsp;&nbsp;Wheel Position:
+				<span style={{ float: 'right' }}>{props.info.wheelSpot}&nbsp;&nbsp;</span>
+			</p>
+			<p style={{ textAlign: 'left' }}>
+				&nbsp;&nbsp;Government:
+				<span style={{ float: 'right' }}>{leadershipText(props.info)}&nbsp;&nbsp;</span>
+			</p>
+			<p style={{ textAlign: 'left' }}>
+				&nbsp;&nbsp;Available:
+				<span style={{ float: 'right', color: props.color }}>{formatAvailStock(clean(props.info.availStock))}</span>
+			</p>
+			<p style={{ textAlign: 'left', fontSize: 12 }}>&nbsp;&nbsp;Owned: {formatOwnership()}</p>
+		</Card>
+	);
 }
 
-class PlayerCard extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			countries: ['Austria', 'Italy', 'France', 'England', 'Germany', 'Russia'],
-		};
-	}
+function PlayerCard(props) {
+	const context = useContext(UserContext);
+	const [countries, setCountries] = useState(['Austria', 'Italy', 'France', 'England', 'Germany', 'Russia']);
 
-	async componentDidMount() {
-		let countries = await helper.getCountries(this.context);
-		this.setState({ countries: countries });
-	}
+	useEffect(() => {
+		async function fetchCountries() {
+			let c = await helper.getCountries(context);
+			setCountries(c);
+		}
+		fetchCountries();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	formatStock(stock) {
+	function formatStock(stock) {
 		let s = [[], [], [], [], [], []];
 		for (let i in stock) {
-			let index = this.state.countries.indexOf(stock[i].country);
+			let index = countries.indexOf(stock[i].country);
 			s[index].push(stock[i].stock);
 		}
 		let t = [];
 		for (let i = 0; i < s.length; i++) {
 			for (let j = 0; j < s[i].length; j++) {
 				t.push(
-					<Tooltip title={this.state.countries[i]} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
+					<Tooltip title={countries[i]} mouseLeaveDelay={0} mouseEnterDelay={0.15} destroyTooltipOnHide>
 						<mark
 							style={{
-								backgroundColor: this.props.countryColors[i],
+								backgroundColor: props.countryColors[i],
 								color: 'white',
 								borderRadius: 3,
 								cursor: 'default',
@@ -328,7 +316,8 @@ class PlayerCard extends React.Component {
 		}
 		return t;
 	}
-	investor(info, player) {
+
+	function investor(info, player) {
 		let t = [];
 		if (info.investor) {
 			t.push(<mark style={{ backgroundColor: '#424242', color: 'white', borderRadius: 3 }}>Investor Card</mark>);
@@ -344,15 +333,14 @@ class PlayerCard extends React.Component {
 		}
 		if (info.scoreModifier) {
 			t.push(
-				<mark style={{ backgroundColor: '#424242', color: 'white', borderRadius: 3 }}>
-					{this.props.info.scoreModifier}
-				</mark>
+				<mark style={{ backgroundColor: '#424242', color: 'white', borderRadius: 3 }}>{props.info.scoreModifier}</mark>
 			);
 			t.push(<span>&nbsp;</span>);
 		}
 		return t;
 	}
-	sToTime(s) {
+
+	function sToTime(s) {
 		if (!s && s !== 0) return '0:00';
 		let secs = s % 60;
 		let mins = Math.floor(s / 60);
@@ -360,58 +348,55 @@ class PlayerCard extends React.Component {
 		return mins + ':' + secs.toString().padStart(2, '0');
 	}
 
-	render() {
-		if (this.props.player) {
-			return (
-				<Card
-					hoverable={true}
-					style={{
-						width: this.props.w || '20vw',
-						height: this.props.h || '24vh',
-						lineHeight: '0.8',
-						minHeight: this.props.h || 185,
-						minWidth: this.props.w || 250,
-						borderRadius: this.props.br || 5,
-						backgroundColor: this.props.bg,
-						borderColor: this.props.b,
-					}}
-					headStyle={{ backgroundColor: '#525252', borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
-					title={
-						<div>
-							{this.props.player}
-							<span style={{ float: 'right', fontSize: 14 }}>{this.sToTime(this.props.info.banked)}</span>
-						</div>
-					}
-					bodyStyle={{ padding: this.props.p || '20px 20px 20px 20px' }}
-				>
-					<p style={{ textAlign: 'left' }}>
-						&nbsp;&nbsp;Money:
-						<span style={{ float: 'right' }}>${twoDec(this.props.info.money)}&nbsp;&nbsp;</span>
-					</p>
-					<p style={{ textAlign: 'left' }}>
-						&nbsp;&nbsp;Current Score:
-						<span style={{ float: 'right' }}>
-							{helper.computeScore(this.props.info, this.props.countryInfos).toFixed(2)}&nbsp;&nbsp;
-						</span>
-					</p>
-					<p style={{ textAlign: 'left' }}>
-						&nbsp;&nbsp;Cash Value:
-						<span style={{ float: 'right' }}>
-							{helper.computeCash(this.props.info, this.props.countryInfos).toFixed(2)}&nbsp;&nbsp;
-						</span>
-					</p>
-					<p style={{ textAlign: 'left' }}>
-						&nbsp;&nbsp;Stock:
-						<span style={{ float: 'right' }}>{this.formatStock(this.props.info.stock)}</span>
-					</p>
-					<p style={{ textAlign: 'left' }}>{this.investor(this.props.info, this.props.player)}</p>
-				</Card>
-			);
-		} else {
-			return null;
-		}
+	if (props.player) {
+		return (
+			<Card
+				hoverable={true}
+				style={{
+					width: props.w || '20vw',
+					height: props.h || '24vh',
+					lineHeight: '0.8',
+					minHeight: props.h || 185,
+					minWidth: props.w || 250,
+					borderRadius: props.br || 5,
+					backgroundColor: props.bg,
+					borderColor: props.b,
+				}}
+				headStyle={{ backgroundColor: '#525252', borderTopLeftRadius: 5, borderTopRightRadius: 5 }}
+				title={
+					<div>
+						{props.player}
+						<span style={{ float: 'right', fontSize: 14 }}>{sToTime(props.info.banked)}</span>
+					</div>
+				}
+				bodyStyle={{ padding: props.p || '20px 20px 20px 20px' }}
+			>
+				<p style={{ textAlign: 'left' }}>
+					&nbsp;&nbsp;Money:
+					<span style={{ float: 'right' }}>${twoDec(props.info.money)}&nbsp;&nbsp;</span>
+				</p>
+				<p style={{ textAlign: 'left' }}>
+					&nbsp;&nbsp;Current Score:
+					<span style={{ float: 'right' }}>
+						{helper.computeScore(props.info, props.countryInfos).toFixed(2)}&nbsp;&nbsp;
+					</span>
+				</p>
+				<p style={{ textAlign: 'left' }}>
+					&nbsp;&nbsp;Cash Value:
+					<span style={{ float: 'right' }}>
+						{helper.computeCash(props.info, props.countryInfos).toFixed(2)}&nbsp;&nbsp;
+					</span>
+				</p>
+				<p style={{ textAlign: 'left' }}>
+					&nbsp;&nbsp;Stock:
+					<span style={{ float: 'right' }}>{formatStock(props.info.stock)}</span>
+				</p>
+				<p style={{ textAlign: 'left' }}>{investor(props.info, props.player)}</p>
+			</Card>
+		);
+	} else {
+		return null;
 	}
 }
-PlayerCard.contextType = UserContext;
 
 export { StateApp, CountryCard, PlayerCard };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 
 import { Card, Space, Tooltip } from 'antd';
@@ -10,93 +10,88 @@ import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
 import { getCountryColorPalette } from './countryColors.js';
 
-class PlayerApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			countries: [],
-			countryInfo: {},
-			playerInfo: {},
-			playersOrdered: [],
-		};
-	}
+function PlayerApp() {
+	const context = useContext(UserContext);
+	const [countries, setCountries] = useState([]);
+	const [countryInfo, setCountryInfo] = useState({});
+	const [playerInfo, setPlayerInfo] = useState({});
+	const [playersOrdered, setPlayersOrdered] = useState([]);
+	const turnRef = useRef(null);
+	const contextRef = useRef(context);
+	contextRef.current = context;
 
-	componentDidMount() {
-		this.reinitialize();
-		this.turnRef = database.ref('games/' + this.context.game + '/turnID');
-		this.turnRef.on('value', (dataSnapshot) => {
-			invalidateIfStale(this.context.game, dataSnapshot.val());
-			this.reinitialize();
-		});
-	}
-
-	componentWillUnmount() {
-		if (this.turnRef) {
-			this.turnRef.off();
-		}
-	}
-
-	reinitialize = async () => {
-		let [countries, country, player, order] = await Promise.all([
-			helper.getCountries(this.context),
-			stateAPI.getCountryInfo(this.context),
-			stateAPI.getPlayerInfo(this.context),
-			helper.getPlayersInOrder(this.context),
+	const reinitialize = useCallback(async () => {
+		let [countriesData, country, player, order] = await Promise.all([
+			helper.getCountries(contextRef.current),
+			stateAPI.getCountryInfo(contextRef.current),
+			stateAPI.getPlayerInfo(contextRef.current),
+			helper.getPlayersInOrder(contextRef.current),
 		]);
-		this.setState({ countries: countries, countryInfo: country, playerInfo: player, playersOrdered: order });
-	};
+		setCountries(countriesData);
+		setCountryInfo(country);
+		setPlayerInfo(player);
+		setPlayersOrdered(order);
+	}, []);
 
-	order(d) {
-		return this.state.countries.map((x) => d[x]);
-	}
+	useEffect(() => {
+		reinitialize();
+		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
+		turnRef.current.on('value', (dataSnapshot) => {
+			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
+			reinitialize();
+		});
+		return () => {
+			if (turnRef.current) {
+				turnRef.current.off();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
-	render() {
-		let darkColors = getCountryColorPalette(this.context.colorblindMode).dark;
-		return (
-			<div style={{ display: 'flex' }}>
-				<Space size="small" direction="vertical">
-					<PlayerCard
-						player={this.state.playersOrdered[0]}
-						countryColors={darkColors}
-						info={clean(this.state.playerInfo[this.state.playersOrdered[0]])}
-						countryInfos={this.state.countryInfo}
-					/>
-					<PlayerCard
-						player={this.state.playersOrdered[1]}
-						countryColors={darkColors}
-						info={clean(this.state.playerInfo[this.state.playersOrdered[1]])}
-						countryInfos={this.state.countryInfo}
-					/>
-					<PlayerCard
-						player={this.state.playersOrdered[2]}
-						countryColors={darkColors}
-						info={clean(this.state.playerInfo[this.state.playersOrdered[2]])}
-						countryInfos={this.state.countryInfo}
-					/>
-					<PlayerCard
-						player={this.state.playersOrdered[3]}
-						countryColors={darkColors}
-						info={clean(this.state.playerInfo[this.state.playersOrdered[3]])}
-						countryInfos={this.state.countryInfo}
-					/>
-					<PlayerCard
-						player={this.state.playersOrdered[4]}
-						countryColors={darkColors}
-						info={clean(this.state.playerInfo[this.state.playersOrdered[4]])}
-						countryInfos={this.state.countryInfo}
-					/>
-					<PlayerCard
-						player={this.state.playersOrdered[5]}
-						countryColors={darkColors}
-						info={clean(this.state.playerInfo[this.state.playersOrdered[5]])}
-						countryInfos={this.state.countryInfo}
-					/>
-				</Space>
-			</div>
-		);
-	}
+	let darkColors = getCountryColorPalette(context.colorblindMode).dark;
+	return (
+		<div style={{ display: 'flex' }}>
+			<Space size="small" direction="vertical">
+				<PlayerCard
+					player={playersOrdered[0]}
+					countryColors={darkColors}
+					info={clean(playerInfo[playersOrdered[0]])}
+					countryInfos={countryInfo}
+				/>
+				<PlayerCard
+					player={playersOrdered[1]}
+					countryColors={darkColors}
+					info={clean(playerInfo[playersOrdered[1]])}
+					countryInfos={countryInfo}
+				/>
+				<PlayerCard
+					player={playersOrdered[2]}
+					countryColors={darkColors}
+					info={clean(playerInfo[playersOrdered[2]])}
+					countryInfos={countryInfo}
+				/>
+				<PlayerCard
+					player={playersOrdered[3]}
+					countryColors={darkColors}
+					info={clean(playerInfo[playersOrdered[3]])}
+					countryInfos={countryInfo}
+				/>
+				<PlayerCard
+					player={playersOrdered[4]}
+					countryColors={darkColors}
+					info={clean(playerInfo[playersOrdered[4]])}
+					countryInfos={countryInfo}
+				/>
+				<PlayerCard
+					player={playersOrdered[5]}
+					countryColors={darkColors}
+					info={clean(playerInfo[playersOrdered[5]])}
+					countryInfos={countryInfo}
+				/>
+			</Space>
+		</div>
+	);
 }
-PlayerApp.contextType = UserContext;
 
 function clean(x) {
 	if (x) {
@@ -113,36 +108,36 @@ function twoDec(money) {
 	}
 }
 
-class PlayerCard extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = {
-			countries: ['Austria', 'Italy', 'France', 'England', 'Germany', 'Russia'],
-			activeTooltip: null,
-		};
+function PlayerCard(props) {
+	const context = useContext(UserContext);
+	const [countries, setCountries] = useState(['Austria', 'Italy', 'France', 'England', 'Germany', 'Russia']);
+	const [activeTooltip, setActiveTooltip] = useState(null);
+
+	useEffect(() => {
+		async function fetchCountries() {
+			let c = await helper.getCountries(context);
+			setCountries(c);
+		}
+		fetchCountries();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	function showTooltip(id) {
+		setActiveTooltip(id);
 	}
 
-	showTooltip(id) {
-		this.setState({ activeTooltip: id });
-	}
-
-	hideTooltip(id) {
-		if (this.state.activeTooltip === id) {
-			this.setState({ activeTooltip: null });
+	function hideTooltip(id) {
+		if (activeTooltip === id) {
+			setActiveTooltip(null);
 		}
 	}
 
-	async componentDidMount() {
-		let countries = await helper.getCountries(this.context);
-		this.setState({ countries: countries });
-	}
-
-	tip(id, title, content) {
+	function tip(id, title, content) {
 		return (
 			<Tooltip
 				title={title}
-				visible={this.state.activeTooltip === id}
-				onVisibleChange={(v) => (v ? this.showTooltip(id) : this.hideTooltip(id))}
+				visible={activeTooltip === id}
+				onVisibleChange={(v) => (v ? showTooltip(id) : hideTooltip(id))}
 				destroyTooltipOnHide
 			>
 				{content}
@@ -150,10 +145,10 @@ class PlayerCard extends React.Component {
 		);
 	}
 
-	formatStock(stock) {
+	function formatStock(stock) {
 		let s = [[], [], [], [], [], []];
 		for (let i in stock) {
-			let index = this.state.countries.indexOf(stock[i].country);
+			let index = countries.indexOf(stock[i].country);
 			s[index].push(stock[i].stock);
 		}
 		let t = [];
@@ -161,12 +156,12 @@ class PlayerCard extends React.Component {
 			for (let j = 0; j < s[i].length; j++) {
 				let tipId = 'stock-' + i + '-' + j;
 				t.push(
-					this.tip(
+					tip(
 						tipId,
-						this.state.countries[i],
+						countries[i],
 						<mark
 							style={{
-								backgroundColor: this.props.countryColors[this.state.countries[i]],
+								backgroundColor: props.countryColors[countries[i]],
 								color: 'white',
 								borderRadius: 2,
 								cursor: 'default',
@@ -181,13 +176,14 @@ class PlayerCard extends React.Component {
 		}
 		return t;
 	}
-	gov() {
-		let brightColors = getCountryColorPalette(this.context.colorblindMode).bright;
+
+	function gov() {
+		let brightColors = getCountryColorPalette(context.colorblindMode).bright;
 		let t = [];
-		for (let country in this.props.countryInfos) {
-			if ((this.props.countryInfos[country].leadership || [])[0] === this.props.player) {
+		for (let country in props.countryInfos) {
+			if ((props.countryInfos[country].leadership || [])[0] === props.player) {
 				t.push(
-					this.tip(
+					tip(
 						'leader-' + country,
 						country + ' Leader',
 						<FlagFilled style={{ fontSize: 16, color: brightColors[country], marginRight: 3 }} />
@@ -195,11 +191,11 @@ class PlayerCard extends React.Component {
 				);
 			}
 			if (
-				(this.props.countryInfos[country] || {}).gov === 'democracy' &&
-				this.props.countryInfos[country].leadership[1] === this.props.player
+				(props.countryInfos[country] || {}).gov === 'democracy' &&
+				props.countryInfos[country].leadership[1] === props.player
 			) {
 				t.push(
-					this.tip(
+					tip(
 						'opp-' + country,
 						country + ' Opposition',
 						<FlagOutlined style={{ fontSize: 16, color: brightColors[country], marginRight: 3 }} />
@@ -210,51 +206,48 @@ class PlayerCard extends React.Component {
 		return t;
 	}
 
-	investor() {
+	function investor() {
 		let t = [];
-		if (this.props.info.investor) {
+		if (props.info.investor) {
 			t.push(
-				this.tip(
+				tip(
 					'investor',
 					'Investor Card',
 					<DollarCircleFilled style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />
 				)
 			);
 		}
-		if (this.props.info.swiss) {
+		if (props.info.swiss) {
 			t.push(
-				this.tip('swiss', 'Swiss', <DollarCircleOutlined style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />)
+				tip('swiss', 'Swiss', <DollarCircleOutlined style={{ fontSize: 16, color: '#CCCCCC', marginRight: 3 }} />)
 			);
 		}
 		return t;
 	}
 
-	render() {
-		if (this.props.player !== null) {
-			return (
-				<Card
-					hoverable={true}
-					size="small"
-					style={{ lineHeight: '0.8', minWidth: '100%', backgroundColor: 'black', width: '11vw' }}
-					headStyle={{ backgroundColor: '#303030', lineHeight: '1', padding: '0px 10px 0px 10px', minHeight: 0 }}
-					title={
-						<div>
-							{this.investor()}
-							{this.props.player}
-							<span style={{ float: 'right', fontSize: 13 }}>{this.gov()}</span>
-						</div>
-					}
-					bodyStyle={{ padding: '10px 0px 0px 0px', wordWrap: 'break-word' }}
-				>
-					<p style={{ textAlign: 'left' }}>&nbsp;&nbsp;${twoDec(this.props.info.money)}&nbsp;&nbsp;</p>
-					<p style={{ textAlign: 'left' }}>&nbsp;&nbsp;{this.formatStock(this.props.info.stock)}</p>
-				</Card>
-			);
-		} else {
-			return null;
-		}
+	if (props.player !== null) {
+		return (
+			<Card
+				hoverable={true}
+				size="small"
+				style={{ lineHeight: '0.8', minWidth: '100%', backgroundColor: 'black', width: '11vw' }}
+				headStyle={{ backgroundColor: '#303030', lineHeight: '1', padding: '0px 10px 0px 10px', minHeight: 0 }}
+				title={
+					<div>
+						{investor()}
+						{props.player}
+						<span style={{ float: 'right', fontSize: 13 }}>{gov()}</span>
+					</div>
+				}
+				bodyStyle={{ padding: '10px 0px 0px 0px', wordWrap: 'break-word' }}
+			>
+				<p style={{ textAlign: 'left' }}>&nbsp;&nbsp;${twoDec(props.info.money)}&nbsp;&nbsp;</p>
+				<p style={{ textAlign: 'left' }}>&nbsp;&nbsp;{formatStock(props.info.stock)}</p>
+			</Card>
+		);
+	} else {
+		return null;
 	}
 }
-PlayerCard.contextType = UserContext;
 
 export default PlayerApp;

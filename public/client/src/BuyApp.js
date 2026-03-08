@@ -1,69 +1,49 @@
+import React from 'react';
 import './App.css';
-import { OptionComponent } from './ComponentTemplates.js';
-import { ActionComponent } from './ComponentTemplates.js';
+import { OptionSelect, ActionFlow } from './ComponentTemplates.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import * as buyAPI from './backendFiles/buyAPI.js';
 
-class BuyApp extends ActionComponent {
-	constructor(props) {
-		super(props);
-		this.state = {
-			className: 'BuyApp',
-			submitMethod: submitAPI.submitBuy,
-			objects: ['country', 'return', 'stock'],
-			country: '',
-			return: '',
-			stock: '',
-			visibleLayers: [true, false, false, false],
-			components: { country: BuyCountryComponent, return: ReturnStockComponent, stock: BuyStockComponent },
-			type: 'buy',
-			submit: true,
-			triggers: {},
-			keys: [0, 0, 0, 0],
-		};
-	}
-}
-
-class BuyCountryComponent extends OptionComponent {
-	constructor(props) {
-		super(props);
-		this.state = {
-			object: 'country',
-			choices: [],
-			setThing: 'setBuyCountry',
-			thing: 'buyCountry',
-			getAPI: buyAPI.getCountryOptions,
-			message: 'Country:',
-		};
-	}
-}
-
-class ReturnStockComponent extends OptionComponent {
-	constructor(props) {
-		super(props);
-		this.state = {
-			object: 'return',
-			choices: [],
-			setThing: 'setReturnStock',
-			thing: 'returnStock',
-			getAPI: buyAPI.getReturnStockOptions,
-			message: 'Return:',
-		};
-	}
-}
-
-class BuyStockComponent extends OptionComponent {
-	constructor(props) {
-		super(props);
-		this.state = {
-			object: 'stock',
-			choices: [],
-			setThing: 'setBuyStock',
-			thing: 'buyStock',
-			getAPI: buyAPI.getStockOptions,
-			message: 'Stock:',
-		};
-	}
+function BuyApp() {
+	return (
+		<ActionFlow
+			className="BuyApp"
+			submitMethod={submitAPI.submitBuy}
+			objects={['country', 'return', 'stock']}
+			components={{
+				country: (props) => (
+					<OptionSelect
+						object="country"
+						setThing="setBuyCountry"
+						getAPI={buyAPI.getCountryOptions}
+						message="Country:"
+						data={props.data}
+					/>
+				),
+				return: (props) => (
+					<OptionSelect
+						object="return"
+						setThing="setReturnStock"
+						getAPI={buyAPI.getReturnStockOptions}
+						message="Return:"
+						data={props.data}
+					/>
+				),
+				stock: (props) => (
+					<OptionSelect
+						object="stock"
+						setThing="setBuyStock"
+						getAPI={buyAPI.getStockOptions}
+						message="Stock:"
+						data={props.data}
+					/>
+				),
+			}}
+			submit={true}
+			triggers={{}}
+			type="buy"
+		/>
+	);
 }
 
 export default BuyApp;
