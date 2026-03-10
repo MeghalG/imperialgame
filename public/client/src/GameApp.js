@@ -1,73 +1,129 @@
-import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import './App.css';
+import './MapOverlay.css';
 import { StateApp } from './StateApp.js';
-import LoginApp from './LoginApp.js';
-import MainApp from './MainApp.js';
 import HistoryApp from './HistoryApp.js';
 import RulesApp from './RulesApp.js';
-import UserContext from './UserContext.js';
-import { database } from './backendFiles/firebase.js';
-import { invalidateIfStale } from './backendFiles/stateCache.js';
-import * as turnAPI from './backendFiles/turnAPI.js';
+import MainApp from './MainApp.js';
+import TopBar from './TopBar.js';
+import MapInteractionContext from './MapInteractionContext.js';
 
-import { Tabs } from 'antd';
-import { Layout } from 'antd';
-
-const { Header, Content } = Layout;
-
-const { TabPane } = Tabs;
+function SlideDrawer({ title, open, onClose, width, children }) {
+	return (
+		<React.Fragment>
+			{open && <div className="imp-drawer__mask" onClick={onClose} />}
+			<div className={'imp-drawer' + (open ? ' imp-drawer--open' : '')} style={{ width: width }}>
+				<div className="imp-drawer__header">
+					<span>{title}</span>
+					<button className="imp-drawer__close" onClick={onClose}>
+						&times;
+					</button>
+				</div>
+				<div className="imp-drawer__body">{children}</div>
+			</div>
+		</React.Fragment>
+	);
+}
 
 function GameApp() {
-	const context = useContext(UserContext);
-	const [title, setTitle] = useState('');
-	const turnRef = useRef(null);
-	const contextRef = useRef(context);
-	contextRef.current = context;
+	const [historyOpen, setHistoryOpen] = useState(false);
+	const [infoOpen, setInfoOpen] = useState(false);
+	const [rulesOpen, setRulesOpen] = useState(false);
 
-	const makeTitle = useCallback(async () => {
-		let t = await turnAPI.getTitle(contextRef.current);
-		setTitle(t);
+	// Map interaction state
+	const [interactionMode, setInteractionMode] = useState(null);
+	const [selectableItems, setSelectableItems] = useState([]);
+	const [selectedItem, setSelectedItem] = useState(null);
+	const [highlightColor, setHighlightColor] = useState('#c9a84c');
+	const [onItemSelectedCb, setOnItemSelectedCb] = useState(() => () => {});
+	const [highlightedTerritories, setHighlightedTerritories] = useState({});
+	const [plannedMoves, setPlannedMoves] = useState([]);
+	const [selectableCosts, setSelectableCosts] = useState({});
+	const [unitMarkers, setUnitMarkers] = useState([]);
+	const [onUnitMarkerClickedCb, setOnUnitMarkerClickedCb] = useState(() => () => {});
+
+	const setInteraction = useCallback((mode, items, color, callback, highlights, costs) => {
+		setInteractionMode(mode);
+		setSelectableItems(items || []);
+		setSelectedItem(null);
+		setHighlightColor(color || '#c9a84c');
+		setOnItemSelectedCb(() => callback || (() => {}));
+		setHighlightedTerritories(highlights || {});
+		setSelectableCosts(costs || {});
 	}, []);
 
-	useEffect(() => {
-		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
-		turnRef.current.on('value', (dataSnapshot) => {
-			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
-			makeTitle();
-		});
-		return () => {
-			if (turnRef.current) {
-				turnRef.current.off();
+	const clearInteraction = useCallback(() => {
+		setInteractionMode(null);
+		setSelectableItems([]);
+		setSelectedItem(null);
+		setOnItemSelectedCb(() => () => {});
+		setHighlightedTerritories({});
+		setSelectableCosts({});
+		setUnitMarkers([]);
+	}, []);
+
+	const handleItemSelected = useCallback(
+		(name) => {
+			setSelectedItem(name);
+			if (onItemSelectedCb) {
+				onItemSelectedCb(name);
 			}
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+		},
+		[onItemSelectedCb]
+	);
+
+	const handleUnitMarkerClicked = useCallback(
+		(phase, index) => {
+			if (onUnitMarkerClickedCb) {
+				onUnitMarkerClickedCb(phase, index);
+			}
+		},
+		[onUnitMarkerClickedCb]
+	);
+
+	const mapInteractionValue = {
+		interactionMode,
+		selectableItems,
+		selectableCosts,
+		selectedItem,
+		highlightColor,
+		onItemSelected: handleItemSelected,
+		highlightedTerritories,
+		setInteraction,
+		clearInteraction,
+		plannedMoves,
+		setPlannedMoves,
+		unitMarkers,
+		setUnitMarkers,
+		onUnitMarkerClicked: handleUnitMarkerClicked,
+		setOnUnitMarkerClickedCb,
+	};
 
 	return (
-		<Layout style={{ fontFamily: 'Arial' }}>
-			<Header style={{ position: 'fixed', zIndex: 1, width: '100%', fontSize: '28px', display: 'inline' }}>
-				{title}
-				<span style={{ float: 'right', fontSize: 14 }}>
-					<LoginApp />
-				</span>
-			</Header>
-			<Content className="site-layout" style={{ padding: '0vh 3vw', marginTop: 64 }}>
-				<Tabs defaultActiveKey="1" centered>
-					<TabPane tab="Map" key="1">
-						<MainApp />
-					</TabPane>
-					<TabPane tab="Detailed Info" key="2">
-						<StateApp />
-					</TabPane>
-					<TabPane tab="History" key="3">
-						<HistoryApp />
-					</TabPane>
-					<TabPane tab="Rules" key="4">
-						<RulesApp />
-					</TabPane>
-				</Tabs>
-			</Content>
-		</Layout>
+		<MapInteractionContext.Provider value={mapInteractionValue}>
+			<div style={{ background: '#0a0b0d', minHeight: '100vh' }}>
+				<TopBar
+					onToggleHistory={() => setHistoryOpen(!historyOpen)}
+					onToggleInfo={() => setInfoOpen(!infoOpen)}
+					onToggleRules={() => setRulesOpen(!rulesOpen)}
+				/>
+				<MainApp />
+				<SlideDrawer title="Game History" open={historyOpen} onClose={() => setHistoryOpen(false)} width={420}>
+					<HistoryApp />
+				</SlideDrawer>
+				<SlideDrawer
+					title="Detailed Info"
+					open={infoOpen}
+					onClose={() => setInfoOpen(false)}
+					width={Math.min(window.innerWidth * 0.85, 960)}
+				>
+					<StateApp />
+				</SlideDrawer>
+				<SlideDrawer title="Game Rules" open={rulesOpen} onClose={() => setRulesOpen(false)} width={600}>
+					<RulesApp />
+				</SlideDrawer>
+			</div>
+		</MapInteractionContext.Provider>
 	);
 }
 

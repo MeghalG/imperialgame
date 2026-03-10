@@ -1,0 +1,129 @@
+import React, { useState, useEffect, useContext } from 'react';
+import UserContext from './UserContext.js';
+import MapInteractionContext from './MapInteractionContext.js';
+import { readSetup } from './backendFiles/stateCache.js';
+import * as miscAPI from './backendFiles/miscAPI.js';
+import './MapOverlay.css';
+
+function parsePercent(s) {
+	if (typeof s === 'number') return s;
+	return parseFloat(s);
+}
+
+function computePath(x1, y1, x2, y2) {
+	let dx = x2 - x1;
+	let dy = y2 - y1;
+	let dist = Math.sqrt(dx * dx + dy * dy);
+
+	// For close territories, use a quadratic curve to avoid label overlap
+	if (dist < 8 && dist > 0) {
+		let mx = (x1 + x2) / 2;
+		let my = (y1 + y2) / 2;
+		let nx = -dy / dist;
+		let ny = dx / dist;
+		let offset = dist * 0.4;
+		let cx = mx + nx * offset;
+		let cy = my + ny * offset;
+		return 'M ' + x1 + ' ' + y1 + ' Q ' + cx + ' ' + cy + ' ' + x2 + ' ' + y2;
+	}
+
+	return 'M ' + x1 + ' ' + y1 + ' L ' + x2 + ' ' + y2;
+}
+
+function MovementArrowLayer() {
+	const context = useContext(UserContext);
+	const mapInteraction = useContext(MapInteractionContext);
+	const [territories, setTerritories] = useState({});
+
+	useEffect(() => {
+		async function fetchTerritories() {
+			let gameState = await miscAPI.getGameState(context);
+			if (!gameState || !gameState.setup) return;
+			let setup = await readSetup(gameState.setup + '/territories');
+			if (setup) {
+				setTerritories(setup);
+			}
+		}
+		fetchTerritories();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	let moves = mapInteraction.plannedMoves;
+	if (!moves || moves.length === 0 || Object.keys(territories).length === 0) {
+		return null;
+	}
+
+	// Collect unique colors for arrowhead markers
+	let colorSet = {};
+	for (let i = 0; i < moves.length; i++) {
+		let c = moves[i].color || '#c9a84c';
+		colorSet[c] = true;
+	}
+	let uniqueColors = Object.keys(colorSet);
+
+	let paths = [];
+	for (let i = 0; i < moves.length; i++) {
+		let move = moves[i];
+		let fromT = territories[move.origin];
+		let toT = territories[move.dest];
+		if (!fromT || !fromT.unitCoords || !toT || !toT.unitCoords) continue;
+
+		let color = move.color || '#c9a84c';
+		let colorIndex = uniqueColors.indexOf(color);
+		let x1 = parsePercent(fromT.unitCoords[0]);
+		let y1 = parsePercent(fromT.unitCoords[1]);
+		let x2 = parsePercent(toT.unitCoords[0]);
+		let y2 = parsePercent(toT.unitCoords[1]);
+		let d = computePath(x1, y1, x2, y2);
+
+		paths.push(
+			<path
+				key={'arrow-' + i}
+				className="imp-movement-arrow"
+				d={d}
+				stroke={color}
+				strokeWidth={0.5}
+				fill="none"
+				strokeLinecap="round"
+				markerEnd={'url(#imp-arr-' + colorIndex + ')'}
+				opacity={0.9}
+			/>
+		);
+	}
+
+	return (
+		<svg
+			viewBox="0 0 100 100"
+			preserveAspectRatio="none"
+			style={{
+				position: 'absolute',
+				top: 0,
+				left: 0,
+				width: '100%',
+				height: '100%',
+				pointerEvents: 'none',
+				overflow: 'visible',
+			}}
+		>
+			<defs>
+				{uniqueColors.map((color, i) => (
+					<marker
+						key={i}
+						id={'imp-arr-' + i}
+						markerWidth="3"
+						markerHeight="2.4"
+						refX="2.6"
+						refY="1.2"
+						orient="auto"
+						markerUnits="userSpaceOnUse"
+					>
+						<polygon points="0 0, 3 1.2, 0 2.4" fill={color} />
+					</marker>
+				))}
+			</defs>
+			{paths}
+		</svg>
+	);
+}
+
+export default MovementArrowLayer;

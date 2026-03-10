@@ -29,6 +29,8 @@ function FactoryFlow(props) {
 						getAPI={proposalAPI.getLocationOptions}
 						message="Location:"
 						data={innerProps.data}
+						mapMode="select-territory"
+						mapColor="#49aa19"
 					/>
 				),
 			}}
@@ -228,6 +230,7 @@ function ProposalApp() {
 						message="Spin to:"
 						costs={['', '', '', '($2)', '($4)', '($6)']}
 						data={props.data}
+						mapMode="select-rondel"
 					/>
 				),
 				move: null,

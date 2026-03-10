@@ -3,9 +3,11 @@ import './App.css';
 import { Select, Button, Card, Tag, Radio, Steps, Tooltip } from 'antd';
 import { LockOutlined, ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
+import MapInteractionContext from './MapInteractionContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { readGameState, readSetup } from './backendFiles/stateCache.js';
+import { getCountryColorPalette } from './countryColors.js';
 
 const { Option } = Select;
 
@@ -79,6 +81,7 @@ function isPeaceAction(action) {
  */
 function ManeuverPlannerApp() {
 	const context = useContext(UserContext);
+	const mapInteraction = useContext(MapInteractionContext);
 	const [loaded, setLoaded] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [country, setCountry] = useState('');
@@ -88,6 +91,7 @@ function ManeuverPlannerApp() {
 	const [priorCompleted, setPriorCompleted] = useState([]);
 	const [territorySetup, setTerritorySetup] = useState({});
 	const [pendingPeace, setPendingPeace] = useState(null);
+	const [activeUnit, setActiveUnit] = useState(null);
 
 	const contextRef = useRef(context);
 	contextRef.current = context;
@@ -103,6 +107,157 @@ function ManeuverPlannerApp() {
 	countryRef.current = country;
 	const territorySetupRef = useRef(territorySetup);
 	territorySetupRef.current = territorySetup;
+	const activeUnitRef = useRef(activeUnit);
+	activeUnitRef.current = activeUnit;
+	const mapInteractionRef = useRef(mapInteraction);
+	mapInteractionRef.current = mapInteraction;
+
+	/**
+	 * Returns a color that is visible against the dark map background.
+	 * Germany's bright color is #000000 (black), invisible on the map.
+	 */
+	function ensureMapVisible(color) {
+		if (!color || color.length < 7) return color || '#c9a84c';
+		let r = parseInt(color.slice(1, 3), 16);
+		let g = parseInt(color.slice(3, 5), 16);
+		let b = parseInt(color.slice(5, 7), 16);
+		let luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+		if (luminance < 0.2) {
+			return '#8c8c8c';
+		}
+		return color;
+	}
+
+	// Push active unit's destination options to the map hotspot layer
+	useEffect(() => {
+		if (!loaded || pendingPeace) {
+			return;
+		}
+
+		let palette = getCountryColorPalette(context.colorblindMode);
+		let countryColor = ensureMapVisible(palette.bright[country] || '#c9a84c');
+		let dimColor = countryColor + '66';
+		let goldColor = '#c9a84c';
+
+		let selectables = [];
+		let highlights = {};
+
+		// Highlight planned destinations dimly
+		fleetPlansRef.current.forEach((p) => {
+			if (p.dest && p.dest !== p.origin) highlights[p.dest] = dimColor;
+		});
+		armyPlansRef.current.forEach((p) => {
+			if (p.dest && p.dest !== p.origin) highlights[p.dest] = dimColor;
+		});
+
+		if (activeUnit) {
+			let plans = activeUnit.phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
+			let plan = plans[activeUnit.index];
+			if (plan) {
+				// Active unit origin gets gold highlight
+				highlights[plan.origin] = goldColor;
+
+				// Destination options are the selectable items
+				if (plan.destOptions) {
+					selectables = [...plan.destOptions];
+				}
+			}
+		}
+
+		mapInteraction.setInteraction(
+			'select-territory',
+			selectables,
+			countryColor,
+			(name) => {
+				let au = activeUnitRef.current;
+				if (au) {
+					onDestChange(au.phase, au.index, name);
+				}
+			},
+			highlights
+		);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [activeUnit, loaded, pendingPeace, country]);
+
+	// Cleanup map interaction on unmount
+	useEffect(() => {
+		return () => {
+			mapInteractionRef.current.clearInteraction();
+		};
+	}, []);
+
+	// Push planned moves for arrows
+	useEffect(() => {
+		if (!loaded || !mapInteraction.setPlannedMoves) return;
+		let palette = getCountryColorPalette(context.colorblindMode);
+		let countryColor = ensureMapVisible(palette.bright[country] || '#c9a84c');
+		let moves = [];
+		fleetPlans.forEach((p) => {
+			if (p.dest && p.dest !== p.origin) {
+				moves.push({ origin: p.origin, dest: p.dest, color: countryColor });
+			}
+		});
+		armyPlans.forEach((p) => {
+			if (p.dest && p.dest !== p.origin) {
+				moves.push({ origin: p.origin, dest: p.dest, color: countryColor });
+			}
+		});
+		mapInteraction.setPlannedMoves(moves);
+		return () => {
+			if (mapInteractionRef.current.setPlannedMoves) {
+				mapInteractionRef.current.setPlannedMoves([]);
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loaded, fleetPlans, armyPlans, country]);
+
+	// Push unit markers to the map layer
+	useEffect(() => {
+		if (!loaded || !mapInteraction.setUnitMarkers) return;
+
+		let palette = getCountryColorPalette(context.colorblindMode);
+		let countryColor = ensureMapVisible(palette.bright[country] || '#c9a84c');
+
+		let markers = [];
+		fleetPlans.forEach((p, i) => {
+			markers.push({
+				territoryName: p.origin,
+				unitType: 'fleet',
+				phase: 'fleet',
+				index: i,
+				isActive: activeUnit && activeUnit.phase === 'fleet' && activeUnit.index === i,
+				isPlanned: !!p.dest,
+				color: countryColor,
+			});
+		});
+		armyPlans.forEach((p, i) => {
+			markers.push({
+				territoryName: p.origin,
+				unitType: 'army',
+				phase: 'army',
+				index: i,
+				isActive: activeUnit && activeUnit.phase === 'army' && activeUnit.index === i,
+				isPlanned: !!p.dest,
+				color: countryColor,
+			});
+		});
+
+		mapInteraction.setUnitMarkers(markers);
+
+		// Set the callback for when a unit marker is clicked
+		if (mapInteraction.setOnUnitMarkerClickedCb) {
+			mapInteraction.setOnUnitMarkerClickedCb(() => (phase, index) => {
+				setActiveUnit({ phase, index });
+			});
+		}
+
+		return () => {
+			if (mapInteractionRef.current.setUnitMarkers) {
+				mapInteractionRef.current.setUnitMarkers([]);
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loaded, fleetPlans, armyPlans, activeUnit, country]);
 
 	/**
 	 * Builds a ManeuverPlan object from current state for proposalAPI calls.
@@ -417,6 +572,13 @@ function ManeuverPlannerApp() {
 			setArmyPlans([...initArmyPlans]);
 			fleetPlansRef.current = initFleetPlans;
 			armyPlansRef.current = initArmyPlans;
+
+			// Auto-activate the first unit so map hotspots appear immediately
+			if (initFleetPlans.length > 0) {
+				setActiveUnit({ phase: 'fleet', index: 0 });
+			} else if (initArmyPlans.length > 0) {
+				setActiveUnit({ phase: 'army', index: 0 });
+			}
 		} catch (e) {
 			console.error('ManeuverPlannerApp failed to load:', e);
 		}
@@ -427,6 +589,27 @@ function ManeuverPlannerApp() {
 		loadData();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	/**
+	 * Finds the next unplanned unit after the given one, or null.
+	 */
+	function findNextUnplannedUnit(currentPhase, currentIndex) {
+		let plans = currentPhase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
+		for (let i = currentIndex + 1; i < plans.length; i++) {
+			if (!plans[i].dest) return { phase: currentPhase, index: i };
+		}
+		// Check other phase
+		let otherPhase = currentPhase === 'fleet' ? 'army' : 'fleet';
+		let otherPlans = otherPhase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
+		for (let i = 0; i < otherPlans.length; i++) {
+			if (!otherPlans[i].dest) return { phase: otherPhase, index: i };
+		}
+		// Also check earlier in same phase
+		for (let i = 0; i < currentIndex; i++) {
+			if (!plans[i].dest) return { phase: currentPhase, index: i };
+		}
+		return null;
+	}
 
 	async function onDestChange(phase, index, value) {
 		if (phase === 'fleet') {
@@ -455,6 +638,21 @@ function ManeuverPlannerApp() {
 		if (phase === 'fleet') {
 			for (let i = 0; i < armyPlansRef.current.length; i++) {
 				await computeOptionsForUnit('army', i);
+			}
+		}
+
+		// Auto-advance only when the action choice is unambiguous:
+		// - exactly 1 action option (no choice to make), or
+		// - no action options at all (staying in place)
+		let updatedPlan = (phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current)[index];
+		if (updatedPlan && updatedPlan.action) {
+			let opts = updatedPlan.actionOptions;
+			let onlyOneChoice = Array.isArray(opts) && opts.length <= 1;
+			if (onlyOneChoice) {
+				let next = findNextUnplannedUnit(phase, index);
+				if (next) {
+					setActiveUnit(next);
+				}
 			}
 		}
 	}
@@ -712,7 +910,6 @@ function ManeuverPlannerApp() {
 			<Card title="Committed Moves" size="small" style={{ marginBottom: 8 }}>
 				{priorCompleted.map((desc, i) => (
 					<div key={i} style={{ padding: '2px 0', color: 'rgba(255,255,255,0.65)' }}>
-						<LockOutlined style={{ marginRight: 6, fontSize: 11 }} />
 						{desc}
 					</div>
 				))}
@@ -859,9 +1056,9 @@ function ManeuverPlannerApp() {
 					marginTop: 8,
 					marginLeft: 30,
 					padding: '8px 12px',
-					border: '1px solid #fa8c16',
-					borderRadius: 4,
 					background: 'rgba(250,140,22,0.06)',
+					borderRadius: 4,
+					border: '1px solid rgba(250,140,22,0.2)',
 				}}
 			>
 				{commitInfo.map((info, i) => (

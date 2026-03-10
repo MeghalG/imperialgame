@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import './App.css';
+import './MapOverlay.css';
 import map from './map.jpg';
-import wheel from './wheel.png';
-import Zoom from 'react-medium-image-zoom';
-import 'react-medium-image-zoom/dist/styles.css';
 import UserContext from './UserContext.js';
 import * as mapAPI from './backendFiles/mapAPI.js';
 import * as helper from './backendFiles/helper.js';
@@ -11,6 +10,12 @@ import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
 import { Popover } from 'antd';
 import { getCountryColorPalette } from './countryColors.js';
+import TerritoryHotspotLayer from './TerritoryHotspotLayer.js';
+import UnitMarkerLayer from './UnitMarkerLayer.js';
+import SvgRondel from './SvgRondel.js';
+import MovementArrowLayer from './MovementArrowLayer.js';
+
+const COUNTRY_ABBREV = { Austria: 'AT', Italy: 'IT', France: 'FR', England: 'EN', Germany: 'DE', Russia: 'RU' };
 
 function MapApp() {
 	const context = useContext(UserContext);
@@ -96,6 +101,7 @@ function MapApp() {
 			for (let j = 0; j < seaFactories[i].length; j++) {
 				table.push(
 					<div
+						key={'sf-' + i + '-' + j}
 						style={{
 							position: 'absolute',
 							left: seaFactories[i][j][0],
@@ -104,9 +110,10 @@ function MapApp() {
 							height: 50,
 							color: '#13a8a8',
 							fontSize: '1.8vw',
+							pointerEvents: 'none',
 						}}
 					>
-						<i class="fas fa-industry fa"></i>
+						<i className="fas fa-industry fa"></i>
 					</div>
 				);
 			}
@@ -116,6 +123,7 @@ function MapApp() {
 			for (let j = 0; j < landFactories[i].length; j++) {
 				table.push(
 					<div
+						key={'lf-' + i + '-' + j}
 						style={{
 							position: 'absolute',
 							left: landFactories[i][j][0],
@@ -124,9 +132,10 @@ function MapApp() {
 							height: 50,
 							color: '#8B4513',
 							fontSize: '1.8vw',
+							pointerEvents: 'none',
 						}}
 					>
-						<i class="fas fa-industry fa"></i>
+						<i className="fas fa-industry fa"></i>
 					</div>
 				);
 			}
@@ -136,6 +145,7 @@ function MapApp() {
 			for (let j = 0; j < taxChips[i].length; j++) {
 				table.push(
 					<div
+						key={'tc-' + i + '-' + j}
 						style={{
 							position: 'absolute',
 							left: taxChips[i][j][0],
@@ -144,9 +154,10 @@ function MapApp() {
 							height: 50,
 							color: countryColors[countries[i]],
 							fontSize: '1.1vw',
+							pointerEvents: 'none',
 						}}
 					>
-						<i class="fas fa-flag fa"></i>
+						<i className="fas fa-flag fa"></i>
 					</div>
 				);
 			}
@@ -156,17 +167,36 @@ function MapApp() {
 			let t = [];
 			for (let j = 0; j < units[i][1].length; j++) {
 				for (let k = 0; k < units[i][1][j][0]; k++) {
-					t.push(<i style={{ color: countryColors[countries[j]] }} class="fas fa-play fa-rotate-90"></i>);
+					t.push(
+						<i
+							key={'fl-' + j + '-' + k}
+							style={{ color: countryColors[countries[j]] }}
+							className="fas fa-play fa-rotate-90"
+						></i>
+					);
 				}
 				for (let k = 0; k < units[i][1][j][1]; k++) {
-					t.push(<i style={{ color: countryColors[countries[j]] }} class="fas fa-circle fa"></i>);
+					t.push(
+						<i
+							key={'ha-' + j + '-' + k}
+							style={{ color: countryColors[countries[j]] }}
+							className="fas fa-circle fa"
+						></i>
+					);
 				}
 				for (let k = 0; k < units[i][1][j][2]; k++) {
-					t.push(<i style={{ color: countryColors[countries[j]] }} class="fas fa-plus-circle fa"></i>);
+					t.push(
+						<i
+							key={'pa-' + j + '-' + k}
+							style={{ color: countryColors[countries[j]] }}
+							className="fas fa-plus-circle fa"
+						></i>
+					);
 				}
 			}
 			table.push(
 				<div
+					key={'unit-' + i}
 					style={{
 						position: 'absolute',
 						left: units[i][0][0],
@@ -174,28 +204,7 @@ function MapApp() {
 						width: 100,
 						height: 50,
 						fontSize: '1vw',
-					}}
-				>
-					{t}
-				</div>
-			);
-		}
-		// rondel
-		for (let key in rondel) {
-			let t = [];
-			for (let j = 0; j < rondel[key][1].length; j++) {
-				let country = rondel[key][1][j];
-				t.push(<i style={{ color: countryColors[country] }} class="fas fa-square fa"></i>);
-			}
-			table.push(
-				<div
-					style={{
-						position: 'absolute',
-						left: rondel[key][0].x,
-						top: rondel[key][0].y,
-						width: 100,
-						height: 50,
-						fontSize: '20',
+						pointerEvents: 'none',
 					}}
 				>
 					{t}
@@ -208,8 +217,12 @@ function MapApp() {
 	function formatAvailStock(availStockArr, color) {
 		let t = [];
 		for (let i = 0; i < availStockArr.length; i++) {
-			t.push(<mark style={{ backgroundColor: color, color: 'white', borderRadius: 3 }}>{availStockArr[i]}</mark>);
-			t.push(<span>&nbsp;</span>);
+			t.push(
+				<mark key={i} style={{ backgroundColor: color, color: 'white', borderRadius: 3 }}>
+					{availStockArr[i]}
+				</mark>
+			);
+			t.push(<span key={'s' + i}>&nbsp;</span>);
 		}
 		return t;
 	}
@@ -223,73 +236,57 @@ function MapApp() {
 
 	function makePoints() {
 		let { countryColors, iconColors } = getColors();
-		let d = [];
 		let t = [];
 		for (let i = 0; i < 26; i++) {
+			let isMilestone = i > 0 && i % 5 === 0;
+			let countriesHere = points[i + 1] || [];
+
 			t.push(
 				<div
-					style={{
-						width: '3.846%',
-						height: 35,
-						backgroundColor: '#303030',
-						display: 'inline-block',
-						textAlign: 'center',
-						verticalAlign: 'top',
-						borderRight: '1px solid black',
-						lineHeight: 2.5,
-					}}
+					key={'vp-' + i}
+					className={
+						'imp-vp-track__cell' +
+						(isMilestone ? ' imp-vp-track__cell--milestone' : '') +
+						(countriesHere.length > 0 ? ' imp-vp-track__cell--occupied' : '')
+					}
 				>
-					{' '}
-					{i}{' '}
+					<span className="imp-vp-track__number">{i}</span>
+					<div className="imp-vp-track__markers">
+						{countriesHere.map((country, j) => (
+							<Popover
+								key={'vp-pop-' + i + '-' + j}
+								dataHtml="true"
+								onClick={() => clicked(country)}
+								content={
+									<div style={{ lineHeight: 0.8 }}>
+										<p>${(money[country] || 0).toFixed(2).toString()}</p>
+										<p>Last Tax: {lastTax[country]}</p>
+										<p>Current Tax: {currentTax[country]}</p>
+										<p>{formatAvailStock(availStock[country] || [], countryColors[country])}</p>
+									</div>
+								}
+							>
+								<div className="imp-vp-track__marker" style={{ backgroundColor: iconColors[country] }}>
+									<span className="imp-vp-track__marker-text">
+										{COUNTRY_ABBREV[country] || country.slice(0, 2).toUpperCase()}
+									</span>
+								</div>
+							</Popover>
+						))}
+					</div>
 				</div>
 			);
-			if (points[i + 1]) {
-				for (let j in points[i + 1]) {
-					let country = points[i + 1][j];
-					let h = parseInt(j) * 1.2 + 1 + '%';
-					t.push(
-						<Popover
-							dataHtml="true"
-							onClick={() => clicked(country)}
-							content={
-								<div style={{ lineHeight: 0.8 }}>
-									<p>${(money[country] || 0).toFixed(2).toString()}</p>
-									<p>Last Tax: {lastTax[country]}</p>
-									<p>Current Tax: {currentTax[country]}</p>
-									<p>{formatAvailStock(availStock[country] || [], countryColors[country])}</p>
-								</div>
-							}
-						>
-							<div
-								style={{
-									display: 'inline',
-									verticalAlign: 'top',
-									position: 'absolute',
-									backgroundColor: iconColors[country],
-									width: 15,
-									height: 15,
-									borderRadius: '50%',
-									fontSize: 10,
-									textAlign: 'center',
-									color: '#FFFFFF',
-									marginLeft: '0.9%',
-									marginTop: h,
-								}}
-							></div>
-						</Popover>
-					);
-				}
-			}
 		}
-		d.push(<div style={{ display: 'inline' }}>{t}</div>);
-
-		return d;
+		return t;
 	}
 
+	let vpTrackPortal = document.getElementById('imp-vp-track-portal');
+	let vpTrack = <div className="imp-vp-track">{makePoints()}</div>;
+
 	return (
-		<div style={{ height: '82vh' }}>
-			<Zoom>
-				<img src={map} alt="Map" style={{ maxWidth: '100%', maxHeight: '82vh' }} />
+		<React.Fragment>
+			<div style={{ position: 'relative', display: 'inline-block', maxHeight: '82vh' }}>
+				<img src={map} alt="Map" style={{ display: 'block', maxWidth: '100%', maxHeight: '82vh' }} />
 				<mark
 					style={{
 						backgroundColor: 'black',
@@ -305,15 +302,14 @@ function MapApp() {
 					{' '}
 					Mountain Range{' '}
 				</mark>
-				<img
-					src={wheel}
-					alt="Wheel"
-					style={{ width: '17.5%', height: '23%', position: 'absolute', left: '2%', top: '3%' }}
-				/>
+				<SvgRondel rondelData={rondel} colorblindMode={context.colorblindMode} />
 				{buildComponents()}
-			</Zoom>
-			{makePoints()}
-		</div>
+				<TerritoryHotspotLayer />
+				<UnitMarkerLayer />
+				<MovementArrowLayer />
+			</div>
+			{vpTrackPortal ? ReactDOM.createPortal(vpTrack, vpTrackPortal) : vpTrack}
+		</React.Fragment>
 	);
 }
 

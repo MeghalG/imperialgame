@@ -155,12 +155,9 @@ describe('ManeuverPlannerApp', () => {
 		await flushPromises();
 
 		expect(div.textContent).toContain('Austria');
-		expect(div.textContent).toContain('FLEET MOVES');
-		expect(div.textContent).toContain('ARMY MOVES');
-		expect(div.textContent).toContain('Fleet 1:');
-		expect(div.textContent).toContain('Fleet 2:');
-		expect(div.textContent).toContain('Army 1:');
+		// Unit labels appear in roster and active detail
 		expect(div.textContent).toContain('Trieste');
+		expect(div.textContent).toContain('Adriatic Sea');
 		expect(div.textContent).toContain('Vienna');
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -222,7 +219,7 @@ describe('ManeuverPlannerApp', () => {
 
 		// Bob should see the normal planner, not the peace vote
 		expect(div.textContent).not.toContain('Peace Offer');
-		expect(div.textContent).toContain('FLEET MOVES');
+		expect(div.textContent).toContain('Austria');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
@@ -282,10 +279,9 @@ describe('ManeuverPlannerApp', () => {
 		renderWithContext(ctx, div);
 		await flushPromises();
 
-		expect(div.textContent).not.toContain('FLEET MOVES');
-		expect(div.textContent).toContain('ARMY MOVES');
-		expect(div.textContent).toContain('Army 1:');
-		expect(div.textContent).toContain('Army 2:');
+		// Army units should appear in roster and detail
+		expect(div.textContent).toContain('Vienna');
+		expect(div.textContent).toContain('Budapest');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
@@ -303,10 +299,9 @@ describe('ManeuverPlannerApp', () => {
 		renderWithContext(ctx, div);
 		await flushPromises();
 
-		expect(div.textContent).toContain('FLEET MOVES');
-		expect(div.textContent).not.toContain('ARMY MOVES');
-		expect(div.textContent).toContain('Fleet 1:');
-		expect(div.textContent).toContain('Fleet 2:');
+		// Fleet units should appear in roster and detail
+		expect(div.textContent).toContain('Trieste');
+		expect(div.textContent).toContain('Adriatic Sea');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
@@ -326,7 +321,6 @@ describe('ManeuverPlannerApp', () => {
 		await flushPromises();
 
 		// The pre-populated destination should appear
-		expect(div.textContent).toContain('Fleet 1:');
 		expect(div.textContent).toContain('Adriatic Sea');
 		ReactDOM.unmountComponentAtNode(div);
 	});

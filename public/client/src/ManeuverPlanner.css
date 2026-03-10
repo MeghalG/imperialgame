@@ -1,0 +1,480 @@
+/* ============================================
+   ManeuverPlanner — Tactical command console
+   ============================================ */
+
+.mp-root {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.mp-loading {
+	text-align: center;
+	padding: 40px 16px;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---- Summary bar ---- */
+.mp-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0 2px;
+	font-size: 12px;
+}
+
+.mp-summary__country {
+	font-weight: 700;
+	color: rgba(255, 255, 255, 0.9);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+.mp-summary__sep {
+	color: rgba(255, 255, 255, 0.25);
+}
+
+.mp-summary__action {
+	color: rgba(255, 255, 255, 0.55);
+}
+
+.mp-summary__progress {
+	margin-left: auto;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	color: var(--imp-accent-gold, #c9a84c);
+	font-size: 13px;
+}
+
+/* ---- Prior committed moves ---- */
+.mp-prior {
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 4px;
+	padding: 8px 10px;
+	margin-bottom: 4px;
+}
+
+.mp-prior__title {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	color: rgba(255, 255, 255, 0.4);
+	margin-bottom: 4px;
+}
+
+.mp-prior__item {
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.55);
+	padding: 1px 0;
+}
+
+/* ---- Unit roster strip ---- */
+.mp-roster {
+	display: flex;
+	gap: 4px;
+	overflow-x: auto;
+	padding: 2px 0;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.mp-roster::-webkit-scrollbar {
+	height: 3px;
+}
+
+.mp-roster::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.15);
+	border-radius: 2px;
+}
+
+/* ---- Unit card (in roster) ---- */
+.mp-unit {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	min-width: 64px;
+	padding: 6px 8px 5px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 5px;
+	background: rgba(255, 255, 255, 0.03);
+	color: rgba(255, 255, 255, 0.6);
+	cursor: pointer;
+	transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.1s;
+	font-family: inherit;
+	flex-shrink: 0;
+	position: relative;
+}
+
+.mp-unit:hover {
+	background: rgba(255, 255, 255, 0.06);
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mp-unit__icon {
+	font-size: 16px;
+	line-height: 1;
+}
+
+.mp-unit__label {
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 62px;
+	text-align: center;
+}
+
+.mp-unit__status {
+	font-size: 10px;
+	line-height: 1;
+	font-weight: 700;
+}
+
+/* Unit states */
+.mp-unit--active {
+	border-color: var(--imp-accent-gold, #c9a84c);
+	background: rgba(201, 168, 76, 0.12);
+	color: var(--imp-accent-gold, #c9a84c);
+	box-shadow: 0 0 10px rgba(201, 168, 76, 0.2), inset 0 0 8px rgba(201, 168, 76, 0.06);
+	transform: translateY(-1px);
+}
+
+.mp-unit--active .mp-unit__icon {
+	color: var(--imp-accent-gold, #c9a84c);
+}
+
+.mp-unit--active .mp-unit__status {
+	color: var(--imp-accent-gold, #c9a84c);
+}
+
+.mp-unit--planned {
+	border-color: rgba(82, 196, 26, 0.35);
+	color: rgba(255, 255, 255, 0.75);
+}
+
+.mp-unit--planned .mp-unit__status {
+	color: #52c41a;
+}
+
+.mp-unit--peace {
+	border-color: rgba(250, 140, 22, 0.4);
+	color: rgba(255, 255, 255, 0.75);
+}
+
+.mp-unit--peace .mp-unit__status {
+	color: #fa8c16;
+}
+
+.mp-unit--idle .mp-unit__status {
+	color: rgba(255, 255, 255, 0.2);
+	font-size: 14px;
+}
+
+.mp-unit--faded {
+	opacity: 0.4;
+}
+
+/* ---- Active unit detail area ---- */
+.mp-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.mp-detail__empty {
+	text-align: center;
+	padding: 20px 12px;
+	color: rgba(255, 255, 255, 0.35);
+	font-size: 12px;
+}
+
+.mp-detail__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 10px;
+	background: rgba(201, 168, 76, 0.06);
+	border: 1px solid rgba(201, 168, 76, 0.15);
+	border-radius: 4px;
+}
+
+.mp-detail__title {
+	font-weight: 700;
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.9);
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mp-detail__icon {
+	font-size: 15px;
+	color: var(--imp-accent-gold, #c9a84c);
+}
+
+.mp-detail__reorder {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.mp-reorder-btn {
+	background: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	color: rgba(255, 255, 255, 0.4);
+	font-size: 8px;
+	line-height: 1;
+	padding: 2px 6px;
+	cursor: pointer;
+	border-radius: 2px;
+	transition: color 0.15s, border-color 0.15s;
+	font-family: inherit;
+}
+
+.mp-reorder-btn:hover:not(:disabled) {
+	color: rgba(255, 255, 255, 0.8);
+	border-color: rgba(255, 255, 255, 0.3);
+}
+
+.mp-reorder-btn:disabled {
+	opacity: 0.25;
+	cursor: default;
+}
+
+/* ---- Route visualization ---- */
+.mp-detail__route {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 2px;
+}
+
+.mp-route__from {
+	font-size: 12px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.65);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.mp-route__arrow {
+	color: var(--imp-accent-gold, #c9a84c);
+	font-size: 14px;
+	flex-shrink: 0;
+}
+
+.mp-route__to {
+	flex: 1;
+	min-width: 0;
+}
+
+.mp-dest-select {
+	font-size: 12px;
+}
+
+/* ---- Action buttons ---- */
+.mp-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mp-actions__label {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: rgba(255, 255, 255, 0.4);
+}
+
+.mp-actions__country-group {
+	padding-left: 4px;
+	margin-bottom: 4px;
+}
+
+.mp-actions__country-name {
+	font-size: 11px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.7);
+	margin-bottom: 4px;
+}
+
+.mp-actions__buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+/* ---- Action button ---- */
+.mp-action-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 5px 10px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.04);
+	color: rgba(255, 255, 255, 0.7);
+	cursor: pointer;
+	font-size: 11px;
+	font-family: inherit;
+	transition: all 0.15s;
+	white-space: nowrap;
+}
+
+.mp-action-btn:hover {
+	background: rgba(255, 255, 255, 0.08);
+	border-color: rgba(255, 255, 255, 0.25);
+}
+
+.mp-action-btn__icon {
+	font-size: 13px;
+	line-height: 1;
+}
+
+.mp-action-btn__text {
+	font-weight: 500;
+}
+
+/* Action categories — borders and accent colors */
+.mp-action-btn--peace {
+	border-color: rgba(82, 196, 26, 0.25);
+}
+
+.mp-action-btn--peace:hover {
+	border-color: rgba(82, 196, 26, 0.5);
+	background: rgba(82, 196, 26, 0.08);
+}
+
+.mp-action-btn--peace.mp-action-btn--selected {
+	border-color: #52c41a;
+	background: rgba(82, 196, 26, 0.15);
+	color: #73d13d;
+	box-shadow: 0 0 8px rgba(82, 196, 26, 0.2);
+}
+
+.mp-action-btn--hostile {
+	border-color: rgba(250, 140, 22, 0.25);
+}
+
+.mp-action-btn--hostile:hover {
+	border-color: rgba(250, 140, 22, 0.5);
+	background: rgba(250, 140, 22, 0.08);
+}
+
+.mp-action-btn--hostile.mp-action-btn--selected {
+	border-color: #fa8c16;
+	background: rgba(250, 140, 22, 0.15);
+	color: #ffa940;
+	box-shadow: 0 0 8px rgba(250, 140, 22, 0.2);
+}
+
+.mp-action-btn--war {
+	border-color: rgba(245, 34, 45, 0.25);
+}
+
+.mp-action-btn--war:hover {
+	border-color: rgba(245, 34, 45, 0.5);
+	background: rgba(245, 34, 45, 0.08);
+}
+
+.mp-action-btn--war.mp-action-btn--selected {
+	border-color: #f5222d;
+	background: rgba(245, 34, 45, 0.15);
+	color: #ff4d4f;
+	box-shadow: 0 0 8px rgba(245, 34, 45, 0.2);
+}
+
+.mp-action-btn--destroy {
+	border-color: rgba(168, 7, 26, 0.3);
+}
+
+.mp-action-btn--destroy:hover {
+	border-color: rgba(168, 7, 26, 0.55);
+	background: rgba(168, 7, 26, 0.1);
+}
+
+.mp-action-btn--destroy.mp-action-btn--selected {
+	border-color: #a8071a;
+	background: rgba(168, 7, 26, 0.18);
+	color: #cf1322;
+	box-shadow: 0 0 8px rgba(168, 7, 26, 0.25);
+}
+
+.mp-action-btn--neutral {
+	border-color: rgba(255, 255, 255, 0.1);
+}
+
+.mp-action-btn--neutral.mp-action-btn--selected {
+	border-color: rgba(255, 255, 255, 0.3);
+	background: rgba(255, 255, 255, 0.1);
+	color: rgba(255, 255, 255, 0.9);
+}
+
+/* ---- Peace info box ---- */
+.mp-peace-info {
+	background: rgba(250, 140, 22, 0.06);
+	border: 1px solid rgba(250, 140, 22, 0.25);
+	border-radius: 4px;
+	padding: 8px 10px;
+}
+
+.mp-peace-info__line {
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.55);
+	margin-bottom: 2px;
+}
+
+/* ---- Submit area ---- */
+.mp-submit-area {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.mp-submit-area__hint {
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.4);
+	text-align: center;
+}
+
+.mp-submit {
+	width: 100%;
+	padding: 8px 16px;
+	border: 1px solid var(--imp-accent-gold, #c9a84c);
+	border-radius: 4px;
+	background: rgba(201, 168, 76, 0.12);
+	color: var(--imp-accent-gold, #c9a84c);
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+	cursor: pointer;
+	transition: background 0.15s, box-shadow 0.15s;
+	font-family: inherit;
+}
+
+.mp-submit:hover:not(:disabled) {
+	background: rgba(201, 168, 76, 0.2);
+	box-shadow: 0 0 12px rgba(201, 168, 76, 0.15);
+}
+
+.mp-submit:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+.mp-submit--peace {
+	border-color: #fa8c16;
+	background: rgba(250, 140, 22, 0.12);
+	color: #fa8c16;
+}
+
+.mp-submit--peace:hover:not(:disabled) {
+	background: rgba(250, 140, 22, 0.2);
+	box-shadow: 0 0 12px rgba(250, 140, 22, 0.15);
+}

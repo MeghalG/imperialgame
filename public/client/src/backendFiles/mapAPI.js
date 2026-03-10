@@ -311,6 +311,20 @@ async function getRondel(context) {
 	return w;
 }
 
+/**
+ * Returns all wheel position coordinates (for every rondel action, not just ones with countries).
+ * Used by hotspot layer to render clickable regions for all possible spin targets.
+ *
+ * @param {Object} context - UserContext with { game }
+ * @returns {Promise<Object<string, {x: string, y: string}>>} Map of action name to {x, y} coordinate
+ *   where x and y are percentage strings like "11%" or "4%".
+ */
+async function getAllWheelCoords(context) {
+	let gameState = await readGameState(context);
+	let wheelCoords = await readSetup(gameState.setup + '/wheelCoords');
+	return wheelCoords || {};
+}
+
 export {
 	getUnits,
 	getSeaFactories,
@@ -322,4 +336,5 @@ export {
 	getLastTax,
 	getCurrentTax,
 	getRondel,
+	getAllWheelCoords,
 };

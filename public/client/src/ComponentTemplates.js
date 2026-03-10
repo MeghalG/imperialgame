@@ -3,6 +3,7 @@ import './App.css';
 import { Radio, Button } from 'antd';
 import { Select, Checkbox, Divider } from 'antd';
 import UserContext from './UserContext.js';
+import MapInteractionContext from './MapInteractionContext.js';
 const { Option } = Select;
 
 function ImportSelect({ object, setThing, getAPI, message, data }) {
@@ -353,9 +354,19 @@ function MultiOptionSelect({ object, setThing, getAPI, peaceAPI, allGoodAPI, mes
 	);
 }
 
-function OptionSelect({ object, setThing, getAPI, message, costs, data }) {
+function OptionSelect({ object, setThing, getAPI, message, costs, data, mapMode, mapColor }) {
 	const context = useContext(UserContext);
+	const mapInteraction = useContext(MapInteractionContext);
 	const [choices, setChoices] = useState([]);
+	const [controlledValue, setControlledValue] = useState(undefined);
+	const sendValueRef = useRef(null);
+
+	function sendValue(value) {
+		setControlledValue(value || undefined);
+		data(value, object);
+		context[setThing](value);
+	}
+	sendValueRef.current = sendValue;
 
 	useEffect(() => {
 		async function fetchChoices() {
@@ -369,10 +380,35 @@ function OptionSelect({ object, setThing, getAPI, message, costs, data }) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	function sendValue(value) {
-		data(value, object);
-		context[setThing](value);
-	}
+	useEffect(() => {
+		if (!mapMode || choices.length === 0) return;
+		// Build a cost map keyed by choice name so the hotspot layer can show
+		// the correct dynamic cost for each position (e.g. Investor may be free
+		// or $6 depending on the country's current wheel position).
+		let costMap = null;
+		if (costs && choices.length < 8) {
+			costMap = {};
+			choices.forEach((choice, i) => {
+				if (costs[i]) costMap[choice] = costs[i];
+			});
+		}
+		mapInteraction.setInteraction(
+			mapMode,
+			choices,
+			mapColor || '#c9a84c',
+			(name) => {
+				if (sendValueRef.current) sendValueRef.current(name);
+			},
+			null,
+			costMap
+		);
+		return () => {
+			if (mapInteraction.interactionMode === mapMode) {
+				mapInteraction.clearInteraction();
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [mapMode, choices, mapColor]);
 
 	if (choices.length === 0) {
 		return <div />;
@@ -380,7 +416,13 @@ function OptionSelect({ object, setThing, getAPI, message, costs, data }) {
 	return (
 		<div style={{ marginBottom: 30, display: 'flex' }}>
 			<label style={{ paddingRight: '50px', whiteSpace: 'nowrap' }}> {message} </label>
-			<Select allowClear={true} style={{ width: '100%' }} placeholder="" onChange={(value) => sendValue(value)}>
+			<Select
+				allowClear={true}
+				style={{ width: '100%' }}
+				placeholder=""
+				value={controlledValue}
+				onChange={(value) => sendValue(value)}
+			>
 				{choices.map((opt, i) => (
 					<Option key={i} value={opt}>
 						{' '}

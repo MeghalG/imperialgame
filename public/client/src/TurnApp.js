@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
+import './MapOverlay.css';
 import BidApp from './BidApp.js';
 import BuyBidApp from './BuyBidApp.js';
 import BuyApp from './BuyApp.js';
@@ -10,12 +11,15 @@ import GameOverApp from './GameOverApp.js';
 import ManeuverPlannerApp from './ManeuverPlannerApp.js';
 import PeaceVoteApp from './PeaceVoteApp.js';
 import StaticTurnApp from './StaticTurnApp.js';
-import { Card, Popconfirm } from 'antd';
+import FloatingTurnPanel from './FloatingTurnPanel.js';
+import { Popconfirm } from 'antd';
 import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
+import * as miscAPI from './backendFiles/miscAPI.js';
+import { getCountryColorPalette } from './countryColors.js';
 
 function TurnApp() {
 	const context = useContext(UserContext);
@@ -24,16 +28,23 @@ function TurnApp() {
 	const [turnID, setTurnID] = useState('');
 	const [undoable, setUndoable] = useState(false);
 	const [trackedName, setTrackedName] = useState('');
+	const [countryUp, setCountryUp] = useState('');
 	const turnRef = useRef(null);
 	const contextRef = useRef(context);
 	contextRef.current = context;
 
 	const newTurn = useCallback(async () => {
-		let result = await turnAPI.getTurnState(contextRef.current);
+		let [result, gs] = await Promise.all([
+			turnAPI.getTurnState(contextRef.current),
+			miscAPI.getGameState(contextRef.current),
+		]);
 		setTurnTitle(result.turnTitle);
 		setMode(result.mode);
 		setUndoable(result.undoable);
 		setTurnID(result.turnID);
+		if (gs && gs.countryUp) {
+			setCountryUp(gs.countryUp);
+		}
 	}, []);
 
 	useEffect(() => {
@@ -63,33 +74,23 @@ function TurnApp() {
 		await submitAPI.undo(context);
 	}
 
-	function undoButton() {
-		if (!undoable) {
-			return;
-		}
+	function undoBtn() {
+		if (!undoable) return null;
 		return (
-			<Popconfirm title="Sure you want to undo your last move?" onConfirm={() => undo()} okText="Yes" cancelText="No">
-				<span style={{ float: 'right', fontSize: 14 }}>
-					<span style={{ color: '#177ddc', cursor: 'pointer' }}>Undo</span>
-				</span>
+			<Popconfirm title="Undo last move?" onConfirm={() => undo()} okText="Yes" cancelText="No">
+				<span className="imp-undo-link">Undo</span>
 			</Popconfirm>
 		);
 	}
 
+	let palette = getCountryColorPalette(context.colorblindMode);
+	let accentColor = countryUp && palette.bright[countryUp] ? palette.bright[countryUp] : '#c9a84c';
+
 	return (
-		<div style={{ height: '100%' }}>
+		<FloatingTurnPanel title={turnTitle} accentColor={accentColor} undoButton={undoBtn()}>
 			<StaticTurnApp key={turnID} />
-			<Card
-				style={{ height: '100%', overflow: 'auto' }}
-				title={
-					<div>
-						{turnTitle} {undoButton()}{' '}
-					</div>
-				}
-			>
-				<DisplayMode mode={mode} turnID={turnID} />
-			</Card>
-		</div>
+			<DisplayMode mode={mode} turnID={turnID} />
+		</FloatingTurnPanel>
 	);
 }
 

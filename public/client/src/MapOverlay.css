@@ -1,0 +1,860 @@
+/* ============================================
+   Imperial Game — Map-First UI Overlay Styles
+   Dark military cartography aesthetic
+   ============================================ */
+
+:root {
+	--imp-panel-bg: rgba(20, 21, 24, 0.88);
+	--imp-panel-border: rgba(255, 255, 255, 0.08);
+	--imp-topbar-bg: rgba(20, 21, 24, 0.94);
+	--imp-accent-gold: #c9a84c;
+	--imp-accent-gold-dim: rgba(201, 168, 76, 0.35);
+	--imp-accent-green: #49aa19;
+	--imp-accent-green-dim: rgba(73, 170, 25, 0.3);
+	--imp-text: rgba(255, 255, 255, 0.88);
+	--imp-text-dim: rgba(255, 255, 255, 0.5);
+	--imp-danger: #d32029;
+}
+
+/* ---- Top Bar ---- */
+.imp-topbar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 40px;
+	background: var(--imp-topbar-bg);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	border-bottom: 1px solid var(--imp-panel-border);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 16px;
+	z-index: 1000;
+	color: var(--imp-text);
+	font-size: 14px;
+}
+
+.imp-topbar__title {
+	font-size: 16px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 45%;
+}
+
+.imp-topbar__center {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-variant-numeric: tabular-nums;
+}
+
+.imp-topbar__right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 13px;
+}
+
+.imp-topbar__btn {
+	background: transparent;
+	border: 1px solid var(--imp-panel-border);
+	color: var(--imp-text-dim);
+	cursor: pointer;
+	padding: 4px 10px;
+	border-radius: 4px;
+	font-size: 12px;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.imp-topbar__btn:hover {
+	color: var(--imp-text);
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.imp-topbar__btn--active {
+	color: var(--imp-accent-gold);
+	border-color: var(--imp-accent-gold-dim);
+}
+
+/* ---- Map Viewport ---- */
+.imp-viewport {
+	position: fixed;
+	top: 40px;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	overflow: hidden;
+	background: #0a0b0d;
+	cursor: grab;
+}
+
+.imp-viewport--dragging {
+	cursor: grabbing;
+}
+
+.imp-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	transform-origin: 0 0;
+	will-change: transform;
+}
+
+.imp-canvas img {
+	display: block;
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
+/* ---- Floating Panel (shared base) ---- */
+.imp-panel {
+	background: var(--imp-panel-bg);
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	border: 1px solid var(--imp-panel-border);
+	border-radius: 6px;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+	color: var(--imp-text);
+	overflow: hidden;
+}
+
+.imp-panel__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--imp-panel-border);
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	user-select: none;
+}
+
+.imp-panel__header-accent {
+	height: 2px;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	border-radius: 6px 6px 0 0;
+}
+
+.imp-panel__body {
+	padding: 12px 14px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	font-size: 13px;
+}
+
+.imp-panel__collapse-btn {
+	background: transparent;
+	border: none;
+	color: var(--imp-text-dim);
+	cursor: pointer;
+	padding: 2px 6px;
+	font-size: 14px;
+	line-height: 1;
+	transition: color 0.15s;
+}
+
+.imp-panel__collapse-btn:hover {
+	color: var(--imp-text);
+}
+
+/* ---- Floating Turn Panel ---- */
+.imp-turn-panel {
+	position: absolute;
+	bottom: 48px;
+	right: 16px;
+	width: 380px;
+	max-height: calc(100vh - 120px);
+	z-index: 100;
+	display: flex;
+	flex-direction: column;
+}
+
+.imp-turn-panel--collapsed {
+	max-height: 38px;
+}
+
+.imp-turn-panel--collapsed .imp-panel__body {
+	display: none;
+}
+
+.imp-turn-panel .imp-panel__body {
+	max-height: calc(100vh - 200px);
+}
+
+/* ---- Floating Player Panel ---- */
+.imp-player-panel {
+	position: absolute;
+	top: 8px;
+	right: 16px;
+	width: 180px;
+	z-index: 90;
+	display: flex;
+	flex-direction: column;
+}
+
+.imp-player-panel--collapsed {
+	width: auto;
+}
+
+.imp-player-panel--collapsed .imp-player-panel__list {
+	display: none;
+}
+
+.imp-player-panel__list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.imp-player-card {
+	padding: 6px 10px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+	font-size: 12px;
+	line-height: 1.4;
+	cursor: default;
+	transition: background 0.15s;
+}
+
+.imp-player-card:hover {
+	background: rgba(255, 255, 255, 0.04);
+}
+
+.imp-player-card:last-child {
+	border-bottom: none;
+}
+
+.imp-player-card__name {
+	font-weight: 600;
+	font-size: 12px;
+}
+
+.imp-player-card__money {
+	color: var(--imp-text-dim);
+	font-variant-numeric: tabular-nums;
+	margin-left: 6px;
+}
+
+.imp-player-card__stock {
+	margin-top: 3px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px;
+}
+
+.imp-player-card__stock-badge {
+	font-size: 10px;
+	padding: 0 3px;
+	border-radius: 2px;
+	color: #fff;
+	font-weight: 600;
+}
+
+.imp-player-card__icons {
+	display: inline-flex;
+	gap: 2px;
+	margin-right: 4px;
+	vertical-align: middle;
+}
+
+/* ---- Territory Hotspot ---- */
+.imp-hotspot {
+	position: absolute;
+	width: 56px;
+	height: 40px;
+	border-radius: 6px;
+	z-index: 10;
+	pointer-events: auto;
+	transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.imp-hotspot--idle {
+	opacity: 0;
+	cursor: default;
+	pointer-events: none;
+}
+
+.imp-hotspot--selectable {
+	animation: imp-pulse 1.8s ease-in-out infinite;
+	cursor: pointer;
+	border: 1px solid currentColor;
+}
+
+.imp-hotspot--selectable:hover {
+	opacity: 0.65 !important;
+	box-shadow: 0 0 16px currentColor;
+}
+
+.imp-hotspot--selected {
+	opacity: 0.65;
+	animation: none;
+	box-shadow: 0 0 12px currentColor, inset 0 0 6px rgba(255, 255, 255, 0.2);
+	border: 2px solid currentColor;
+}
+
+@keyframes imp-pulse {
+	0%,
+	100% {
+		opacity: 0.22;
+		box-shadow: 0 0 4px currentColor;
+	}
+	50% {
+		opacity: 0.55;
+		box-shadow: 0 0 12px currentColor;
+	}
+}
+
+.imp-hotspot__label {
+	position: absolute;
+	bottom: -16px;
+	left: 50%;
+	transform: translateX(-50%);
+	white-space: nowrap;
+	font-size: 9px;
+	font-weight: 700;
+	color: #fff;
+	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7);
+	pointer-events: none;
+	letter-spacing: 0.3px;
+}
+
+.imp-hotspot__cost {
+	margin-left: 3px;
+	color: var(--imp-accent-gold);
+}
+
+/* ---- SVG Rondel ---- */
+.imp-rondel-svg {
+	pointer-events: none;
+	filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+}
+
+.imp-rondel-wedge {
+	pointer-events: auto;
+	transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s;
+}
+
+.imp-rondel-wedge--selectable {
+	animation: imp-rondel-wedge-pulse 2s ease-in-out infinite;
+	filter: brightness(1.3);
+}
+
+.imp-rondel-wedge--selectable:hover {
+	fill: #4a3d1a !important;
+	stroke: rgba(201, 168, 76, 0.8) !important;
+	stroke-width: 1;
+	filter: brightness(1.5);
+}
+
+.imp-rondel-wedge--selected {
+	fill: #4a3d1a !important;
+	stroke: #c9a84c !important;
+	stroke-width: 1.2;
+	animation: none;
+	filter: brightness(1.4);
+}
+
+@keyframes imp-rondel-wedge-pulse {
+	0%,
+	100% {
+		stroke: rgba(201, 168, 76, 0.3);
+		stroke-width: 0.5;
+	}
+	50% {
+		stroke: rgba(201, 168, 76, 0.7);
+		stroke-width: 0.9;
+	}
+}
+
+.imp-rondel-label {
+	font-size: 5.5px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	user-select: none;
+	text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.5);
+}
+
+.imp-rondel-cost-label {
+	font-size: 3.8px;
+	fill: var(--imp-accent-gold);
+	font-weight: 700;
+	user-select: none;
+}
+
+.imp-rondel-wedge--occupied {
+	stroke: rgba(255, 255, 255, 0.35);
+	stroke-width: 0.6;
+}
+
+.imp-rondel-marker-text {
+	font-size: 3.5px;
+	font-weight: 700;
+	fill: #fff;
+	user-select: none;
+	pointer-events: none;
+	text-shadow: 0 0.3px 0.6px rgba(0, 0, 0, 0.7);
+}
+
+/* ---- Movement Arrow (animated SVG paths) ---- */
+.imp-movement-arrow {
+	stroke-dasharray: 2 1.2;
+	animation: imp-arrow-march 0.5s linear infinite;
+}
+
+@keyframes imp-arrow-march {
+	to {
+		stroke-dashoffset: -3.2;
+	}
+}
+
+/* ---- VP Track (redesigned) ---- */
+.imp-vp-track {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	height: 44px;
+	background: linear-gradient(180deg, rgba(30, 31, 34, 0.95) 0%, rgba(20, 21, 24, 0.97) 100%);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+	border-top: 1px solid rgba(201, 168, 76, 0.15);
+	z-index: 80;
+	display: flex;
+	align-items: stretch;
+}
+
+.imp-vp-track__cell {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: flex-start;
+	border-right: 1px solid rgba(255, 255, 255, 0.04);
+	position: relative;
+	padding-top: 2px;
+}
+
+.imp-vp-track__cell--milestone {
+	border-right: 1px solid rgba(201, 168, 76, 0.2);
+	background: rgba(201, 168, 76, 0.03);
+}
+
+.imp-vp-track__cell--occupied {
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.imp-vp-track__number {
+	font-size: 9px;
+	color: var(--imp-text-dim);
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+}
+
+.imp-vp-track__markers {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1px;
+	justify-content: center;
+	margin-top: 2px;
+}
+
+.imp-vp-track__marker {
+	width: 20px;
+	height: 16px;
+	border-radius: 3px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: transform 0.1s, box-shadow 0.1s;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.imp-vp-track__marker:hover {
+	transform: scale(1.15);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+	z-index: 1;
+}
+
+.imp-vp-track__marker-text {
+	font-size: 8px;
+	font-weight: 700;
+	color: #fff;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+	letter-spacing: 0.5px;
+	line-height: 1;
+	user-select: none;
+}
+
+/* ---- Custom Slide Drawer ---- */
+.imp-drawer__mask {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.45);
+	z-index: 1000;
+}
+
+.imp-drawer {
+	position: fixed;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	z-index: 1001;
+	background: #141518;
+	box-shadow: 6px 0 16px -8px rgba(0, 0, 0, 0.5);
+	transform: translateX(-100%);
+	transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.imp-drawer--open {
+	transform: translateX(0);
+}
+
+.imp-drawer__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	background: #1a1b1e;
+	border-bottom: 1px solid var(--imp-panel-border);
+	color: var(--imp-text);
+	font-size: 15px;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.imp-drawer__close {
+	background: transparent;
+	border: none;
+	color: var(--imp-text-dim);
+	font-size: 22px;
+	cursor: pointer;
+	padding: 0 4px;
+	line-height: 1;
+	transition: color 0.15s;
+}
+
+.imp-drawer__close:hover {
+	color: var(--imp-text);
+}
+
+.imp-drawer__body {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 16px;
+}
+
+/* ---- Utility ---- */
+.imp-fade-in {
+	animation: imp-fade-in 0.2s ease-out;
+}
+
+@keyframes imp-fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.imp-undo-link {
+	color: #177ddc;
+	cursor: pointer;
+	font-size: 12px;
+	font-weight: normal;
+}
+
+.imp-undo-link:hover {
+	text-decoration: underline;
+}
+
+/* ---- Active Maneuver Unit ---- */
+.imp-unit-row--active {
+	border-color: var(--imp-accent-gold) !important;
+	background: rgba(201, 168, 76, 0.06);
+}
+
+/* ---- Planned Move Arrow ---- */
+.imp-arrow--planned {
+	opacity: 0.5;
+	border-top-style: dashed;
+}
+
+/* ---- Detail Panel Overflow Fixes ---- */
+/* Prevent horizontal scroll in Collapse detail panels and cards.
+   Applied to both the floating turn panel and the slide-out info drawer. */
+.imp-turn-panel .ant-collapse-content-box,
+.imp-drawer__body .ant-collapse-content-box {
+	overflow-x: hidden;
+}
+
+.imp-turn-panel .ant-card-body,
+.imp-drawer__body .ant-card-body {
+	overflow-x: hidden;
+	overflow-wrap: break-word;
+}
+
+/* Let stock mark badges wrap to next line instead of overflowing */
+.imp-turn-panel .ant-card-body mark,
+.imp-drawer__body .ant-card-body mark {
+	display: inline-block;
+	margin-bottom: 2px;
+}
+
+/* Prevent wide stat rows from pushing the drawer wider */
+.imp-drawer__body .ant-card-head-title,
+.imp-drawer__body .ant-card-extra {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.imp-drawer__body .ant-collapse-header {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ── Detailed Info Panel (StateApp) ── */
+.imp-state {
+	display: flex;
+	gap: 12px;
+	height: calc(100vh - 135px);
+}
+.imp-state__col {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+/* Card */
+.imp-state__card {
+	background: #1f1f1f;
+	border-radius: 6px;
+	border: 1px solid #303030;
+	border-top: 3px solid #525252;
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+.imp-state__card-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 4px 12px;
+	font-weight: 600;
+	font-size: 13px;
+	color: white;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+	flex-shrink: 0;
+}
+.imp-state__card-body {
+	padding: 4px 12px 6px;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	min-height: 0;
+}
+
+/* 2-column stat grid */
+.imp-state__stats {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1px 16px;
+}
+.imp-state__stat {
+	display: flex;
+	justify-content: space-between;
+	gap: 6px;
+	align-items: baseline;
+}
+.imp-state__label {
+	color: rgba(255, 255, 255, 0.45);
+	font-size: 12px;
+	white-space: nowrap;
+}
+.imp-state__value {
+	color: rgba(255, 255, 255, 0.85);
+	font-size: 13px;
+	white-space: nowrap;
+	text-align: right;
+}
+
+/* Full-width rows (Available, Owned, Stock) */
+.imp-state__row {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.imp-state__badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 3px;
+	align-items: center;
+}
+.imp-state__badge {
+	display: inline-block;
+	padding: 1px 5px;
+	border-radius: 3px;
+	color: white;
+	font-size: 12px;
+	line-height: 1.4;
+}
+.imp-state__owned {
+	color: rgba(255, 255, 255, 0.55);
+	font-size: 11px;
+	white-space: normal;
+}
+
+/* ---- Unit Marker Layer ---- */
+.imp-unit-marker {
+	position: absolute;
+	width: 28px;
+	height: 28px;
+	border-radius: 6px;
+	z-index: 15;
+	pointer-events: auto;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 2px solid rgba(255, 255, 255, 0.2);
+	background: rgba(20, 21, 24, 0.85);
+	transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+	font-size: 14px;
+}
+
+.imp-unit-marker:hover {
+	transform: scale(1.15);
+	box-shadow: 0 0 12px currentColor;
+}
+
+.imp-unit-marker--active {
+	border-color: #c9a84c;
+	box-shadow: 0 0 10px rgba(201, 168, 76, 0.4);
+	animation: imp-unit-active-pulse 2s ease-in-out infinite;
+	transform: scale(1.05);
+}
+
+.imp-unit-marker--planned {
+	border-color: rgba(82, 196, 26, 0.5);
+}
+
+.imp-unit-marker--idle {
+	opacity: 0.7;
+}
+
+.imp-unit-marker__icon {
+	line-height: 1;
+}
+
+.imp-unit-marker__check {
+	position: absolute;
+	bottom: -4px;
+	right: -4px;
+	font-size: 10px;
+	color: #52c41a;
+	font-weight: 700;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+@keyframes imp-unit-active-pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 6px rgba(201, 168, 76, 0.3);
+	}
+	50% {
+		box-shadow: 0 0 14px rgba(201, 168, 76, 0.5);
+	}
+}
+
+/* ---- Territory Boundary Polygons ---- */
+.imp-boundary {
+	stroke-width: 0.15;
+	transition: fill-opacity 0.15s, stroke-opacity 0.15s;
+	pointer-events: none;
+	fill-opacity: 0;
+	stroke-opacity: 0;
+}
+
+.imp-boundary--selectable {
+	pointer-events: auto;
+	cursor: pointer;
+	fill-opacity: 0.18;
+	stroke-opacity: 0.5;
+	stroke-width: 0.25;
+	animation: imp-boundary-pulse 1.8s ease-in-out infinite;
+}
+
+.imp-boundary--selectable:hover {
+	fill-opacity: 0.4;
+	stroke-opacity: 0.85;
+	stroke-width: 0.35;
+}
+
+.imp-boundary--selected {
+	pointer-events: auto;
+	fill-opacity: 0.45;
+	stroke-opacity: 1;
+	stroke-width: 0.4;
+	animation: none;
+}
+
+.imp-boundary--highlighted {
+	fill-opacity: 0.1;
+	stroke-opacity: 0.3;
+	stroke-width: 0.15;
+}
+
+@keyframes imp-boundary-pulse {
+	0%,
+	100% {
+		fill-opacity: 0.12;
+		stroke-opacity: 0.4;
+	}
+	50% {
+		fill-opacity: 0.3;
+		stroke-opacity: 0.75;
+	}
+}
+
+.imp-boundary-label {
+	position: absolute;
+	transform: translate(-50%, -50%);
+	white-space: nowrap;
+	font-size: 9px;
+	font-weight: 700;
+	color: #fff;
+	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7);
+	pointer-events: none;
+	letter-spacing: 0.3px;
+	z-index: 5;
+}
+
+.imp-boundary-label__cost {
+	margin-left: 3px;
+	color: var(--imp-accent-gold);
+}

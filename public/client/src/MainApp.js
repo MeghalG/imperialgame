@@ -1,32 +1,23 @@
 import React from 'react';
 import './App.css';
 import TurnApp from './TurnApp.js';
-import PlayerApp from './PlayerApp.js';
+import FloatingPlayerPanel from './FloatingPlayerPanel.js';
 import MapApp from './MapApp.js';
+import MapViewport from './MapViewport.js';
 
-import { Row, Col } from 'antd';
-
-class MainApp extends React.Component {
-	constructor(props) {
-		super(props);
-		this.state = { playerTurn: false };
-	}
-
-	render() {
-		return (
-			<Row style={{ align: 'top', display: 'flex', height: '100%' }}>
-				<Col span={14} style={{ marginTop: 2, paddingRight: 10 }}>
-					<MapApp style={{ width: '100%' }} />
-				</Col>
-				<Col span={3} style={{ marginTop: 2, paddingRight: 10 }}>
-					<PlayerApp style={{ width: '100%' }} />
-				</Col>
-				<Col span={7} style={{ height: '100%' }}>
+function MainApp() {
+	return (
+		<MapViewport
+			overlays={
+				<React.Fragment>
+					<FloatingPlayerPanel />
 					<TurnApp />
-				</Col>
-			</Row>
-		);
-	}
+				</React.Fragment>
+			}
+		>
+			<MapApp />
+		</MapViewport>
+	);
 }
 
 export default MainApp;

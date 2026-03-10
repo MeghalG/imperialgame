@@ -39,8 +39,36 @@ const database = {
 		return {
 			// .once('value') -> get(dbRef) (returns Promise<DataSnapshot>)
 			// .once('value', callback) -> get(dbRef).then(callback) (v8 callback style)
+			// Special case: .info paths (e.g. /.info/serverTimeOffset) are client-only
+			// and don't work with get() in Firebase v10+ (server rejects them).
+			// Use a one-shot onValue listener instead.
 			once: (eventType, callback) => {
-				const promise = get(dbRef);
+				let promise;
+				if (path && (path.startsWith('.info') || path.startsWith('/.info'))) {
+					// .info paths are client-only and don't work with get() in
+					// Firebase v10+ (server rejects them with "Invalid token in path").
+					// Use a one-shot onValue listener instead.
+					// NOTE: onValue may fire the callback synchronously when data is
+					// cached, so we use `let detach` (not `const`) to avoid a
+					// temporal dead zone ReferenceError.
+					promise = new Promise((resolve) => {
+						let detach = null;
+						detach = onValue(dbRef, (snapshot) => {
+							resolve(snapshot);
+							if (detach) {
+								detach();
+							} else {
+								// Callback fired synchronously before assignment completed;
+								// schedule cleanup on the next microtask.
+								Promise.resolve().then(() => {
+									if (detach) detach();
+								});
+							}
+						});
+					});
+				} else {
+					promise = get(dbRef);
+				}
 				if (callback) {
 					promise.then(callback);
 					return promise;

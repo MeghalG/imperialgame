@@ -91,8 +91,9 @@ function StaticTurnApp() {
 				let t = [];
 				for (let bid of bids) {
 					t.push(
-						<p style={{ textAlign: 'left' }}>
-							&nbsp;&nbsp;{bid[0]}:<span style={{ float: 'right' }}>${bid[1]}&nbsp;&nbsp;</span>
+						<p style={{ display: 'flex', justifyContent: 'space-between' }}>
+							<span>&nbsp;&nbsp;{bid[0]}:</span>
+							<span>${bid[1]}&nbsp;&nbsp;</span>
 						</p>
 					);
 				}
