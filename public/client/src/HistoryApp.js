@@ -12,16 +12,28 @@ const COUNTRY_COLORS = {
 	France: '#177ddc',
 	England: '#d32029',
 	Germany: '#666666',
-	Russia: '#CC79A7',
+	Russia: '#8b5cf6',
 };
 
+const COUNTRY_TAG_RE = /^\[([A-Za-z]+)\]\s*/;
+
 function getCountryColor(text) {
+	if (text) {
+		let tagMatch = text.match(COUNTRY_TAG_RE);
+		if (tagMatch && COUNTRY_COLORS[tagMatch[1]]) {
+			return COUNTRY_COLORS[tagMatch[1]];
+		}
+	}
 	for (let country in COUNTRY_COLORS) {
 		if (text && text.includes(country)) {
 			return COUNTRY_COLORS[country];
 		}
 	}
 	return 'rgba(255,255,255,0.3)';
+}
+
+function stripCountryTag(text) {
+	return text ? text.replace(COUNTRY_TAG_RE, '') : text;
 }
 
 function HistoryApp() {
@@ -52,7 +64,7 @@ function HistoryApp() {
 					<div key={index} className="imp-timeline__item">
 						<div className="imp-timeline__dot" style={{ color: dotColor, backgroundColor: dotColor }} />
 						<div className="imp-timeline__turn-num">Turn {turnNum}</div>
-						<div className="imp-timeline__text">{item}</div>
+						<div className="imp-timeline__text">{stripCountryTag(item)}</div>
 					</div>
 				);
 			})}

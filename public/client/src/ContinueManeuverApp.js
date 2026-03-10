@@ -5,6 +5,7 @@ import UserContext from './UserContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { readGameState } from './backendFiles/stateCache.js';
+import SoundManager from './SoundManager.js';
 
 const { Option } = Select;
 
@@ -147,6 +148,7 @@ function ContinueManeuverApp() {
 	}, []);
 
 	async function onDestChange(value) {
+		SoundManager.playDestination();
 		context.setManeuverDest(value);
 		// Reset action when destination changes
 		context.setManeuverAction('');
@@ -170,6 +172,7 @@ function ContinueManeuverApp() {
 	}
 
 	async function submitMove() {
+		SoundManager.playPlace();
 		setSubmitting(true);
 		try {
 			await submitAPI.submitManeuver(context);
@@ -179,6 +182,7 @@ function ContinueManeuverApp() {
 	}
 
 	async function submitDictatorVote(choice) {
+		SoundManager.playSubmit();
 		setSubmitting(true);
 		try {
 			context.setPeaceVoteChoice(choice);

@@ -6,7 +6,12 @@ let muted = false;
 
 function getContext() {
 	if (!audioCtx) {
-		audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+		let Ctor = window.AudioContext || window.webkitAudioContext;
+		if (!Ctor) {
+			muted = true;
+			return null;
+		}
+		audioCtx = new Ctor();
 	}
 	return audioCtx;
 }
@@ -28,6 +33,7 @@ function toggleMute() {
 function playPlace() {
 	if (muted) return;
 	const ctx = getContext();
+	if (!ctx) return;
 	const osc = ctx.createOscillator();
 	const gain = ctx.createGain();
 	osc.type = 'sine';
@@ -45,6 +51,7 @@ function playPlace() {
 function playCoin() {
 	if (muted) return;
 	const ctx = getContext();
+	if (!ctx) return;
 	const osc = ctx.createOscillator();
 	const gain = ctx.createGain();
 	osc.type = 'triangle';
@@ -62,6 +69,7 @@ function playCoin() {
 function playTurnHorn() {
 	if (muted) return;
 	const ctx = getContext();
+	if (!ctx) return;
 	const notes = [220, 330, 440];
 	notes.forEach((freq, i) => {
 		const osc = ctx.createOscillator();
@@ -83,6 +91,7 @@ function playTurnHorn() {
 function playShuffle() {
 	if (muted) return;
 	const ctx = getContext();
+	if (!ctx) return;
 	const bufferSize = ctx.sampleRate * 0.08;
 	const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
 	const data = buffer.getChannelData(0);
@@ -108,6 +117,7 @@ function playShuffle() {
 function playSubmit() {
 	if (muted) return;
 	const ctx = getContext();
+	if (!ctx) return;
 	const osc = ctx.createOscillator();
 	const gain = ctx.createGain();
 	osc.type = 'sine';
@@ -121,6 +131,44 @@ function playSubmit() {
 	osc.stop(ctx.currentTime + 0.1);
 }
 
+/* Unit select — short rising blip */
+function playSelect() {
+	if (muted) return;
+	const ctx = getContext();
+	if (!ctx) return;
+	const osc = ctx.createOscillator();
+	const gain = ctx.createGain();
+	osc.type = 'sine';
+	osc.frequency.setValueAtTime(400, ctx.currentTime);
+	osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.06);
+	gain.gain.setValueAtTime(0.07, ctx.currentTime);
+	gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+	osc.connect(gain);
+	gain.connect(ctx.destination);
+	osc.start(ctx.currentTime);
+	osc.stop(ctx.currentTime + 0.08);
+}
+
+/* Destination chosen — two-note confirm chirp */
+function playDestination() {
+	if (muted) return;
+	const ctx = getContext();
+	if (!ctx) return;
+	[520, 700].forEach((freq, i) => {
+		const osc = ctx.createOscillator();
+		const gain = ctx.createGain();
+		osc.type = 'sine';
+		const t = ctx.currentTime + i * 0.06;
+		osc.frequency.setValueAtTime(freq, t);
+		gain.gain.setValueAtTime(0.06, t);
+		gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+		osc.connect(gain);
+		gain.connect(ctx.destination);
+		osc.start(t);
+		osc.stop(t + 0.08);
+	});
+}
+
 const SoundManager = {
 	isMuted,
 	setMuted,
@@ -130,6 +178,8 @@ const SoundManager = {
 	playTurnHorn,
 	playShuffle,
 	playSubmit,
+	playSelect,
+	playDestination,
 };
 
 export default SoundManager;

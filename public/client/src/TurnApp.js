@@ -20,6 +20,7 @@ import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import { getCountryColorPalette } from './countryColors.js';
+import SoundManager from './SoundManager.js';
 
 function TurnApp() {
 	const context = useContext(UserContext);
@@ -31,6 +32,7 @@ function TurnApp() {
 	const [countryUp, setCountryUp] = useState('');
 	const turnRef = useRef(null);
 	const contextRef = useRef(context);
+	const prevModeRef = useRef(null);
 	contextRef.current = context;
 
 	const newTurn = useCallback(async () => {
@@ -39,6 +41,10 @@ function TurnApp() {
 			miscAPI.getGameState(contextRef.current),
 		]);
 		setTurnTitle(result.turnTitle);
+		if (prevModeRef.current !== null && result.mode !== prevModeRef.current) {
+			SoundManager.playShuffle();
+		}
+		prevModeRef.current = result.mode;
 		setMode(result.mode);
 		setUndoable(result.undoable);
 		setTurnID(result.turnID);

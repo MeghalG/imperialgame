@@ -4,6 +4,7 @@ import ProposalApp from './ProposalApp.js';
 import UserContext from './UserContext.js';
 import { Radio, Button } from 'antd';
 import * as submitAPI from './backendFiles/submitAPI.js';
+import SoundManager from './SoundManager.js';
 
 function ProposalAppOpp(props) {
 	const context = useContext(UserContext);
@@ -30,7 +31,13 @@ function ProposalAppOpp(props) {
 				<ProposalApp key={props.key} />
 			) : (
 				<div style={{ textAlign: 'center' }}>
-					<Button type="primary" onClick={() => submitAPI.submitNoCounter(context)}>
+					<Button
+						type="primary"
+						onClick={() => {
+							SoundManager.playSubmit();
+							submitAPI.submitNoCounter(context);
+						}}
+					>
 						Submit
 					</Button>
 				</div>

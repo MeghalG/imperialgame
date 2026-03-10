@@ -4,6 +4,7 @@ import { Button, Card, Result } from 'antd';
 import UserContext from './UserContext.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { database } from './backendFiles/firebase.js';
+import SoundManager from './SoundManager.js';
 
 /**
  * UI for democracy peace vote (mode === 'peace-vote').
@@ -37,6 +38,7 @@ function PeaceVoteApp() {
 	}, []);
 
 	async function submitVote(choice) {
+		SoundManager.playSubmit();
 		setSubmitting(true);
 		try {
 			await submitAPI.submitPeaceVote({

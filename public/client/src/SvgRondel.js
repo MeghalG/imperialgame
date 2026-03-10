@@ -34,16 +34,16 @@ const COUNTRY_ABBREV = {
 	Russia: 'RU',
 };
 
-// Distinct colors per action type — rich, saturated, board-game-like
+// Colors matching the original Imperial board game rondel
 const WEDGE_FILLS = {
-	Factory: '#1a4d3a', // teal
-	'L-Produce': '#2e4a1a', // forest
-	'L-Maneuver': '#4d1a28', // burgundy
-	Taxation: '#4a3518', // amber
-	'R-Produce': '#2e4a1a', // forest
-	Investor: '#2e1a4d', // indigo
-	Import: '#1a2e4d', // navy
-	'R-Maneuver': '#4d1a28', // burgundy
+	Factory: '#1a3a6e', // blue
+	'L-Produce': '#1a1a1a', // black
+	'L-Maneuver': '#1a5c2a', // green
+	Taxation: '#8a7a18', // yellow
+	'R-Produce': '#1a1a1a', // black
+	Investor: '#3a7a9e', // light blue
+	Import: '#8b1a1a', // red
+	'R-Maneuver': '#1a5c2a', // green
 };
 
 const CX = 50;

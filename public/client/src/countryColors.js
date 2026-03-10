@@ -5,7 +5,7 @@ const NORMAL_COLORS = {
 		France: '#177ddc',
 		England: '#d32029',
 		Germany: '#000000',
-		Russia: '#CC79A7',
+		Russia: '#8b5cf6',
 	},
 	mid: {
 		Austria: '#aa9514',

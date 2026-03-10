@@ -5,6 +5,7 @@ import { Button } from 'antd';
 import { Radio } from 'antd';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
+import SoundManager from './SoundManager.js';
 
 function BuyBidApp() {
 	const context = useContext(UserContext);
@@ -25,6 +26,7 @@ function BuyBidApp() {
 	}, []);
 
 	function submit() {
+		SoundManager.playCoin();
 		submitAPI.bidBuy(context);
 	}
 

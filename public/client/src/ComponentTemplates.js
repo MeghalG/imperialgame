@@ -4,6 +4,7 @@ import { Radio, Button } from 'antd';
 import { Select, Checkbox, Divider } from 'antd';
 import UserContext from './UserContext.js';
 import MapInteractionContext from './MapInteractionContext.js';
+import SoundManager from './SoundManager.js';
 const { Option } = Select;
 
 function ImportSelect({ object, setThing, getAPI, message, data }) {
@@ -577,6 +578,7 @@ function SubmitButton({ data, disabled }) {
 	}, []);
 
 	async function handleClick() {
+		SoundManager.playSubmit();
 		setLoading(true);
 		try {
 			await data();

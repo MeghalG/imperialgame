@@ -8,6 +8,7 @@ import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { readGameState, readSetup } from './backendFiles/stateCache.js';
 import { getCountryColorPalette } from './countryColors.js';
+import SoundManager from './SoundManager.js';
 
 const { Option } = Select;
 
@@ -247,6 +248,7 @@ function ManeuverPlannerApp() {
 		// Set the callback for when a unit marker is clicked
 		if (mapInteraction.setOnUnitMarkerClickedCb) {
 			mapInteraction.setOnUnitMarkerClickedCb(() => (phase, index) => {
+				SoundManager.playSelect();
 				setActiveUnit({ phase, index });
 			});
 		}
@@ -612,6 +614,7 @@ function ManeuverPlannerApp() {
 	}
 
 	async function onDestChange(phase, index, value) {
+		SoundManager.playDestination();
 		if (phase === 'fleet') {
 			setFleetPlans((prev) => {
 				let plans = [...prev];
@@ -757,6 +760,7 @@ function ManeuverPlannerApp() {
 	}
 
 	async function submit() {
+		SoundManager.playPlace();
 		setSubmitting(true);
 		try {
 			let fleetMan = fleetPlans.map((p) => [p.origin, p.dest, p.action || '']);
@@ -776,6 +780,7 @@ function ManeuverPlannerApp() {
 	}
 
 	async function submitDictatorVote(choice) {
+		SoundManager.playSubmit();
 		setSubmitting(true);
 		try {
 			context.setPeaceVoteChoice(choice);

@@ -4,6 +4,7 @@ import UserContext from './UserContext.js';
 import { InputNumber, Button } from 'antd';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
+import SoundManager from './SoundManager.js';
 
 function BidApp() {
 	const context = useContext(UserContext);
@@ -25,6 +26,7 @@ function BidApp() {
 	}, []);
 
 	async function submit() {
+		SoundManager.playCoin();
 		await submitAPI.bid(context);
 	}
 

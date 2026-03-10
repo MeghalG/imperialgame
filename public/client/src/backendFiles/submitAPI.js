@@ -414,7 +414,10 @@ async function submitVote(context) {
 
 	if (gameState.voting[proposal].votes > threshold) {
 		gameState.history.push(
-			context.name +
+			'[' +
+				country +
+				'] ' +
+				context.name +
 				' has voted. ' +
 				gameState.voting['proposal 1'].voters.join(', ') +
 				" voted for the leader's proposal and " +
@@ -428,7 +431,7 @@ async function submitVote(context) {
 	} else {
 		// change turn
 		// add to history
-		gameState.history.push(context.name + ' has voted.');
+		gameState.history.push('[' + country + '] ' + context.name + ' has voted.');
 	}
 
 	gameState.undo = context.name;
