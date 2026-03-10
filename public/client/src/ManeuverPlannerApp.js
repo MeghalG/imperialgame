@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
 import { Select, Button, Card, Tag, Radio, Steps, Tooltip } from 'antd';
-import { LockOutlined, ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
 import MapInteractionContext from './MapInteractionContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
