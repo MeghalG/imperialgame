@@ -148,16 +148,19 @@ function CountryCard(props) {
 	}
 
 	return (
-		<div className="imp-state__card" style={{ borderTopColor: props.color }}>
+		<div className="imp-state__card">
+			<div className="imp-state__card-banner" style={{ background: props.color }} />
 			<div className="imp-state__card-header" style={{ background: props.color }}>
 				<span>{props.country}</span>
-				<span>{props.info.points} pts</span>
+				<span className="imp-state__card-header-extra">{props.info.points} pts</span>
 			</div>
 			<div className="imp-state__card-body">
 				<div className="imp-state__stats">
 					<div className="imp-state__stat">
 						<span className="imp-state__label">Treasury</span>
-						<span className="imp-state__value">${twoDec(props.info.money)}</span>
+						<span className="imp-state__value imp-state__key-stat imp-state__key-stat--gold">
+							${twoDec(props.info.money)}
+						</span>
 					</div>
 					<div className="imp-state__stat">
 						<span className="imp-state__label">Last Tax</span>
@@ -268,21 +271,28 @@ function PlayerCard(props) {
 
 	if (!props.player) return null;
 
+	let hasInvestor = props.info.investor;
+
 	return (
-		<div className="imp-state__card">
+		<div className={'imp-state__card' + (hasInvestor ? ' imp-state__card--investor' : '')}>
+			<div className="imp-state__card-banner" style={{ background: '#525252' }} />
 			<div className="imp-state__card-header" style={{ background: '#525252' }}>
 				<span>{props.player}</span>
-				<span>{sToTime(props.info.banked)}</span>
+				<span className="imp-state__card-header-extra">{sToTime(props.info.banked)}</span>
 			</div>
 			<div className="imp-state__card-body">
 				<div className="imp-state__stats">
 					<div className="imp-state__stat">
 						<span className="imp-state__label">Money</span>
-						<span className="imp-state__value">${twoDec(props.info.money)}</span>
+						<span className="imp-state__value imp-state__key-stat imp-state__key-stat--gold">
+							${twoDec(props.info.money)}
+						</span>
 					</div>
 					<div className="imp-state__stat">
 						<span className="imp-state__label">Score</span>
-						<span className="imp-state__value">{helper.computeScore(props.info, props.countryInfos).toFixed(2)}</span>
+						<span className="imp-state__value imp-state__key-stat">
+							{helper.computeScore(props.info, props.countryInfos).toFixed(2)}
+						</span>
 					</div>
 					<div className="imp-state__stat">
 						<span className="imp-state__label">Cash Value</span>

@@ -18,6 +18,7 @@
 	justify-content: top;
 	font-size: calc(10px + 2vmin);
 	color: white;
+	font-family: var(--imp-font-body, 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif);
 }
 
 .App-link {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import './App.css';
 import './MapOverlay.css';
 import { StateApp } from './StateApp.js';
@@ -7,6 +7,12 @@ import RulesApp from './RulesApp.js';
 import MainApp from './MainApp.js';
 import TopBar from './TopBar.js';
 import MapInteractionContext from './MapInteractionContext.js';
+import TurnAnnouncement from './TurnAnnouncement.js';
+import SoundManager from './SoundManager.js';
+import UserContext from './UserContext.js';
+import * as turnAPI from './backendFiles/turnAPI.js';
+import { database } from './backendFiles/firebase.js';
+import { getCountryColorPalette } from './countryColors.js';
 
 function SlideDrawer({ title, open, onClose, width, children }) {
 	return (
@@ -25,10 +31,75 @@ function SlideDrawer({ title, open, onClose, width, children }) {
 	);
 }
 
+function CompassRose() {
+	return (
+		<svg className="imp-compass" width="48" height="48" viewBox="0 0 48 48" fill="none">
+			<g opacity="0.8">
+				<path d="M24 2 L26 20 L24 16 L22 20 Z" fill="#c9a84c" />
+				<path d="M24 46 L26 28 L24 32 L22 28 Z" fill="rgba(255,255,255,0.4)" />
+				<path d="M2 24 L20 22 L16 24 L20 26 Z" fill="rgba(255,255,255,0.4)" />
+				<path d="M46 24 L28 22 L32 24 L28 26 Z" fill="rgba(255,255,255,0.4)" />
+				<circle cx="24" cy="24" r="3" fill="none" stroke="#c9a84c" strokeWidth="0.5" />
+				<circle cx="24" cy="24" r="1" fill="#c9a84c" />
+				<text
+					x="24"
+					y="0"
+					textAnchor="middle"
+					fill="#c9a84c"
+					fontSize="5"
+					fontWeight="700"
+					fontFamily="var(--imp-font-condensed)"
+				>
+					N
+				</text>
+			</g>
+		</svg>
+	);
+}
+
 function GameApp() {
+	const context = useContext(UserContext);
 	const [historyOpen, setHistoryOpen] = useState(false);
 	const [infoOpen, setInfoOpen] = useState(false);
 	const [rulesOpen, setRulesOpen] = useState(false);
+	const [announcement, setAnnouncement] = useState(null);
+	const turnListenerRef = useRef(null);
+	const isFirstLoadRef = useRef(true);
+	const contextRef = useRef(context);
+	contextRef.current = context;
+
+	// Listen for turn changes to show announcement
+	useEffect(() => {
+		if (!context.game) return;
+		turnListenerRef.current = database.ref('games/' + context.game + '/turnID');
+		turnListenerRef.current.on('value', async () => {
+			if (isFirstLoadRef.current) {
+				isFirstLoadRef.current = false;
+				return;
+			}
+			try {
+				let myTurn = await turnAPI.getMyTurn(contextRef.current);
+				if (myTurn) {
+					let title = await turnAPI.getTitle(contextRef.current);
+					let country = (title || '').split(' ')[0];
+					let colors = getCountryColorPalette(contextRef.current.colorblindMode).bright;
+					SoundManager.playTurnHorn();
+					setAnnouncement({
+						key: Date.now(),
+						country: country,
+						color: colors[country] || '#c9a84c',
+						subtitle: 'Your Turn',
+					});
+				}
+			} catch (e) {
+				/* ignore */
+			}
+		});
+		return () => {
+			if (turnListenerRef.current) turnListenerRef.current.off();
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [context.game]);
 
 	// Map interaction state
 	const [interactionMode, setInteractionMode] = useState(null);
@@ -108,6 +179,15 @@ function GameApp() {
 					onToggleRules={() => setRulesOpen(!rulesOpen)}
 				/>
 				<MainApp />
+				<CompassRose />
+				{announcement && (
+					<TurnAnnouncement
+						key={announcement.key}
+						countryName={announcement.country}
+						countryColor={announcement.color}
+						subtitle={announcement.subtitle}
+					/>
+				)}
 				<SlideDrawer title="Game History" open={historyOpen} onClose={() => setHistoryOpen(false)} width={420}>
 					<HistoryApp />
 				</SlideDrawer>

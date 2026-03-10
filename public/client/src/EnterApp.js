@@ -1,19 +1,12 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './App.css';
+import './MapOverlay.css';
 import UserContext from './UserContext.js';
 import LoginApp from './LoginApp.js';
 import RulesApp from './RulesApp.js';
-import { Button, Space } from 'antd';
-import { Card } from 'antd';
-import { Layout } from 'antd';
-import { Tabs, Col, Row } from 'antd';
-import { Input } from 'antd';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { database } from './backendFiles/firebase.js';
-
-const { Header, Content } = Layout;
-const { TabPane } = Tabs;
 
 function EnterApp() {
 	const context = useContext(UserContext);
@@ -22,6 +15,7 @@ function EnterApp() {
 	const [newGameID, setNewGameID] = useState('');
 	const [newGamePlayers, setNewGamePlayers] = useState(['', '', '', '', '', '']);
 	const [validNewGame, setValidNewGame] = useState(false);
+	const [activeTab, setActiveTab] = useState('games');
 	const gamesRef = useRef(null);
 	const choicesRef = useRef(choices);
 	choicesRef.current = choices;
@@ -34,10 +28,10 @@ function EnterApp() {
 
 	useEffect(() => {
 		gamesRef.current = database.ref('games');
-		gamesRef.current.on('child_added', (dataSnapshot) => {
+		gamesRef.current.on('child_added', () => {
 			getChoices();
 		});
-		gamesRef.current.on('child_removed', (dataSnapshot) => {
+		gamesRef.current.on('child_removed', () => {
 			getChoices();
 		});
 		return () => {
@@ -91,144 +85,95 @@ function EnterApp() {
 		context.setGame(newGameID);
 	}
 
-	function newGame() {
-		if (newGameVisible) {
-			return (
-				<Card style={{ lineHeight: 3, backgroundColor: '#202020', width: '420px', textAlign: 'center' }}>
-					<Row>
-						<Col span={11} style={{ textAlign: 'right' }}>
-							Choose a Game ID:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-						</Col>
-						<Col span={13}>
-							<Input
-								allowClear={true}
-								onChange={(e) => updateID(e)}
-								style={{ background: 'black', width: '200px' }}
-							></Input>
-							<br />
-						</Col>
-					</Row>
-					<Row>
-						<Col span={11} style={{ textAlign: 'right' }}>
-							Input upto 6 players:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-						</Col>
-						<Col span={13}>
-							<Input
-								placeholder="Player 1"
-								allowClear={true}
-								onChange={(e) => updatePlayers(e, 0)}
-								style={{ background: 'black', width: '200px' }}
-							></Input>
-							<br />
-							<Input
-								placeholder="Player 2"
-								allowClear={true}
-								onChange={(e) => updatePlayers(e, 1)}
-								style={{ background: 'black', width: '200px' }}
-							></Input>
-							<br />
-							<Input
-								placeholder="Player 3"
-								allowClear={true}
-								onChange={(e) => updatePlayers(e, 2)}
-								style={{ background: 'black', width: '200px' }}
-							></Input>
-							<br />
-							<Input
-								placeholder="Player 4"
-								allowClear={true}
-								onChange={(e) => updatePlayers(e, 3)}
-								style={{ background: 'black', width: '200px' }}
-							></Input>
-							<br />
-							<Input
-								placeholder="Player 5"
-								allowClear={true}
-								onChange={(e) => updatePlayers(e, 4)}
-								style={{ background: 'black', width: '200px' }}
-							></Input>
-							<br />
-							<Input
-								placeholder="Player 6"
-								allowClear={true}
-								onChange={(e) => updatePlayers(e, 5)}
-								style={{ background: 'black', width: '200px' }}
-							></Input>
-							<br />
-						</Col>
-					</Row>
-					<Button type="primary" disabled={!validNewGame} onClick={() => makeNewGame()}>
-						{' '}
-						Create{' '}
-					</Button>
-				</Card>
-			);
-		} else {
-			return (
-				<Button onClick={() => setNewGameVisible(true)} shape="circle">
-					{' '}
-					+{' '}
-				</Button>
-			);
-		}
-	}
-
-	function buildOptions() {
-		let table = [];
-		let t = [];
-		for (let i in choices) {
-			t.push(<Button onClick={() => handleClick(choices[i])}> {choices[i]} </Button>);
-		}
-		table.push(
-			<Row>
-				{' '}
-				<Col span={10} style={{ textAlign: 'right' }}>
-					{' '}
-					<label>Select a game by ID: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</label>{' '}
-				</Col>{' '}
-				<Col span={10}>
-					<Space size="middle"> {t} </Space>
-				</Col>
-			</Row>
-		);
-		table.push(
-			<Row>
-				{' '}
-				<Col span={10} style={{ textAlign: 'right' }}>
-					{' '}
-					Make a new game: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{' '}
-				</Col>{' '}
-				<Col span={13}>
-					{' '}
-					<Space size="middle"> {newGame()} </Space>{' '}
-				</Col>{' '}
-			</Row>
-		);
-
-		return table;
-	}
-
 	return (
-		<Layout style={{ fontFamily: 'Arial' }}>
-			<Header
-				style={{ position: 'fixed', zIndex: 1, width: '100%', fontSize: 'calc(10px + 2vmin)', display: 'inline' }}
-			>
-				Welcome to Imperial!
-				<span style={{ float: 'right', fontSize: 14 }}>
-					<LoginApp />
-				</span>
-			</Header>
-			<Content className="site-layout" style={{ padding: '0vh 3vw', marginTop: 64 }}>
-				<Tabs defaultActiveKey="1" centered>
-					<TabPane tab="Join a Game" key="1">
-						<Card style={{ height: 'calc(100vh + -135px)', overflow: 'auto', lineHeight: '4' }}>{buildOptions()}</Card>
-					</TabPane>
-					<TabPane tab="Rules" key="2">
+		<div className="imp-lobby">
+			{/* Top bar with login */}
+			<div className="imp-lobby__topbar">
+				<LoginApp />
+			</div>
+
+			{/* Header */}
+			<div className="imp-lobby__header">
+				<div className="imp-lobby__title">Imperial</div>
+				<div className="imp-lobby__divider" />
+				<div className="imp-lobby__subtitle">A Game of European Diplomacy & Investment</div>
+			</div>
+
+			{/* Tab navigation */}
+			<div className="imp-lobby__tabs">
+				<button
+					className={'imp-lobby__tab' + (activeTab === 'games' ? ' imp-lobby__tab--active' : '')}
+					onClick={() => setActiveTab('games')}
+				>
+					Join a Game
+				</button>
+				<button
+					className={'imp-lobby__tab' + (activeTab === 'rules' ? ' imp-lobby__tab--active' : '')}
+					onClick={() => setActiveTab('rules')}
+				>
+					Rules
+				</button>
+			</div>
+
+			{/* Content */}
+			<div className="imp-lobby__content">
+				{activeTab === 'games' && (
+					<React.Fragment>
+						{/* Existing games */}
+						{choices.length > 0 && (
+							<React.Fragment>
+								<div className="imp-lobby__section-title">Active Games</div>
+								<div className="imp-lobby__games">
+									{choices.map((id) => (
+										<div key={id} className="imp-lobby__game-card" onClick={() => handleClick(id)}>
+											{id}
+										</div>
+									))}
+								</div>
+							</React.Fragment>
+						)}
+
+						{/* New game */}
+						<div className="imp-lobby__section-title">New Game</div>
+						{!newGameVisible ? (
+							<button className="imp-lobby__new-game-toggle" onClick={() => setNewGameVisible(true)}>
+								<i className="fas fa-plus-circle" /> Create a New Game
+							</button>
+						) : (
+							<div className="imp-lobby__new-game">
+								<div className="imp-lobby__form-row">
+									<span className="imp-lobby__form-label">Game ID</span>
+									<input
+										className="imp-lobby__form-input"
+										placeholder="Choose a unique name"
+										onChange={(e) => updateID(e)}
+									/>
+								</div>
+								{[0, 1, 2, 3, 4, 5].map((i) => (
+									<div key={i} className="imp-lobby__form-row">
+										<span className="imp-lobby__form-label">Player {i + 1}</span>
+										<input
+											className="imp-lobby__form-input"
+											placeholder={i === 0 ? 'Required' : 'Optional'}
+											onChange={(e) => updatePlayers(e, i)}
+										/>
+									</div>
+								))}
+								<button className="imp-lobby__create-btn" disabled={!validNewGame} onClick={() => makeNewGame()}>
+									Create Game
+								</button>
+							</div>
+						)}
+					</React.Fragment>
+				)}
+
+				{activeTab === 'rules' && (
+					<div style={{ background: '#141518', borderRadius: 8, padding: 20 }}>
 						<RulesApp />
-					</TabPane>
-				</Tabs>
-			</Content>
-		</Layout>
+					</div>
+				)}
+			</div>
+		</div>
 	);
 }
 

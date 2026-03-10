@@ -4,6 +4,7 @@
    ============================================ */
 
 :root {
+	/* Colors */
 	--imp-panel-bg: rgba(20, 21, 24, 0.88);
 	--imp-panel-border: rgba(255, 255, 255, 0.08);
 	--imp-topbar-bg: rgba(20, 21, 24, 0.94);
@@ -14,6 +15,16 @@
 	--imp-text: rgba(255, 255, 255, 0.88);
 	--imp-text-dim: rgba(255, 255, 255, 0.5);
 	--imp-danger: #d32029;
+
+	/* Typography */
+	--imp-font-display: 'Cormorant Garamond', 'Georgia', serif;
+	--imp-font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+	--imp-font-condensed: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+}
+
+/* ---- Global font base ---- */
+body {
+	font-family: var(--imp-font-body);
 }
 
 /* ---- Top Bar ---- */
@@ -34,12 +45,14 @@
 	z-index: 1000;
 	color: var(--imp-text);
 	font-size: 14px;
+	font-family: var(--imp-font-body);
 }
 
 .imp-topbar__title {
-	font-size: 16px;
+	font-family: var(--imp-font-display);
+	font-size: 18px;
 	font-weight: 600;
-	letter-spacing: 0.3px;
+	letter-spacing: 0.5px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -51,6 +64,7 @@
 	align-items: center;
 	gap: 8px;
 	font-variant-numeric: tabular-nums;
+	font-family: var(--imp-font-body);
 }
 
 .imp-topbar__right {
@@ -68,12 +82,17 @@
 	padding: 4px 10px;
 	border-radius: 4px;
 	font-size: 12px;
-	transition: color 0.15s, border-color 0.15s;
+	font-family: var(--imp-font-body);
+	transition: color 0.15s, border-color 0.15s, transform 0.1s;
 }
 
 .imp-topbar__btn:hover {
 	color: var(--imp-text);
 	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.imp-topbar__btn:active {
+	transform: scale(0.95);
 }
 
 .imp-topbar__btn--active {
@@ -97,6 +116,40 @@
 	cursor: grabbing;
 }
 
+/* Map atmosphere: vignette overlay */
+.imp-viewport::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 70;
+	pointer-events: none;
+	background: radial-gradient(
+		ellipse 80% 70% at 50% 45%,
+		transparent 40%,
+		rgba(0, 0, 0, 0.15) 65%,
+		rgba(0, 0, 0, 0.4) 100%
+	);
+}
+
+/* Map atmosphere: subtle grain texture */
+.imp-viewport::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 71;
+	pointer-events: none;
+	opacity: 0.035;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+	background-repeat: repeat;
+	background-size: 256px 256px;
+}
+
 .imp-canvas {
 	position: absolute;
 	top: 0;
@@ -111,6 +164,17 @@
 	-webkit-user-drag: none;
 }
 
+/* ---- Compass Rose ---- */
+.imp-compass {
+	position: absolute;
+	bottom: 56px;
+	left: 16px;
+	z-index: 75;
+	pointer-events: none;
+	opacity: 0.35;
+	filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
 /* ---- Floating Panel (shared base) ---- */
 .imp-panel {
 	background: var(--imp-panel-bg);
@@ -121,6 +185,7 @@
 	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
 	color: var(--imp-text);
 	overflow: hidden;
+	font-family: var(--imp-font-body);
 }
 
 .imp-panel__header {
@@ -129,9 +194,10 @@
 	justify-content: space-between;
 	padding: 8px 14px;
 	border-bottom: 1px solid var(--imp-panel-border);
-	font-size: 13px;
+	font-family: var(--imp-font-display);
+	font-size: 14px;
 	font-weight: 600;
-	letter-spacing: 0.3px;
+	letter-spacing: 0.5px;
 	user-select: none;
 }
 
@@ -142,6 +208,7 @@
 	left: 0;
 	right: 0;
 	border-radius: 6px 6px 0 0;
+	transition: box-shadow 0.4s;
 }
 
 .imp-panel__body {
@@ -149,6 +216,7 @@
 	overflow-y: auto;
 	overflow-x: hidden;
 	font-size: 13px;
+	transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s, padding 0.25s;
 }
 
 .imp-panel__collapse-btn {
@@ -159,7 +227,7 @@
 	padding: 2px 6px;
 	font-size: 14px;
 	line-height: 1;
-	transition: color 0.15s;
+	transition: color 0.15s, transform 0.25s;
 }
 
 .imp-panel__collapse-btn:hover {
@@ -183,11 +251,29 @@
 }
 
 .imp-turn-panel--collapsed .imp-panel__body {
-	display: none;
+	max-height: 0 !important;
+	padding-top: 0;
+	padding-bottom: 0;
+	opacity: 0;
+	overflow: hidden;
 }
 
 .imp-turn-panel .imp-panel__body {
 	max-height: calc(100vh - 200px);
+}
+
+/* Accent glow on turn change */
+@keyframes imp-accent-sweep {
+	0% {
+		box-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
+	}
+	100% {
+		box-shadow: none;
+	}
+}
+
+.imp-panel__header-accent--glow {
+	animation: imp-accent-sweep 1.5s ease-out forwards;
 }
 
 /* ---- Floating Player Panel ---- */
@@ -206,13 +292,19 @@
 }
 
 .imp-player-panel--collapsed .imp-player-panel__list {
-	display: none;
+	max-height: 0;
+	overflow: hidden;
+	opacity: 0;
 }
 
 .imp-player-panel__list {
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	max-height: 600px;
+	overflow: hidden;
+	opacity: 1;
+	transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
 }
 
 .imp-player-card {
@@ -256,6 +348,7 @@
 	border-radius: 2px;
 	color: #fff;
 	font-weight: 600;
+	font-family: var(--imp-font-condensed);
 }
 
 .imp-player-card__icons {
@@ -318,8 +411,9 @@
 	left: 50%;
 	transform: translateX(-50%);
 	white-space: nowrap;
+	font-family: var(--imp-font-condensed);
 	font-size: 9px;
-	font-weight: 700;
+	font-weight: 600;
 	color: #fff;
 	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7);
 	pointer-events: none;
@@ -375,6 +469,7 @@
 }
 
 .imp-rondel-label {
+	font-family: var(--imp-font-condensed);
 	font-size: 5.5px;
 	font-weight: 600;
 	letter-spacing: 0.3px;
@@ -415,7 +510,7 @@
 	}
 }
 
-/* ---- VP Track (redesigned) ---- */
+/* ---- VP Track ---- */
 .imp-vp-track {
 	position: absolute;
 	bottom: 0;
@@ -429,6 +524,7 @@
 	z-index: 80;
 	display: flex;
 	align-items: stretch;
+	font-family: var(--imp-font-body);
 }
 
 .imp-vp-track__cell {
@@ -447,6 +543,34 @@
 	background: rgba(201, 168, 76, 0.03);
 }
 
+/* Decorative diamond above milestone numbers */
+.imp-vp-track__cell--milestone::before {
+	content: '';
+	position: absolute;
+	top: -1px;
+	left: 50%;
+	transform: translateX(-50%) rotate(45deg);
+	width: 4px;
+	height: 4px;
+	background: rgba(201, 168, 76, 0.4);
+	border: 1px solid rgba(201, 168, 76, 0.6);
+}
+
+.imp-vp-track__cell--finish {
+	background: linear-gradient(180deg, rgba(201, 168, 76, 0.08) 0%, rgba(201, 168, 76, 0.02) 100%);
+	border-right: 1px solid rgba(201, 168, 76, 0.3);
+}
+
+.imp-vp-track__cell--finish::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: linear-gradient(90deg, transparent, var(--imp-accent-gold), transparent);
+}
+
 .imp-vp-track__cell--occupied {
 	background: rgba(255, 255, 255, 0.02);
 }
@@ -456,6 +580,11 @@
 	color: var(--imp-text-dim);
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
+}
+
+.imp-vp-track__cell--milestone .imp-vp-track__number {
+	color: var(--imp-accent-gold);
+	font-weight: 600;
 }
 
 .imp-vp-track__markers {
@@ -474,17 +603,35 @@
 	align-items: center;
 	justify-content: center;
 	cursor: pointer;
-	transition: transform 0.1s, box-shadow 0.1s;
+	transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+	position: relative;
 }
 
 .imp-vp-track__marker:hover {
-	transform: scale(1.15);
-	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+	transform: scale(1.25);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 6px currentColor;
 	z-index: 1;
 }
 
+/* VP marker slide animation */
+.imp-vp-track__marker--animate {
+	animation: imp-vp-slide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes imp-vp-slide {
+	from {
+		transform: scale(1.3);
+		filter: brightness(1.5);
+	}
+	to {
+		transform: scale(1);
+		filter: brightness(1);
+	}
+}
+
 .imp-vp-track__marker-text {
+	font-family: var(--imp-font-condensed);
 	font-size: 8px;
 	font-weight: 700;
 	color: #fff;
@@ -492,6 +639,41 @@
 	letter-spacing: 0.5px;
 	line-height: 1;
 	user-select: none;
+}
+
+/* VP marker tooltip */
+.imp-vp-track__tooltip {
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	margin-bottom: 6px;
+	background: rgba(20, 21, 24, 0.95);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 4px;
+	padding: 3px 8px;
+	font-family: var(--imp-font-body);
+	font-size: 11px;
+	color: var(--imp-text);
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.15s;
+	z-index: 100;
+}
+
+.imp-vp-track__marker:hover .imp-vp-track__tooltip {
+	opacity: 1;
+}
+
+.imp-vp-track__tooltip::after {
+	content: '';
+	position: absolute;
+	top: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	border: 4px solid transparent;
+	border-top-color: rgba(20, 21, 24, 0.95);
 }
 
 /* ---- Custom Slide Drawer ---- */
@@ -503,6 +685,7 @@
 	bottom: 0;
 	background: rgba(0, 0, 0, 0.45);
 	z-index: 1000;
+	animation: imp-fade-in 0.2s ease-out;
 }
 
 .imp-drawer {
@@ -518,6 +701,7 @@
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
+	font-family: var(--imp-font-body);
 }
 
 .imp-drawer--open {
@@ -532,8 +716,10 @@
 	background: #1a1b1e;
 	border-bottom: 1px solid var(--imp-panel-border);
 	color: var(--imp-text);
-	font-size: 15px;
+	font-family: var(--imp-font-display);
+	font-size: 17px;
 	font-weight: 600;
+	letter-spacing: 0.5px;
 	flex-shrink: 0;
 }
 
@@ -557,6 +743,426 @@
 	overflow-y: auto;
 	overflow-x: hidden;
 	padding: 16px;
+}
+
+/* ---- Turn Announcement Overlay ---- */
+.imp-turn-announce {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 2000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.6);
+	animation: imp-announce-fade 2s ease-out forwards;
+	pointer-events: none;
+}
+
+@keyframes imp-announce-fade {
+	0% {
+		opacity: 0;
+	}
+	15% {
+		opacity: 1;
+	}
+	70% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
+.imp-turn-announce__content {
+	text-align: center;
+	animation: imp-announce-slide 2s ease-out forwards;
+}
+
+@keyframes imp-announce-slide {
+	0% {
+		transform: translateY(20px) scale(0.95);
+		opacity: 0;
+	}
+	15% {
+		transform: translateY(0) scale(1);
+		opacity: 1;
+	}
+	70% {
+		transform: translateY(0) scale(1);
+		opacity: 1;
+	}
+	100% {
+		transform: translateY(-10px) scale(1.02);
+		opacity: 0;
+	}
+}
+
+.imp-turn-announce__country {
+	font-family: var(--imp-font-display);
+	font-size: 48px;
+	font-weight: 700;
+	letter-spacing: 2px;
+	text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+	margin-bottom: 8px;
+}
+
+.imp-turn-announce__subtitle {
+	font-family: var(--imp-font-display);
+	font-size: 20px;
+	font-weight: 400;
+	font-style: italic;
+	color: rgba(255, 255, 255, 0.7);
+	letter-spacing: 1px;
+}
+
+.imp-turn-announce__divider {
+	width: 80px;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--imp-accent-gold), transparent);
+	margin: 12px auto;
+}
+
+/* ---- History Timeline ---- */
+.imp-timeline {
+	position: relative;
+	padding-left: 28px;
+}
+
+/* Vertical line */
+.imp-timeline::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 10px;
+	width: 1px;
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.imp-timeline__item {
+	position: relative;
+	padding: 8px 0 8px 12px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+	transition: background 0.15s;
+}
+
+.imp-timeline__item:hover {
+	background: rgba(255, 255, 255, 0.02);
+}
+
+/* Colored dot */
+.imp-timeline__dot {
+	position: absolute;
+	left: -22px;
+	top: 12px;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	border: 2px solid currentColor;
+	background: #141518;
+}
+
+.imp-timeline__turn-num {
+	font-family: var(--imp-font-condensed);
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--imp-text-dim);
+	letter-spacing: 0.3px;
+}
+
+.imp-timeline__text {
+	font-size: 13px;
+	color: var(--imp-text);
+	line-height: 1.5;
+	margin-top: 2px;
+}
+
+/* ---- Lobby / EnterApp ---- */
+.imp-lobby {
+	min-height: 100vh;
+	background: #0a0b0d;
+	color: var(--imp-text);
+	font-family: var(--imp-font-body);
+	position: relative;
+	overflow: hidden;
+}
+
+/* Atmospheric background */
+.imp-lobby::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: radial-gradient(ellipse 60% 50% at 30% 40%, rgba(201, 168, 76, 0.04), transparent 70%),
+		radial-gradient(ellipse 50% 40% at 70% 60%, rgba(23, 125, 220, 0.03), transparent 60%);
+	pointer-events: none;
+}
+
+/* Subtle grid pattern */
+.imp-lobby::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+	opacity: 0.03;
+	background-image: linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+	background-size: 60px 60px;
+}
+
+.imp-lobby__header {
+	position: relative;
+	z-index: 1;
+	text-align: center;
+	padding: 60px 20px 40px;
+}
+
+.imp-lobby__title {
+	font-family: var(--imp-font-display);
+	font-size: 56px;
+	font-weight: 700;
+	letter-spacing: 3px;
+	color: var(--imp-text);
+	margin-bottom: 8px;
+	text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+}
+
+.imp-lobby__subtitle {
+	font-family: var(--imp-font-display);
+	font-size: 18px;
+	font-weight: 400;
+	font-style: italic;
+	color: var(--imp-text-dim);
+	letter-spacing: 2px;
+}
+
+.imp-lobby__divider {
+	width: 120px;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--imp-accent-gold), transparent);
+	margin: 24px auto;
+}
+
+.imp-lobby__content {
+	position: relative;
+	z-index: 1;
+	max-width: 640px;
+	margin: 0 auto;
+	padding: 0 20px 40px;
+}
+
+.imp-lobby__section-title {
+	font-family: var(--imp-font-display);
+	font-size: 20px;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+	color: var(--imp-text);
+	margin-bottom: 16px;
+}
+
+/* Game cards in lobby */
+.imp-lobby__games {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+	gap: 12px;
+	margin-bottom: 32px;
+}
+
+.imp-lobby__game-card {
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
+	padding: 20px 16px;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.2s;
+	font-family: var(--imp-font-display);
+	font-size: 18px;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+}
+
+.imp-lobby__game-card:hover {
+	background: rgba(201, 168, 76, 0.08);
+	border-color: var(--imp-accent-gold-dim);
+	transform: translateY(-2px);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* New game form */
+.imp-lobby__new-game {
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 8px;
+	padding: 24px;
+}
+
+.imp-lobby__new-game-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 14px 24px;
+	border: 1px dashed rgba(201, 168, 76, 0.3);
+	border-radius: 8px;
+	background: transparent;
+	color: var(--imp-accent-gold);
+	font-family: var(--imp-font-display);
+	font-size: 16px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s;
+	width: 100%;
+	letter-spacing: 0.5px;
+}
+
+.imp-lobby__new-game-toggle:hover {
+	border-color: var(--imp-accent-gold);
+	background: rgba(201, 168, 76, 0.06);
+}
+
+.imp-lobby__form-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.imp-lobby__form-label {
+	font-size: 13px;
+	color: var(--imp-text-dim);
+	min-width: 100px;
+	text-align: right;
+}
+
+.imp-lobby__form-input {
+	flex: 1;
+	background: rgba(0, 0, 0, 0.4);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 4px;
+	padding: 8px 12px;
+	color: var(--imp-text);
+	font-family: var(--imp-font-body);
+	font-size: 14px;
+	outline: none;
+	transition: border-color 0.15s;
+}
+
+.imp-lobby__form-input:focus {
+	border-color: var(--imp-accent-gold-dim);
+}
+
+.imp-lobby__form-input::placeholder {
+	color: rgba(255, 255, 255, 0.25);
+}
+
+.imp-lobby__create-btn {
+	display: block;
+	width: 100%;
+	margin-top: 16px;
+	padding: 10px 24px;
+	background: rgba(201, 168, 76, 0.12);
+	border: 1px solid var(--imp-accent-gold);
+	border-radius: 6px;
+	color: var(--imp-accent-gold);
+	font-family: var(--imp-font-display);
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.imp-lobby__create-btn:hover:not(:disabled) {
+	background: rgba(201, 168, 76, 0.2);
+	box-shadow: 0 0 16px rgba(201, 168, 76, 0.15);
+}
+
+.imp-lobby__create-btn:active:not(:disabled) {
+	transform: scale(0.98);
+}
+
+.imp-lobby__create-btn:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+
+/* Lobby top bar (simplified) */
+.imp-lobby__topbar {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 8px;
+	padding: 12px 20px;
+	position: relative;
+	z-index: 1;
+}
+
+/* Lobby tabs */
+.imp-lobby__tabs {
+	display: flex;
+	justify-content: center;
+	gap: 4px;
+	margin-bottom: 32px;
+	position: relative;
+	z-index: 1;
+}
+
+.imp-lobby__tab {
+	padding: 8px 24px;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	color: var(--imp-text-dim);
+	font-family: var(--imp-font-body);
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.imp-lobby__tab:hover {
+	color: var(--imp-text);
+}
+
+.imp-lobby__tab--active {
+	color: var(--imp-accent-gold);
+	border-color: var(--imp-accent-gold-dim);
+	background: rgba(201, 168, 76, 0.06);
+}
+
+/* ---- Submit Button Enhancements ---- */
+.imp-submit-btn {
+	transition: all 0.15s;
+}
+
+.imp-submit-btn:active:not(:disabled) {
+	transform: scale(0.97);
+}
+
+/* Submit success flash */
+@keyframes imp-submit-flash {
+	0% {
+		box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.4);
+	}
+	50% {
+		box-shadow: 0 0 0 6px rgba(82, 196, 26, 0);
+	}
+	100% {
+		box-shadow: none;
+	}
+}
+
+.imp-submit-btn--success {
+	animation: imp-submit-flash 0.6s ease-out;
 }
 
 /* ---- Utility ---- */
@@ -599,8 +1205,6 @@
 }
 
 /* ---- Detail Panel Overflow Fixes ---- */
-/* Prevent horizontal scroll in Collapse detail panels and cards.
-   Applied to both the floating turn panel and the slide-out info drawer. */
 .imp-turn-panel .ant-collapse-content-box,
 .imp-drawer__body .ant-collapse-content-box {
 	overflow-x: hidden;
@@ -612,14 +1216,12 @@
 	overflow-wrap: break-word;
 }
 
-/* Let stock mark badges wrap to next line instead of overflowing */
 .imp-turn-panel .ant-card-body mark,
 .imp-drawer__body .ant-card-body mark {
 	display: inline-block;
 	margin-bottom: 2px;
 }
 
-/* Prevent wide stat rows from pushing the drawer wider */
 .imp-drawer__body .ant-card-head-title,
 .imp-drawer__body .ant-card-extra {
 	overflow: hidden;
@@ -651,24 +1253,60 @@
 	background: #1f1f1f;
 	border-radius: 6px;
 	border: 1px solid #303030;
-	border-top: 3px solid #525252;
+	border-top: none;
 	flex: 1;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
+	position: relative;
 }
+
+/* Heraldic header band */
+.imp-state__card-banner {
+	height: 6px;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Diagonal stripe pattern overlay */
+.imp-state__card-banner::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: repeating-linear-gradient(
+		-45deg,
+		transparent,
+		transparent 3px,
+		rgba(255, 255, 255, 0.08) 3px,
+		rgba(255, 255, 255, 0.08) 4px
+	);
+}
+
 .imp-state__card-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	padding: 4px 12px;
+	font-family: var(--imp-font-display);
 	font-weight: 600;
-	font-size: 13px;
+	font-size: 14px;
 	color: white;
 	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 	flex-shrink: 0;
+	letter-spacing: 0.3px;
 }
+
+.imp-state__card-header-extra {
+	font-family: var(--imp-font-body);
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--imp-accent-gold);
+}
+
 .imp-state__card-body {
 	padding: 4px 12px 6px;
 	flex: 1;
@@ -676,6 +1314,18 @@
 	flex-direction: column;
 	gap: 3px;
 	min-height: 0;
+}
+
+/* Key stat (large number treatment) */
+.imp-state__key-stat {
+	font-size: 18px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	font-family: var(--imp-font-body);
+}
+
+.imp-state__key-stat--gold {
+	color: var(--imp-accent-gold);
 }
 
 /* 2-column stat grid */
@@ -700,6 +1350,7 @@
 	font-size: 13px;
 	white-space: nowrap;
 	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 
 /* Full-width rows (Available, Owned, Stock) */
@@ -722,11 +1373,46 @@
 	color: white;
 	font-size: 12px;
 	line-height: 1.4;
+	font-family: var(--imp-font-condensed);
 }
 .imp-state__owned {
 	color: rgba(255, 255, 255, 0.55);
 	font-size: 11px;
 	white-space: normal;
+}
+
+/* Mini stock bar chart */
+.imp-state__stock-bars {
+	display: flex;
+	gap: 2px;
+	align-items: flex-end;
+	height: 20px;
+	margin-top: 4px;
+}
+
+.imp-state__stock-bar {
+	flex: 1;
+	min-width: 8px;
+	max-width: 20px;
+	border-radius: 2px 2px 0 0;
+	transition: height 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+	position: relative;
+}
+
+.imp-state__stock-bar-label {
+	position: absolute;
+	bottom: -14px;
+	left: 50%;
+	transform: translateX(-50%);
+	font-size: 8px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.4);
+	font-family: var(--imp-font-condensed);
+}
+
+/* Current investor highlight */
+.imp-state__card--investor {
+	box-shadow: 0 0 0 1px var(--imp-accent-gold-dim), 0 0 12px rgba(201, 168, 76, 0.1);
 }
 
 /* ---- Unit Marker Layer ---- */
@@ -845,8 +1531,9 @@
 	position: absolute;
 	transform: translate(-50%, -50%);
 	white-space: nowrap;
+	font-family: var(--imp-font-condensed);
 	font-size: 9px;
-	font-weight: 700;
+	font-weight: 600;
 	color: #fff;
 	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7);
 	pointer-events: none;
@@ -857,4 +1544,148 @@
 .imp-boundary-label__cost {
 	margin-left: 3px;
 	color: var(--imp-accent-gold);
+}
+
+/* ---- Sound Toggle ---- */
+.imp-topbar__sound-btn {
+	position: relative;
+}
+
+.imp-topbar__sound-btn--muted {
+	color: var(--imp-danger) !important;
+}
+
+/* ---- Mobile Responsiveness ---- */
+@media (max-width: 768px) {
+	.imp-topbar {
+		padding: 0 10px;
+		height: 36px;
+	}
+
+	.imp-topbar__title {
+		font-size: 15px;
+		max-width: 35%;
+	}
+
+	.imp-turn-panel {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		width: auto;
+		border-radius: 12px 12px 0 0;
+		max-height: 55vh;
+		z-index: 100;
+	}
+
+	.imp-turn-panel--collapsed {
+		max-height: 38px;
+	}
+
+	.imp-player-panel {
+		position: fixed;
+		top: 36px;
+		right: 8px;
+		width: 160px;
+	}
+
+	.imp-vp-track {
+		height: 36px;
+	}
+
+	.imp-vp-track__number {
+		font-size: 7px;
+	}
+
+	.imp-vp-track__marker {
+		width: 16px;
+		height: 13px;
+	}
+
+	.imp-vp-track__marker-text {
+		font-size: 6px;
+	}
+
+	.imp-drawer {
+		width: 100% !important;
+	}
+
+	/* Lobby mobile */
+	.imp-lobby__title {
+		font-size: 36px;
+		letter-spacing: 1px;
+	}
+
+	.imp-lobby__subtitle {
+		font-size: 14px;
+	}
+
+	.imp-lobby__header {
+		padding: 40px 16px 24px;
+	}
+
+	.imp-lobby__games {
+		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+	}
+
+	.imp-lobby__form-row {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 4px;
+	}
+
+	.imp-lobby__form-label {
+		text-align: left;
+		min-width: auto;
+	}
+
+	/* Turn announcement mobile */
+	.imp-turn-announce__country {
+		font-size: 32px;
+	}
+
+	.imp-turn-announce__subtitle {
+		font-size: 16px;
+	}
+}
+
+@media (max-width: 480px) {
+	.imp-topbar__right > .imp-topbar__btn:not(:last-child) {
+		display: none;
+	}
+
+	.imp-player-panel {
+		width: 140px;
+		font-size: 11px;
+	}
+
+	.imp-turn-panel .imp-panel__body {
+		max-height: 50vh;
+	}
+
+	.imp-lobby__title {
+		font-size: 28px;
+	}
+}
+
+/* ---- Touch support for map viewport ---- */
+@media (pointer: coarse) {
+	.imp-viewport {
+		cursor: default;
+		touch-action: none;
+	}
+
+	.imp-viewport--dragging {
+		cursor: default;
+	}
+
+	.imp-hotspot {
+		width: 64px;
+		height: 48px;
+	}
+
+	.imp-unit-marker {
+		width: 34px;
+		height: 34px;
+	}
 }

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './MapOverlay.css';
 import { Input, Button, Tooltip } from 'antd';
-import { HistoryOutlined, InfoCircleOutlined, ReadOutlined } from '@ant-design/icons';
+import { HistoryOutlined, InfoCircleOutlined, ReadOutlined, SoundOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
+import SoundManager from './SoundManager.js';
 
 function TopBar({ onToggleHistory, onToggleInfo, onToggleRules }) {
 	const context = useContext(UserContext);
@@ -15,6 +16,7 @@ function TopBar({ onToggleHistory, onToggleInfo, onToggleRules }) {
 	const [timer, setTimer] = useState(false);
 	const [time, setTime] = useState(0);
 	const [myTurn, setMyTurn] = useState(false);
+	const [soundMuted, setSoundMuted] = useState(SoundManager.isMuted());
 	const turnRef = useRef(null);
 	const timerRef = useRef(null);
 	const intervalRef = useRef(null);
@@ -209,6 +211,31 @@ function TopBar({ onToggleHistory, onToggleInfo, onToggleRules }) {
 				<Tooltip title="Rules" mouseLeaveDelay={0}>
 					<button className="imp-topbar__btn" onClick={onToggleRules}>
 						<ReadOutlined />
+					</button>
+				</Tooltip>
+				<Tooltip title={soundMuted ? 'Unmute Sound' : 'Mute Sound'} mouseLeaveDelay={0}>
+					<button
+						className={'imp-topbar__btn' + (soundMuted ? ' imp-topbar__sound-btn--muted' : '')}
+						onClick={() => {
+							let newMuted = SoundManager.toggleMute();
+							setSoundMuted(newMuted);
+						}}
+					>
+						<SoundOutlined />
+						{soundMuted && (
+							<span
+								style={{
+									position: 'absolute',
+									top: '45%',
+									left: '35%',
+									width: 14,
+									height: 1,
+									background: 'var(--imp-danger)',
+									transform: 'rotate(-45deg)',
+									pointerEvents: 'none',
+								}}
+							/>
+						)}
 					</button>
 				</Tooltip>
 				<span style={{ width: 1, height: 20, background: 'var(--imp-panel-border)', margin: '0 4px' }} />

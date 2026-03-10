@@ -247,9 +247,9 @@ describe('HistoryApp', () => {
 			await flushPromises();
 		});
 
-		// The numbering should show [3] for most recent, [1] for oldest
-		expect(div.textContent).toContain('[3]');
-		expect(div.textContent).toContain('[1]');
+		// The numbering should show Turn 3 for most recent, Turn 1 for oldest
+		expect(div.textContent).toContain('Turn 3');
+		expect(div.textContent).toContain('Turn 1');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 });
