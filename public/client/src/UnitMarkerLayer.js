@@ -5,7 +5,7 @@ import { readSetup } from './backendFiles/stateCache.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import './MapOverlay.css';
 
-function UnitMarkerLayer() {
+function UnitMarkerLayer({ mapWidth }) {
 	const context = useContext(UserContext);
 	const mapInteraction = useContext(MapInteractionContext);
 	const [territories, setTerritories] = useState({});
@@ -36,6 +36,11 @@ function UnitMarkerLayer() {
 		groups[t].push(i);
 	}
 
+	let markerSize = mapWidth ? mapWidth * 0.025 : 28;
+	let markerFont = mapWidth ? mapWidth * 0.012 : 14;
+	let markerSpacing = mapWidth ? mapWidth * 0.016 : 18;
+	let markerOffset = markerSize / 2;
+
 	let elements = [];
 	for (let i = 0; i < markers.length; i++) {
 		let marker = markers[i];
@@ -50,9 +55,8 @@ function UnitMarkerLayer() {
 		// Offset: center the group, then shift each marker
 		let offsetPx = 0;
 		if (groupSize > 1) {
-			let spacing = 18;
-			let totalWidth = (groupSize - 1) * spacing;
-			offsetPx = posInGroup * spacing - totalWidth / 2;
+			let totalWidth = (groupSize - 1) * markerSpacing;
+			offsetPx = posInGroup * markerSpacing - totalWidth / 2;
 		}
 
 		let className = 'imp-unit-marker';
@@ -75,8 +79,11 @@ function UnitMarkerLayer() {
 					mapInteraction.onUnitMarkerClicked(marker.phase, marker.index);
 				}}
 				style={{
-					left: 'calc(' + coords[0] + ' + ' + (offsetPx - 14) + 'px)',
-					top: 'calc(' + coords[1] + ' - 14px)',
+					left: 'calc(' + coords[0] + ' + ' + (offsetPx - markerOffset) + 'px)',
+					top: 'calc(' + coords[1] + ' - ' + markerOffset + 'px)',
+					width: markerSize,
+					height: markerSize,
+					fontSize: markerFont,
 					color: marker.color || '#c9a84c',
 				}}
 				title={marker.unitType + ' at ' + marker.territoryName}

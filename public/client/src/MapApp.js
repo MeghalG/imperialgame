@@ -38,9 +38,22 @@ function MapApp() {
 		Germany: null,
 		Russia: null,
 	});
+	const [mapWidth, setMapWidth] = useState(0);
+	const imgRef = useRef(null);
 	const turnRef = useRef(null);
 	const contextRef = useRef(context);
 	contextRef.current = context;
+
+	useEffect(() => {
+		const el = imgRef.current;
+		if (!el) return;
+		const obs = new ResizeObserver((entries) => {
+			const w = entries[0].contentRect.width;
+			if (w > 0) setMapWidth(w);
+		});
+		obs.observe(el);
+		return () => obs.disconnect();
+	}, []);
 
 	function getColors() {
 		let palette = getCountryColorPalette(context.colorblindMode);
@@ -96,6 +109,11 @@ function MapApp() {
 	function buildComponents() {
 		let { countryColors } = getColors();
 		let table = [];
+		let factoryFont = mapWidth * 0.028;
+		let taxFont = mapWidth * 0.017;
+		let unitFont = mapWidth * 0.015;
+		let boxSize = mapWidth * 0.055;
+		let unitBoxW = mapWidth * 0.11;
 		// sea factories
 		for (let i = 0; i < seaFactories.length; i++) {
 			for (let j = 0; j < seaFactories[i].length; j++) {
@@ -106,10 +124,10 @@ function MapApp() {
 							position: 'absolute',
 							left: seaFactories[i][j][0],
 							top: seaFactories[i][j][1],
-							width: 50,
-							height: 50,
+							width: boxSize,
+							height: boxSize,
 							color: '#13a8a8',
-							fontSize: '1.8vw',
+							fontSize: factoryFont,
 							pointerEvents: 'none',
 						}}
 					>
@@ -128,10 +146,10 @@ function MapApp() {
 							position: 'absolute',
 							left: landFactories[i][j][0],
 							top: landFactories[i][j][1],
-							width: 50,
-							height: 50,
+							width: boxSize,
+							height: boxSize,
 							color: '#8B4513',
-							fontSize: '1.8vw',
+							fontSize: factoryFont,
 							pointerEvents: 'none',
 						}}
 					>
@@ -150,10 +168,10 @@ function MapApp() {
 							position: 'absolute',
 							left: taxChips[i][j][0],
 							top: taxChips[i][j][1],
-							width: 50,
-							height: 50,
+							width: boxSize,
+							height: boxSize,
 							color: countryColors[countries[i]],
-							fontSize: '1.1vw',
+							fontSize: taxFont,
 							pointerEvents: 'none',
 						}}
 					>
@@ -201,9 +219,9 @@ function MapApp() {
 						position: 'absolute',
 						left: units[i][0][0],
 						top: units[i][0][1],
-						width: 100,
-						height: 50,
-						fontSize: '1vw',
+						width: unitBoxW,
+						height: boxSize,
+						fontSize: unitFont,
 						pointerEvents: 'none',
 					}}
 				>
@@ -286,13 +304,13 @@ function MapApp() {
 	return (
 		<React.Fragment>
 			<div style={{ position: 'relative', display: 'inline-block', maxHeight: '82vh' }}>
-				<img src={map} alt="Map" style={{ display: 'block', maxWidth: '100%', maxHeight: '82vh' }} />
+				<img ref={imgRef} src={map} alt="Map" style={{ display: 'block', maxWidth: '100%', maxHeight: '82vh' }} />
 				<mark
 					style={{
 						backgroundColor: 'black',
 						color: 'white',
 						position: 'absolute',
-						fontSize: 7,
+						fontSize: mapWidth * 0.008,
 						lineHeight: 1,
 						transform: 'rotate(335deg)',
 						left: '53%',
@@ -305,7 +323,7 @@ function MapApp() {
 				<SvgRondel rondelData={rondel} colorblindMode={context.colorblindMode} />
 				{buildComponents()}
 				<TerritoryHotspotLayer />
-				<UnitMarkerLayer />
+				<UnitMarkerLayer mapWidth={mapWidth} />
 				<MovementArrowLayer />
 			</div>
 			{vpTrackPortal ? ReactDOM.createPortal(vpTrack, vpTrackPortal) : vpTrack}

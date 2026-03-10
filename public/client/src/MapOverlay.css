@@ -1418,8 +1418,6 @@ body {
 /* ---- Unit Marker Layer ---- */
 .imp-unit-marker {
 	position: absolute;
-	width: 28px;
-	height: 28px;
 	border-radius: 6px;
 	z-index: 15;
 	pointer-events: auto;
@@ -1430,7 +1428,6 @@ body {
 	border: 2px solid rgba(255, 255, 255, 0.2);
 	background: rgba(20, 21, 24, 0.85);
 	transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-	font-size: 14px;
 }
 
 .imp-unit-marker:hover {
@@ -1459,9 +1456,9 @@ body {
 
 .imp-unit-marker__check {
 	position: absolute;
-	bottom: -4px;
-	right: -4px;
-	font-size: 10px;
+	bottom: -0.15em;
+	right: -0.15em;
+	font-size: 0.7em;
 	color: #52c41a;
 	font-weight: 700;
 	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
@@ -1682,10 +1679,5 @@ body {
 	.imp-hotspot {
 		width: 64px;
 		height: 48px;
-	}
-
-	.imp-unit-marker {
-		width: 34px;
-		height: 34px;
 	}
 }
