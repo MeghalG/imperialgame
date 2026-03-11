@@ -16,6 +16,8 @@ function TerritoryHotspot({ name, coords, isClickable, isSelected, highlightColo
 	return (
 		<div
 			className={className}
+			role={isClickable ? 'button' : undefined}
+			aria-label={isClickable ? 'Select territory ' + name + (cost ? ' ' + cost : '') : undefined}
 			onClick={(e) => {
 				if (isClickable) {
 					e.stopPropagation();

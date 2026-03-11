@@ -51,9 +51,30 @@ imperialgame/
       HistoryApp.js          # Game action history log
       RulesApp.js            # Game rules display
       LoginApp.js            # Login + timer + name entry
-      ComponentTemplates.js  # Reusable UI components (ActionComponent, OptionComponent, RadioComponent)
+      ComponentTemplates.js  # Reusable UI components (ActionFlow, OptionSelect, RadioSelect, etc.)
       ContinueManeuverApp.js # Multi-step maneuver continuation
       ManeuverPlannerApp.js  # Plan-based maneuver UI (used for continue-man mode)
+      GameOverApp.js         # Game over screen with final scores
+      PeaceVoteApp.js        # Peace treaty voting
+      FloatingTurnPanel.js   # Floating turn controls overlay on map
+      FloatingPlayerPanel.js # Floating player info overlay on map
+      TopBar.js              # Header bar component
+      TurnAnnouncement.js    # Turn notification overlay
+      SoundManager.js        # Audio cue management
+      MapViewport.js         # Map viewport with zoom/pan controls
+      MapOverlay.css         # Map overlay positioning styles
+      MapInteractionContext.js # React Context for map interactions
+      SvgRondel.js           # SVG-based rondel visualization
+      TerritoryBoundaryLayer.js  # SVG territory boundary rendering
+      TerritoryHotspot.js        # Clickable territory hotspot
+      TerritoryHotspotLayer.js   # Layer of territory hotspots
+      RondelHotspotLayer.js      # Clickable rondel hotspot layer
+      MovementArrow.js           # Arrow showing unit movement
+      MovementArrowLayer.js      # Layer of movement arrows
+      UnitMarkerLayer.js         # Map unit marker rendering
+      countryColors.js           # Country color constants
+      territoryBoundaries.js     # Territory boundary path data
+      hoverSignal.js             # Shared hover state signal
       backendFiles/
         firebase.js          # Firebase init (reads from process.env)
         submitAPI.js         # Core game engine: turn submission, state transitions, all game logic
@@ -64,18 +85,20 @@ imperialgame/
         mapAPI.js            # Map rendering data (units, factories, tax chips, rondel positions)
         miscAPI.js           # Misc readers (game IDs, money, country, bid, vote options)
         helper.js            # Shared pure-ish utilities (stock math, tax calc, scoring, stringify)
-        helper.test.js       # 59 tests for helper.js
-        submitAPI.test.js    # 200+ tests for submitAPI.js
+        stateCache.js        # Performance caching for state reads
+        helper.test.js       # Tests for helper.js
+        submitAPI.test.js    # Tests for submitAPI.js
         turnAPI.test.js      # Tests for turnAPI.js
         buyAPI.test.js       # Tests for buyAPI.js
         proposalAPI.test.js  # Tests for proposalAPI.js
         stateAPI.test.js     # Tests for stateAPI.js
         miscAPI.test.js      # Tests for miscAPI.js
+        stateCache.test.js   # Tests for stateCache.js
       App.test.js            # 2 smoke tests for App.js
       GameOverApp.test.js    # Tests for GameOverApp.js
+      MapInteraction.test.js     # Tests for map interaction behaviors
       ManeuverPlannerApp.test.js # Tests for ManeuverPlannerApp.js
       ModeComponents.test.js # Smoke tests for BidApp, HistoryApp
-      GameOverApp.test.js    # Tests for GameOverApp.js
   functions/                 # Firebase Cloud Functions (empty skeleton, unused)
 ```
 
@@ -84,7 +107,7 @@ All commands run from `public/client/`:
 ```bash
 npm start             # Dev server at localhost:3000
 npm run build         # Production build to build/ (zero warnings)
-npm test              # Jest tests (609 tests across 12 suites)
+npm test              # Jest tests (644 tests across 13 suites)
 npm run format        # Format all source with Prettier
 npm run format:check  # Check formatting without writing
 bash verify.sh        # Pre-push verification (mirrors CI pipeline)
@@ -143,6 +166,7 @@ All components are functional React components using `useContext(UserContext)`.
 - `ProposalApp` → mode `proposal`
 - `ProposalAppOpp` → mode `proposal-opp`
 - `VoteApp` → mode `vote`
+- `PeaceVoteApp` → mode `peace-vote`
 
 Each mode component:
 1. In `useEffect`: fetches options from the relevant API file (buyAPI, proposalAPI, etc.)

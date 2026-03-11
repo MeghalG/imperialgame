@@ -5,8 +5,8 @@ Tracked improvements, technical debt, and feature ideas for Imperial Game.
 ## High Priority
 
 ### Map-Based Maneuvers
-- [ ] Move armies/fleets by clicking on the map instead of using dropdowns
-- [ ] Visual movement paths and destination highlighting
+- [x] ~~Move armies/fleets by clicking on the map instead of using dropdowns~~ (TerritoryHotspot + MapInteractionContext + ManeuverPlannerApp)
+- [x] ~~Visual movement paths and destination highlighting~~ (MovementArrowLayer with SVG arrows, TerritoryBoundaryLayer highlighting)
 - [ ] Drag-and-drop unit movement
 
 ### Server-Side Validation
@@ -46,8 +46,8 @@ Tracked improvements, technical debt, and feature ideas for Imperial Game.
 ### UI/UX Improvements
 - [ ] Mobile-responsive layout
 - [ ] Animated unit movement on the map
-- [ ] Sound effects for key actions (your turn, war declared, etc.)
-- [ ] Better game lobby (show player count, game status, last activity)
+- [x] ~~Sound effects for key actions (your turn, war declared, etc.)~~ (SoundManager.js with Web Audio API synthesized sounds)
+- [x] ~~Better game lobby (show player count, game status, last activity)~~ (EnterApp.js redesigned with atmospheric dark cartography theme)
 - [ ] In-game chat between players
 
 ### Code Cleanup

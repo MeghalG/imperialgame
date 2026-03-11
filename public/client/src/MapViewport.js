@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import hoverSignal from './hoverSignal.js';
 import './MapOverlay.css';
 
 function MapViewport({ children, overlays }) {
@@ -33,6 +34,7 @@ function MapViewport({ children, overlays }) {
 			}
 			if (e.button === 0) {
 				setIsDragging(true);
+				hoverSignal.dragging = true;
 				didDragRef.current = false;
 				dragStartRef.current = { x: e.clientX, y: e.clientY };
 				panStartRef.current = { x: pan.x, y: pan.y };
@@ -43,6 +45,11 @@ function MapViewport({ children, overlays }) {
 
 	const handleMouseMove = useCallback(
 		(e) => {
+			// Always update hover signal so TerritoryHoverLayer can read it
+			hoverSignal.clientX = e.clientX;
+			hoverSignal.clientY = e.clientY;
+			hoverSignal.active = true;
+
 			if (!isDragging) return;
 			const dx = e.clientX - dragStartRef.current.x;
 			const dy = e.clientY - dragStartRef.current.y;
@@ -59,10 +66,13 @@ function MapViewport({ children, overlays }) {
 
 	const handleMouseUp = useCallback(() => {
 		setIsDragging(false);
+		hoverSignal.dragging = false;
 	}, []);
 
 	const handleMouseLeave = useCallback(() => {
 		setIsDragging(false);
+		hoverSignal.active = false;
+		hoverSignal.dragging = false;
 	}, []);
 
 	return (
@@ -74,6 +84,12 @@ function MapViewport({ children, overlays }) {
 			onMouseMove={handleMouseMove}
 			onMouseUp={handleMouseUp}
 			onMouseLeave={handleMouseLeave}
+			onContextMenu={(e) => {
+				e.preventDefault();
+				hoverSignal.clientX = e.clientX;
+				hoverSignal.clientY = e.clientY;
+				hoverSignal.rightClick = true;
+			}}
 		>
 			<div
 				className="imp-canvas"

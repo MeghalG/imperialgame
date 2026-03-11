@@ -100,13 +100,21 @@ body {
 	border-color: var(--imp-accent-gold-dim);
 }
 
-/* ---- Map Viewport ---- */
-.imp-viewport {
+/* ---- Game Layout ---- */
+.imp-game-layout {
 	position: fixed;
 	top: 40px;
 	left: 0;
 	right: 0;
 	bottom: 0;
+	display: flex;
+}
+
+/* ---- Map Viewport ---- */
+.imp-viewport {
+	position: relative;
+	flex: 1;
+	min-width: 0;
 	overflow: hidden;
 	background: #0a0b0d;
 	cursor: grab;
@@ -216,6 +224,7 @@ body {
 	overflow-y: auto;
 	overflow-x: hidden;
 	font-size: 13px;
+	font-variant-numeric: tabular-nums;
 	transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s, padding 0.25s;
 }
 
@@ -356,6 +365,210 @@ body {
 	gap: 2px;
 	margin-right: 4px;
 	vertical-align: middle;
+}
+
+/* ---- Info Sidebar ---- */
+.imp-sidebar {
+	width: 280px;
+	min-width: 280px;
+	background: linear-gradient(180deg, #111218 0%, #0e0f14 100%);
+	border-left: 1px solid rgba(201, 168, 76, 0.1);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	position: relative;
+	z-index: 85;
+}
+
+.imp-sidebar::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	pointer-events: none;
+	opacity: 0.025;
+	background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+	background-repeat: repeat;
+	background-size: 256px 256px;
+}
+
+.imp-sidebar__inner {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 10px 0;
+	position: relative;
+	z-index: 2;
+}
+
+.imp-sidebar__inner::-webkit-scrollbar {
+	width: 3px;
+}
+
+.imp-sidebar__inner::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.imp-sidebar__inner::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 2px;
+}
+
+.imp-sidebar__heading {
+	font-family: var(--imp-font-display);
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 2.5px;
+	color: var(--imp-accent-gold-dim);
+	padding: 6px 16px 6px;
+}
+
+.imp-sidebar__section {
+	margin-bottom: 2px;
+}
+
+.imp-sidebar__divider {
+	height: 1px;
+	background: linear-gradient(90deg, transparent, rgba(201, 168, 76, 0.12), transparent);
+	margin: 6px 16px 8px;
+}
+
+/* Country cards */
+.imp-sidebar__country {
+	display: flex;
+	padding: 5px 12px 5px 0;
+	margin: 0 6px;
+	border-radius: 3px;
+	transition: background 0.15s;
+}
+
+.imp-sidebar__country:hover {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.imp-sidebar__country-accent {
+	width: 3px;
+	min-width: 3px;
+	border-radius: 2px;
+	margin-right: 10px;
+	flex-shrink: 0;
+}
+
+.imp-sidebar__country-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.imp-sidebar__row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	line-height: 1.6;
+}
+
+.imp-sidebar__row--sub {
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.38);
+	line-height: 1.3;
+}
+
+.imp-sidebar__country-name {
+	font-family: var(--imp-font-display);
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+}
+
+.imp-sidebar__money {
+	font-family: var(--imp-font-condensed);
+	font-size: 13px;
+	color: var(--imp-accent-gold);
+	font-variant-numeric: tabular-nums;
+	flex-shrink: 0;
+}
+
+.imp-sidebar__gov {
+	font-family: var(--imp-font-condensed);
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	color: rgba(255, 255, 255, 0.3);
+	cursor: default;
+}
+
+/* Player cards */
+.imp-sidebar__player {
+	padding: 5px 12px 5px 16px;
+	margin: 0 6px;
+	border-radius: 3px;
+	transition: background 0.15s;
+}
+
+.imp-sidebar__player:hover {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.imp-sidebar__player-name {
+	font-family: var(--imp-font-body);
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.85);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.imp-sidebar__score {
+	font-family: var(--imp-font-condensed);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.imp-sidebar__stocks {
+	display: flex;
+	gap: 2px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+.imp-sidebar__stock-badge {
+	display: inline-block;
+	font-family: var(--imp-font-condensed);
+	font-size: 9px;
+	padding: 0 3px;
+	border-radius: 2px;
+	color: rgba(255, 255, 255, 0.9);
+	line-height: 1.6;
+	font-weight: 600;
+}
+
+.imp-sidebar__badge {
+	font-family: var(--imp-font-condensed);
+	font-size: 8px;
+	font-weight: 700;
+	padding: 0 3px;
+	border-radius: 2px;
+	margin-left: 4px;
+	vertical-align: middle;
+	line-height: 1.6;
+	letter-spacing: 0.5px;
+}
+
+.imp-sidebar__badge--inv {
+	background: rgba(201, 168, 76, 0.18);
+	color: var(--imp-accent-gold);
+}
+
+.imp-sidebar__badge--swiss {
+	background: rgba(255, 255, 255, 0.07);
+	color: rgba(255, 255, 255, 0.45);
+}
+
+/* Hide floating player panel on desktop when sidebar is visible */
+@media (min-width: 769px) {
+	.imp-player-panel {
+		display: none;
+	}
 }
 
 /* ---- Territory Hotspot ---- */
@@ -1554,6 +1767,14 @@ body {
 
 /* ---- Mobile Responsiveness ---- */
 @media (max-width: 768px) {
+	.imp-game-layout {
+		top: 36px;
+	}
+
+	.imp-sidebar {
+		display: none;
+	}
+
 	.imp-topbar {
 		padding: 0 10px;
 		height: 36px;
@@ -1580,6 +1801,7 @@ body {
 	}
 
 	.imp-player-panel {
+		display: flex;
 		position: fixed;
 		top: 36px;
 		right: 8px;
@@ -1680,4 +1902,666 @@ body {
 		width: 64px;
 		height: 48px;
 	}
+}
+
+/* ==================================================================
+   Accessibility: Focus-visible
+   ================================================================== */
+*:focus-visible {
+	outline: 2px solid var(--imp-accent-gold);
+	outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+	outline: none;
+}
+
+/* ==================================================================
+   Accessibility: Reduced Motion
+   ================================================================== */
+@media (prefers-reduced-motion: reduce) {
+	.imp-hotspot--selectable,
+	.imp-boundary--selectable,
+	.imp-rondel-wedge--selectable,
+	.imp-unit-marker--active,
+	.imp-movement-arrow {
+		animation: none !important;
+	}
+
+	.imp-turn-announce,
+	.imp-turn-announce__content {
+		animation-duration: 0.01ms !important;
+	}
+
+	.imp-fade-in {
+		animation: none !important;
+	}
+
+	.imp-action-layer,
+	.imp-map-factory,
+	.imp-map-unit {
+		animation: none !important;
+	}
+}
+
+/* ==================================================================
+   Turn Panel Polish: Submit Button + ActionFlow Animations
+   ================================================================== */
+.imp-submit-btn {
+	transition: all 0.15s, transform 0.1s;
+}
+
+.imp-submit-btn:active:not(:disabled) {
+	transform: scale(0.97);
+}
+
+@keyframes imp-layer-enter {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.imp-action-layer {
+	animation: imp-layer-enter 0.25s ease-out both;
+}
+
+.imp-action-layer:nth-child(2) {
+	animation-delay: 0.05s;
+}
+.imp-action-layer:nth-child(3) {
+	animation-delay: 0.1s;
+}
+.imp-action-layer:nth-child(4) {
+	animation-delay: 0.15s;
+}
+.imp-action-layer:nth-child(5) {
+	animation-delay: 0.2s;
+}
+
+/* ==================================================================
+   Map Item Entrance Animations
+   ================================================================== */
+@keyframes imp-factory-appear {
+	from {
+		transform: scale(0.5);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+@keyframes imp-unit-appear {
+	from {
+		transform: scale(0.6);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+.imp-map-factory {
+	animation: imp-factory-appear 0.3s ease-out;
+}
+
+.imp-map-unit {
+	animation: imp-unit-appear 0.25s ease-out;
+}
+
+/* ==================================================================
+   Rules Screen
+   ================================================================== */
+.imp-rules {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	max-height: calc(100vh - 135px);
+	overflow-y: auto;
+	padding-right: 4px;
+}
+
+.imp-rules__section {
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid var(--imp-panel-border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.imp-rules__section-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 16px;
+	border-bottom: 1px solid var(--imp-panel-border);
+	font-family: var(--imp-font-display);
+	font-size: 16px;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+	color: var(--imp-text);
+}
+
+.imp-rules__section-header-accent {
+	width: 3px;
+	height: 20px;
+	border-radius: 2px;
+	background: var(--imp-accent-gold);
+	flex-shrink: 0;
+}
+
+.imp-rules__section-header i {
+	color: var(--imp-accent-gold);
+	font-size: 14px;
+	width: 20px;
+	text-align: center;
+}
+
+.imp-rules__section-body {
+	padding: 12px 16px;
+	font-size: 13px;
+	line-height: 1.7;
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.imp-rules__section-body p {
+	margin-bottom: 10px;
+}
+
+.imp-rules__section-body p:last-child {
+	margin-bottom: 0;
+}
+
+.imp-rules__section-body a {
+	color: var(--imp-accent-gold);
+	text-decoration: none;
+}
+
+.imp-rules__section-body a:hover {
+	text-decoration: underline;
+}
+
+.imp-rules__section-body ol {
+	padding-left: 20px;
+	margin-bottom: 0;
+}
+
+.imp-rules__section-body li {
+	margin-bottom: 6px;
+}
+
+.imp-rules__stock-table {
+	display: inline-flex;
+	gap: 4px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}
+
+.imp-rules__stock-item {
+	font-variant-numeric: tabular-nums;
+	padding: 2px 6px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 3px;
+	font-size: 12px;
+	font-family: var(--imp-font-condensed);
+}
+
+/* ==================================================================
+   Lobby Refinement
+   ================================================================== */
+.imp-lobby__game-card {
+	position: relative;
+	overflow: hidden;
+}
+
+.imp-lobby__game-card::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 3px;
+	background: linear-gradient(
+		90deg,
+		transparent,
+		var(--imp-accent-gold-dim),
+		var(--imp-accent-gold),
+		var(--imp-accent-gold-dim),
+		transparent
+	);
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+
+.imp-lobby__game-card:hover::before {
+	opacity: 1;
+}
+
+.imp-lobby__game-card::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+	opacity: 0.04;
+	background-image: repeating-linear-gradient(
+		45deg,
+		transparent,
+		transparent 10px,
+		rgba(201, 168, 76, 0.3) 10px,
+		rgba(201, 168, 76, 0.3) 11px
+	);
+}
+
+.imp-lobby__game-card-icon {
+	display: block;
+	margin-bottom: 8px;
+	color: var(--imp-accent-gold-dim);
+	font-size: 20px;
+	transition: color 0.2s;
+}
+
+.imp-lobby__game-card:hover .imp-lobby__game-card-icon {
+	color: var(--imp-accent-gold);
+}
+
+.imp-lobby__new-game {
+	position: relative;
+}
+
+.imp-lobby__form-section-label {
+	font-family: var(--imp-font-display);
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--imp-text-dim);
+	margin-bottom: 12px;
+	letter-spacing: 0.5px;
+}
+
+/* ==================================================================
+   Game Over Screen — Full-screen overlay
+   ================================================================== */
+.imp-gameover-overlay {
+	position: fixed;
+	top: 48px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 500;
+	width: 820px;
+	max-width: calc(100vw - 32px);
+	max-height: calc(100vh - 64px);
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+	background: var(--imp-panel-bg);
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	border: 1px solid var(--imp-panel-border);
+	border-radius: 8px;
+	box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+	padding: 16px 20px 16px;
+}
+
+.imp-gameover-overlay::-webkit-scrollbar {
+	width: 4px;
+}
+.imp-gameover-overlay::-webkit-scrollbar-track {
+	background: transparent;
+}
+.imp-gameover-overlay::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.15);
+	border-radius: 2px;
+}
+
+.imp-gameover {
+	width: 100%;
+}
+
+.imp-gameover__header {
+	text-align: center;
+	margin-bottom: 4px;
+	position: relative;
+}
+
+.imp-gameover__toggle {
+	position: absolute;
+	top: 4px;
+	right: 0;
+	background: transparent;
+	border: 1px solid var(--imp-panel-border);
+	color: var(--imp-text-dim);
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 4px;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.imp-gameover__toggle:hover {
+	color: var(--imp-text);
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.imp-gameover--collapsed .imp-gameover__header {
+	margin-bottom: 0;
+}
+
+.imp-gameover__columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	align-items: start;
+}
+
+.imp-gameover__col {
+	min-width: 0;
+}
+
+.imp-gameover__winner-label {
+	font-family: var(--imp-font-condensed);
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 3px;
+	text-transform: uppercase;
+	color: var(--imp-text-dim);
+	margin-bottom: 4px;
+}
+
+.imp-gameover__winner-name {
+	font-family: var(--imp-font-display);
+	font-size: 36px;
+	font-weight: 700;
+	color: var(--imp-accent-gold);
+	letter-spacing: 1px;
+	margin-bottom: 2px;
+	text-shadow: 0 2px 16px rgba(201, 168, 76, 0.4);
+}
+
+.imp-gameover__winner-score {
+	font-variant-numeric: tabular-nums;
+	font-size: 16px;
+	color: var(--imp-text-dim);
+	margin-bottom: 8px;
+}
+
+.imp-gameover__divider {
+	width: 60px;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--imp-accent-gold), transparent);
+	margin: 10px auto;
+}
+
+.imp-gameover__section-label {
+	font-family: var(--imp-font-condensed);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: var(--imp-text-dim);
+	margin: 10px 0 6px;
+	text-align: left;
+}
+
+.imp-gameover__player-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 8px 10px;
+	margin-bottom: 4px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.03);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	text-align: left;
+}
+
+.imp-gameover__player-card--winner {
+	border-color: var(--imp-accent-gold-dim);
+	background: rgba(201, 168, 76, 0.08);
+}
+
+.imp-gameover__rank {
+	font-family: var(--imp-font-display);
+	font-size: 20px;
+	font-weight: 700;
+	color: var(--imp-text-dim);
+	min-width: 22px;
+	text-align: center;
+	line-height: 1;
+	padding-top: 2px;
+}
+
+.imp-gameover__player-card--winner .imp-gameover__rank {
+	color: var(--imp-accent-gold);
+}
+
+.imp-gameover__player-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.imp-gameover__player-name {
+	font-weight: 600;
+	font-size: 13px;
+	margin-bottom: 1px;
+}
+
+.imp-gameover__player-score {
+	font-variant-numeric: tabular-nums;
+	font-size: 15px;
+	font-weight: 700;
+	color: var(--imp-text);
+}
+
+.imp-gameover__wealth-bar {
+	display: flex;
+	height: 7px;
+	border-radius: 3px;
+	overflow: hidden;
+	margin-top: 4px;
+	background: transparent;
+}
+
+.imp-gameover__wealth-segment {
+	height: 100%;
+	min-width: 2px;
+}
+
+.imp-gameover__bond-breakdown {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 8px;
+	margin-top: 4px;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	color: var(--imp-text-dim);
+}
+
+.imp-gameover__bond-item {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.imp-gameover__bond-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.imp-gameover__player-detail {
+	font-size: 10px;
+	color: var(--imp-text-dim);
+	margin-top: 3px;
+	font-variant-numeric: tabular-nums;
+}
+
+.imp-gameover__country-card {
+	padding: 6px 8px;
+	margin-bottom: 3px;
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.02);
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	text-align: left;
+}
+
+.imp-gameover__country-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+}
+
+.imp-gameover__country-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.imp-gameover__country-name {
+	flex: 1;
+	font-weight: 500;
+}
+
+.imp-gameover__country-bond-value {
+	font-variant-numeric: tabular-nums;
+	font-weight: 700;
+	font-size: 14px;
+	color: var(--imp-text);
+}
+
+.imp-gameover__country-pts {
+	font-variant-numeric: tabular-nums;
+	font-size: 11px;
+	color: var(--imp-text-dim);
+}
+
+.imp-gameover__country-owners {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 10px;
+	margin-top: 3px;
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	color: var(--imp-text-dim);
+}
+
+.imp-gameover__country-owner {
+	white-space: nowrap;
+}
+
+/* ==================================================================
+   Territory Hover Tooltip
+   ================================================================== */
+.imp-territory-tooltip {
+	position: fixed;
+	z-index: 200;
+	pointer-events: none;
+	background: rgba(20, 21, 24, 0.92);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 6px;
+	padding: 8px 12px;
+	font-family: var(--imp-font-body);
+	font-size: 12px;
+	color: var(--imp-text);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+	max-width: 240px;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.imp-territory-tooltip--visible {
+	opacity: 1;
+}
+
+.imp-territory-tooltip__name {
+	font-family: var(--imp-font-display);
+	font-size: 14px;
+	font-weight: 600;
+	margin-bottom: 4px;
+	letter-spacing: 0.3px;
+}
+
+.imp-territory-tooltip__country {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-bottom: 4px;
+}
+
+.imp-territory-tooltip__country-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.imp-territory-tooltip__row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--imp-text-dim);
+	font-size: 11px;
+	margin-top: 2px;
+}
+
+.imp-territory-tooltip__row i {
+	width: 14px;
+	text-align: center;
+	font-size: 10px;
+}
+
+.imp-territory-tooltip__units {
+	display: flex;
+	gap: 3px;
+	flex-wrap: wrap;
+	margin-top: 4px;
+}
+
+.imp-territory-tooltip__unit-badge {
+	font-size: 10px;
+	padding: 1px 4px;
+	border-radius: 2px;
+	font-family: var(--imp-font-condensed);
+	font-weight: 600;
+	color: #fff;
+}
+
+.imp-territory-tooltip__unit-badge i {
+	font-size: 9px;
+	margin-right: 2px;
+}
+
+.imp-territory-tooltip__country-stats {
+	margin-left: auto;
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	color: var(--imp-text-dim);
+	white-space: nowrap;
+}
+
+.imp-territory-tooltip__tag {
+	display: inline-block;
+	font-size: 9px;
+	padding: 1px 5px;
+	border-radius: 2px;
+	font-family: var(--imp-font-condensed);
+	font-weight: 600;
+	color: #fff;
+	margin-left: 4px;
+	vertical-align: middle;
+}
+
+.imp-territory-tooltip__tag--warn {
+	background: rgba(200, 80, 40, 0.85);
 }

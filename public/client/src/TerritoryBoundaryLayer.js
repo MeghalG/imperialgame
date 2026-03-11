@@ -97,6 +97,8 @@ function TerritoryBoundaryLayer({
 				points={toPointsString(verts)}
 				fill={fill}
 				stroke={stroke}
+				role={isSelectable ? 'button' : undefined}
+				aria-label={isSelectable ? 'Select territory ' + name : undefined}
 				onClick={
 					isSelectable
 						? (e) => {

@@ -92,6 +92,15 @@ function TurnApp() {
 	let palette = getCountryColorPalette(context.colorblindMode);
 	let accentColor = countryUp && palette.bright[countryUp] ? palette.bright[countryUp] : '#c9a84c';
 
+	// Game over gets a full-screen overlay instead of the small turn panel
+	if (mode === 'game-over') {
+		return (
+			<div className="imp-gameover-overlay imp-fade-in">
+				<GameOverApp />
+			</div>
+		);
+	}
+
 	return (
 		<FloatingTurnPanel title={turnTitle} accentColor={accentColor} undoButton={undoBtn()}>
 			<StaticTurnApp key={turnID} />
@@ -118,8 +127,6 @@ function DisplayMode(props) {
 			return <ManeuverPlannerApp />;
 		case 'peace-vote':
 			return <PeaceVoteApp />;
-		case 'game-over':
-			return <GameOverApp />;
 		default:
 			return null;
 	}

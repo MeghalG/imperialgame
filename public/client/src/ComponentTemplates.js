@@ -591,7 +591,13 @@ function SubmitButton({ data, disabled }) {
 
 	return (
 		<div style={{ textAlign: 'center' }}>
-			<Button type="primary" onClick={() => handleClick()} disabled={disabled} loading={loading}>
+			<Button
+				type="primary"
+				className="imp-submit-btn"
+				onClick={() => handleClick()}
+				disabled={disabled}
+				loading={loading}
+			>
 				Submit
 			</Button>
 		</div>
@@ -670,7 +676,11 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 			let Comp = flowState.currentComponents[objects[i]];
 			if (Comp) {
 				if (vis) {
-					table.push(<Comp data={update} key={flowState.keys[i]} />);
+					table.push(
+						<div className="imp-action-layer" key={'layer-' + i + '-' + flowState.keys[i]}>
+							<Comp data={update} key={flowState.keys[i]} />
+						</div>
+					);
 				} else {
 					table.push('');
 				}

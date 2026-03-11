@@ -126,6 +126,7 @@ function EnterApp() {
 								<div className="imp-lobby__games">
 									{choices.map((id) => (
 										<div key={id} className="imp-lobby__game-card" onClick={() => handleClick(id)}>
+											<i className="fas fa-chess-rook imp-lobby__game-card-icon" />
 											{id}
 										</div>
 									))}
@@ -141,6 +142,7 @@ function EnterApp() {
 							</button>
 						) : (
 							<div className="imp-lobby__new-game">
+								<div className="imp-lobby__form-section-label">Game Setup</div>
 								<div className="imp-lobby__form-row">
 									<span className="imp-lobby__form-label">Game ID</span>
 									<input
@@ -148,6 +150,9 @@ function EnterApp() {
 										placeholder="Choose a unique name"
 										onChange={(e) => updateID(e)}
 									/>
+								</div>
+								<div className="imp-lobby__form-section-label" style={{ marginTop: 16 }}>
+									Players
 								</div>
 								{[0, 1, 2, 3, 4, 5].map((i) => (
 									<div key={i} className="imp-lobby__form-row">

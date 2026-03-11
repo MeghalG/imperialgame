@@ -16,6 +16,8 @@ function FloatingTurnPanel({ title, accentColor, undoButton, children }) {
 					className="imp-panel__collapse-btn"
 					onClick={() => setCollapsed(!collapsed)}
 					title={collapsed ? 'Expand' : 'Collapse'}
+					aria-label={collapsed ? 'Expand turn panel' : 'Collapse turn panel'}
+					aria-expanded={!collapsed}
 				>
 					<i className={'fas fa-chevron-' + (collapsed ? 'up' : 'down')} style={{ fontSize: 10 }}></i>
 				</button>

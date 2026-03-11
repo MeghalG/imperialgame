@@ -129,6 +129,7 @@ async function getTurnTitle(context) {
 async function getMode(context) {
 	let gameState = await readGameState(context);
 	let mode = gameState.mode;
+	if (mode === MODES.GAME_OVER) return mode;
 	let turn = (gameState.playerInfo[context.name] || {}).myTurn;
 	if (context.name && turn) {
 		return mode;
@@ -216,9 +217,9 @@ async function getTurnState(context) {
 		turnTitle = 'Not Your Turn.';
 	}
 
-	// mode
+	// mode — game-over is always visible to everyone
 	let turn = (gameState.playerInfo[context.name] || {}).myTurn;
-	let mode = context.name && turn ? gameState.mode : 'non-turn';
+	let mode = gameState.mode === MODES.GAME_OVER ? MODES.GAME_OVER : context.name && turn ? gameState.mode : 'non-turn';
 
 	// undoable
 	let undoPlayer = gameState.undo;

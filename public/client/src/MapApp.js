@@ -131,7 +131,7 @@ function MapApp() {
 							pointerEvents: 'none',
 						}}
 					>
-						<i className="fas fa-industry fa"></i>
+						<i className="fas fa-industry fa imp-map-factory"></i>
 					</div>
 				);
 			}
@@ -153,7 +153,7 @@ function MapApp() {
 							pointerEvents: 'none',
 						}}
 					>
-						<i className="fas fa-industry fa"></i>
+						<i className="fas fa-industry fa imp-map-factory"></i>
 					</div>
 				);
 			}
@@ -215,6 +215,7 @@ function MapApp() {
 			table.push(
 				<div
 					key={'unit-' + i}
+					className="imp-map-unit"
 					style={{
 						position: 'absolute',
 						left: units[i][0][0],
@@ -284,7 +285,11 @@ function MapApp() {
 									</div>
 								}
 							>
-								<div className="imp-vp-track__marker" style={{ backgroundColor: iconColors[country] }}>
+								<div
+									className="imp-vp-track__marker"
+									style={{ backgroundColor: iconColors[country] }}
+									aria-label={country + ' at ' + i + ' points'}
+								>
 									<span className="imp-vp-track__marker-text">
 										{COUNTRY_ABBREV[country] || country.slice(0, 2).toUpperCase()}
 									</span>

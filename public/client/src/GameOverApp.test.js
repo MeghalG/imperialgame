@@ -126,7 +126,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
@@ -145,7 +145,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		// Use act-like pattern: render, flush promises, then check
 		ReactDOM.render(
@@ -172,7 +172,7 @@ describe('GameOverApp', () => {
 		// Alice wins
 		expect(div.textContent).toContain('Game Over');
 		expect(div.textContent).toContain('wins');
-		expect(div.textContent).toContain('Player Standings');
+		expect(div.textContent).toContain('Investor Rankings');
 		expect(div.textContent).toContain('Country Standings');
 
 		ReactDOM.unmountComponentAtNode(div);
@@ -183,7 +183,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
@@ -217,7 +217,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
@@ -247,7 +247,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
@@ -283,7 +283,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
@@ -312,7 +312,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
@@ -335,13 +335,21 @@ describe('GameOverApp', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('country with no leadership shows None', async () => {
+	test('country with no leadership and player with no stock shows None', async () => {
 		const gs = buildGameState();
 		gs.countryInfo.France.leadership = [];
+		gs.playerInfo.Charlie = {
+			money: 10,
+			stock: [],
+			scoreModifier: 0,
+			investor: false,
+			swiss: false,
+			order: 3,
+		};
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
@@ -375,7 +383,7 @@ describe('GameOverApp', () => {
 		mockDbData = { games: { testGame: gs } };
 
 		const div = document.createElement('div');
-		const contextValue = { game: 'testGame', name: 'Alice' };
+		const contextValue = { game: 'testGame', name: 'Alice', colorblindMode: false };
 
 		ReactDOM.render(
 			<UserContext.Provider value={contextValue}>
