@@ -1,4 +1,4 @@
-import { database } from './firebase.js';
+import { database, callFunction } from './firebase.js';
 import * as helper from './helper.js';
 import { setCachedState, readSetup } from './stateCache.js';
 import emailjs from 'emailjs-com';
@@ -15,6 +15,36 @@ import {
 	PUNT_BUY,
 	WHEEL_CENTER,
 } from '../gameConstants.js';
+
+// Cloud Function callables
+const submitTurnCF = callFunction('submitTurn');
+const submitBidCF = callFunction('submitBid');
+const submitManeuverCF = callFunction('submitManeuver');
+const submitPeaceCF = callFunction('submitPeace');
+const gameAdminCF = callFunction('gameAdmin');
+
+/**
+ * Calls a Cloud Function and caches the authoritative state from the response.
+ * On error, clears the optimistic cache so the listener fetches fresh state.
+ *
+ * @param {Function} cfCallable - The httpsCallable function
+ * @param {Object} data - The data to send to the CF
+ * @param {string} gameID - The game ID for cache management
+ * @returns {Promise<Object>} The CF response data
+ */
+async function callCF(cfCallable, data, gameID) {
+	try {
+		const result = await cfCallable(data);
+		if (result.data?.state) {
+			setCachedState(gameID, result.data.state.turnID, result.data.state);
+		}
+		return result.data;
+	} catch (err) {
+		// Clear optimistic cache — listener will fetch authoritative state
+		setCachedState(gameID, null, null);
+		throw err;
+	}
+}
 
 /**
  * Persists the updated game state to Firebase, sends email notifications,
@@ -36,50 +66,23 @@ import {
  * @bug Empty error handler on the `.set()` callback silently swallows write failures.
  */
 async function finalizeSubmit(gameState, gameID, context) {
-	let oldState = await database.ref('games/' + gameID).once('value');
-	oldState = oldState.val();
+	// Round money (needed for local state consistency)
 	for (let player in gameState.playerInfo) {
 		gameState.playerInfo[player].money = parseFloat(gameState.playerInfo[player].money.toFixed(2));
 	}
 	for (let country in gameState.countryInfo) {
 		gameState.countryInfo[country].money = parseFloat(gameState.countryInfo[country].money.toFixed(2));
 	}
-	emailjs.init(process.env.REACT_APP_EMAILJS_USER_ID);
-	for (let key in gameState.playerInfo) {
-		if (gameState.playerInfo[key].email && gameState.playerInfo[key].myTurn) {
-			emailjs.send(process.env.REACT_APP_EMAILJS_SERVICE_ID, process.env.REACT_APP_EMAILJS_TEMPLATE_ID, {
-				to_name: key,
-				to_email: gameState.playerInfo[key].email,
-			});
-		}
-	}
-	// timer stuff
-	let timer = gameState.timer;
-	if (timer.timed) {
-		let time = 0;
-		let offset = await database.ref('/.info/serverTimeOffset').once('value');
-		let offsetVal = offset.val() || 0;
-		time = Date.now() + offsetVal;
-		if (!gameState.sameTurn) {
-			for (let key in oldState.playerInfo) {
-				if (oldState.playerInfo[key].myTurn) {
-					await adjustTime(key, gameState, time);
-				}
-			}
-			timer.lastMove = time;
-		} else {
-			await adjustTime(context.name, gameState, time);
-		}
-		timer.pause = 0;
-	}
-	await database.ref('game histories/' + gameID + '/' + oldState.turnID).set(oldState);
-	// Increment turnID before caching and writing so that:
-	// 1. The cached state has the correct new turnID
-	// 2. The Firebase write includes the new turnID, triggering turnID listeners
-	// 3. invalidateIfStale sees matching turnID → cache preserved for submitter
+	// Increment turnID for local cache
 	gameState.turnID = gameState.turnID + 1;
 	setCachedState(gameID, gameState.turnID, gameState);
-	await database.ref('games/' + gameID).set(gameState);
+	// Best-effort write — CF is authoritative; this is for optimistic UI only.
+	// With .write:false rules this will fail silently; the CF write is the real one.
+	try {
+		await database.ref('games/' + gameID).set(gameState);
+	} catch (e) {
+		// Expected when database rules are locked down
+	}
 }
 
 /**
@@ -169,12 +172,14 @@ function buyStock(gameState, player, stock, price, context) {
 	if (!gameState.playerInfo[player].stock) {
 		gameState.playerInfo[player].stock = [];
 	}
-	gameState.playerInfo[player].stock.push(stock);
 	let availStock = gameState.countryInfo[stock.country].availStock;
 	let idx = availStock.indexOf(stock.stock);
-	if (idx !== -1) {
-		availStock.splice(idx, 1);
+	if (idx === -1) {
+		console.error(`buyStock: stock ${stock.stock} not found in ${stock.country} availStock`);
+		return;
 	}
+	gameState.playerInfo[player].stock.push(stock);
+	availStock.splice(idx, 1);
 	gameState.playerInfo[player].money -= price;
 	gameState.countryInfo[stock.country].money += price;
 	helper.sortStock(gameState.playerInfo[player].stock, context);
@@ -358,6 +363,21 @@ async function submitBuy(context) {
 	gameState.history.push(buyMsg + '.');
 	gameState.undo = context.name;
 	await finalizeSubmit(gameState, context.game, context);
+
+	// Call CF (authoritative) — response replaces optimistic cache
+	await callCF(
+		submitTurnCF,
+		{
+			type: 'buy',
+			gameID: context.game,
+			playerName: context.name,
+			buyCountry: context.buyCountry,
+			buyStock: context.buyStock,
+			returnStock: context.returnStock,
+		},
+		context.game
+	);
+
 	return 'done';
 }
 
@@ -436,6 +456,19 @@ async function submitVote(context) {
 
 	gameState.undo = context.name;
 	await finalizeSubmit(gameState, context.game, context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitTurnCF,
+		{
+			type: 'vote',
+			gameID: context.game,
+			playerName: context.name,
+			vote: context.vote,
+		},
+		context.game
+	);
+
 	return 'done';
 }
 
@@ -462,6 +495,17 @@ async function submitNoCounter(context) {
 
 	gameState.undo = context.name;
 	await finalizeSubmit(gameState, context.game, context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitTurnCF,
+		{
+			type: 'noCounter',
+			gameID: context.game,
+			playerName: context.name,
+		},
+		context.game
+	);
 
 	return 'done';
 }
@@ -595,6 +639,25 @@ async function completeManeuver(gameState, context) {
  * @returns {Promise<string>} 'done' on success
  */
 async function submitManeuver(context) {
+	await _submitManeuverLocal(context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitManeuverCF,
+		{
+			type: 'maneuver',
+			gameID: context.game,
+			playerName: context.name,
+			destination: context.maneuverDest,
+			action: context.maneuverAction || '',
+		},
+		context.game
+	);
+
+	return 'done';
+}
+
+async function _submitManeuverLocal(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
 	let cm = gameState.currentManeuver;
@@ -760,6 +823,25 @@ async function submitManeuver(context) {
  * @returns {Promise<string>} 'done' on success
  */
 async function submitBatchManeuver(context) {
+	await _submitBatchManeuverLocal(context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitManeuverCF,
+		{
+			type: 'batchManeuver',
+			gameID: context.game,
+			playerName: context.name,
+			fleetMan: context.fleetMan,
+			armyMan: context.armyMan,
+		},
+		context.game
+	);
+
+	return 'done';
+}
+
+async function _submitBatchManeuverLocal(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
 	let cm = gameState.currentManeuver;
@@ -1001,6 +1083,24 @@ async function submitBatchManeuver(context) {
  * @returns {Promise<string>} 'done' on success
  */
 async function submitDictatorPeaceVote(context) {
+	await _submitDictatorPeaceVoteLocal(context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitPeaceCF,
+		{
+			type: 'dictatorPeaceVote',
+			gameID: context.game,
+			playerName: context.name,
+			accept: context.peaceVoteChoice === 'accept',
+		},
+		context.game
+	);
+
+	return 'done';
+}
+
+async function _submitDictatorPeaceVoteLocal(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
 	let cm = gameState.currentManeuver;
@@ -1093,6 +1193,24 @@ async function submitDictatorPeaceVote(context) {
  * @returns {Promise<string>} 'done' on success
  */
 async function submitPeaceVote(context) {
+	await _submitPeaceVoteLocal(context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitPeaceCF,
+		{
+			type: 'peaceVote',
+			gameID: context.game,
+			playerName: context.name,
+			vote: context.peaceVoteChoice,
+		},
+		context.game
+	);
+
+	return 'done';
+}
+
+async function _submitPeaceVoteLocal(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
 	let pv = gameState.peaceVote;
@@ -1638,6 +1756,30 @@ async function executeProposal(gameState, context) {
  * @returns {Promise<string>} 'done' on success
  */
 async function submitProposal(context) {
+	await _submitProposalLocal(context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitTurnCF,
+		{
+			type: 'proposal',
+			gameID: context.game,
+			playerName: context.name,
+			wheelSpot: context.wheelSpot,
+			fleetMan: context.fleetMan,
+			armyMan: context.armyMan,
+			factoryLoc: context.factoryLoc,
+			fleetProduce: context.fleetProduce,
+			armyProduce: context.armyProduce,
+			import: context.import,
+		},
+		context.game
+	);
+
+	return 'done';
+}
+
+async function _submitProposalLocal(context) {
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
 	let country = gameState.countryUp;
@@ -1874,6 +2016,18 @@ async function bidBuy(context) {
 	await setNextBuyer(context, gameState, country);
 	gameState.undo = context.name;
 	await finalizeSubmit(gameState, context.game, context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitBidCF,
+		{
+			type: 'bidBuy',
+			gameID: context.game,
+			playerName: context.name,
+			accept: context.buyBid,
+		},
+		context.game
+	);
 }
 
 /**
@@ -1913,6 +2067,18 @@ async function bid(context) {
 	}
 	gameState.undo = context.name;
 	await finalizeSubmit(gameState, context.game, context);
+
+	// Call CF (authoritative)
+	await callCF(
+		submitBidCF,
+		{
+			type: 'bid',
+			gameID: context.game,
+			playerName: context.name,
+			bidAmount: context.bid,
+		},
+		context.game
+	);
 
 	return 'done';
 }
@@ -1963,13 +2129,24 @@ async function newGame(info) {
 	}
 	let p = info.newGamePlayers.filter(Boolean).join(', ');
 	gameState.history = ['The game has begun with players ' + p + '.'];
-	await database.ref('games/' + info.newGameID).set(gameState, async (error) => {
-		if (error) {
-			console.error('Firebase write failed in newGame:', error);
-		} else {
-			await database.ref('games/' + info.newGameID + '/turnID').set(gameState.turnID + 1);
-		}
-	});
+	// Best-effort write for optimistic UI — CF is authoritative
+	try {
+		await database.ref('games/' + info.newGameID).set(gameState);
+		await database.ref('games/' + info.newGameID + '/turnID').set(gameState.turnID + 1);
+	} catch (e) {
+		// Expected when database rules are locked down
+	}
+	// Call CF (authoritative) — server creates the game
+	await callCF(
+		gameAdminCF,
+		{
+			type: 'newGame',
+			newGameID: info.newGameID,
+			newGamePlayers: info.newGamePlayers,
+		},
+		info.newGameID
+	);
+
 	return 'done';
 }
 
@@ -1999,11 +2176,25 @@ async function undo(context) {
 
 	// Force TurnApp refresh for all players after undo
 	gameState.sameTurn = false;
-	await database.ref('game histories/' + context.game + '/' + oldTurnID).remove();
-	// Cache the restored state so turnID listener reads it instantly.
-	// gameState.turnID already equals oldTurnID (from the history snapshot).
-	setCachedState(context.game, gameState.turnID, gameState);
-	await database.ref('games/' + context.game).set(gameState);
+	// Best-effort write for optimistic UI — CF is authoritative
+	try {
+		await database.ref('game histories/' + context.game + '/' + oldTurnID).remove();
+		setCachedState(context.game, gameState.turnID, gameState);
+		await database.ref('games/' + context.game).set(gameState);
+	} catch (e) {
+		// Expected when database rules are locked down
+	}
+	// Call CF (authoritative) — server restores the previous state
+	await callCF(
+		gameAdminCF,
+		{
+			type: 'undo',
+			gameID: context.game,
+			playerName: context.name,
+		},
+		context.game
+	);
+
 	return 'done';
 }
 

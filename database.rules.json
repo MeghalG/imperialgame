@@ -3,7 +3,7 @@
     "games": {
       ".read": "auth !== null",
       "$gameID": {
-        ".write": "auth !== null"
+        ".write": false
       }
     },
 
@@ -11,7 +11,7 @@
       ".read": "auth !== null",
       "$gameID": {
         "$turnID": {
-          ".write": "auth !== null"
+          ".write": false
         }
       }
     },
