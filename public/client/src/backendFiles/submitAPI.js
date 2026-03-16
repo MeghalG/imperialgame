@@ -1,7 +1,6 @@
 import { database, callFunction } from './firebase.js';
 import * as helper from './helper.js';
 import { setCachedState, readSetup } from './stateCache.js';
-import emailjs from 'emailjs-com';
 import {
 	MODES,
 	WHEEL_ACTIONS,
