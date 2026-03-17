@@ -34,8 +34,9 @@ async function getCountryInfo(context) {
  */
 async function getPlayerInfo(context) {
 	let gameState = await readGameState(context);
-	let playerInfo = gameState.playerInfo;
-	let countryInfo = gameState.countryInfo;
+	if (!gameState) return {};
+	let playerInfo = gameState.playerInfo || {};
+	let countryInfo = gameState.countryInfo || {};
 	for (let key in playerInfo) {
 		playerInfo[key]['cashValue'] = helper.computeCash(playerInfo[key], countryInfo);
 	}
