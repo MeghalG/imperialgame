@@ -1,14 +1,14 @@
 {
   "rules": {
     "games": {
-      ".read": "auth !== null",
+      ".read": true,
       "$gameID": {
         ".write": false
       }
     },
 
     "game histories": {
-      ".read": "auth !== null",
+      ".read": true,
       "$gameID": {
         "$turnID": {
           ".write": false
@@ -17,12 +17,12 @@
     },
 
     "template game": {
-      ".read": "auth !== null",
+      ".read": true,
       ".write": false
     },
 
     "setups": {
-      ".read": "auth !== null",
+      ".read": true,
       ".write": false
     },
 

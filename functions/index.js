@@ -87,7 +87,6 @@ async function serverFinalizeSubmit(gameState, gameID, oldState, submitterName) 
 // ── submitTurn ──────────────────────────────────────────────
 // Handles: buy, vote, noCounter, proposal
 exports.submitTurn = onCall(async (request) => {
-	if (!request.auth) throw new HttpsError('unauthenticated', 'Not logged in');
 	const { type, gameID, ...params } = request.data;
 
 	const gameState = await db.readGameState(gameID);
@@ -136,7 +135,6 @@ exports.submitTurn = onCall(async (request) => {
 // ── submitBid ───────────────────────────────────────────────
 // Handles: bid, bidBuy
 exports.submitBid = onCall(async (request) => {
-	if (!request.auth) throw new HttpsError('unauthenticated', 'Not logged in');
 	const { type, gameID, ...params } = request.data;
 
 	const gameState = await db.readGameState(gameID);
@@ -164,7 +162,6 @@ exports.submitBid = onCall(async (request) => {
 // ── submitManeuver ──────────────────────────────────────────
 // Handles: maneuver, batchManeuver
 exports.submitManeuver = onCall(async (request) => {
-	if (!request.auth) throw new HttpsError('unauthenticated', 'Not logged in');
 	const { type, gameID, ...params } = request.data;
 
 	const gameState = await db.readGameState(gameID);
@@ -202,7 +199,6 @@ exports.submitManeuver = onCall(async (request) => {
 // ── submitPeace ─────────────────────────────────────────────
 // Handles: peaceVote, dictatorPeaceVote
 exports.submitPeace = onCall(async (request) => {
-	if (!request.auth) throw new HttpsError('unauthenticated', 'Not logged in');
 	const { type, gameID, ...params } = request.data;
 
 	const gameState = await db.readGameState(gameID);
@@ -239,7 +235,6 @@ exports.submitPeace = onCall(async (request) => {
 // ── gameAdmin ───────────────────────────────────────────────
 // Handles: newGame, undo
 exports.gameAdmin = onCall(async (request) => {
-	if (!request.auth) throw new HttpsError('unauthenticated', 'Not logged in');
 	const { type, ...params } = request.data;
 
 	switch (type) {
