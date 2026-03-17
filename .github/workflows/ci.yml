@@ -96,5 +96,5 @@ jobs:
           channelId: live
           projectId: imperialgame-e8a12
 
-      - name: Deploy Cloud Functions
-        run: npx firebase-tools deploy --only functions --project imperialgame-e8a12
+      - name: Deploy Cloud Functions and Database Rules
+        run: npx firebase-tools deploy --only functions,database --project imperialgame-e8a12

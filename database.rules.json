@@ -26,6 +26,11 @@
       ".write": false
     },
 
+    "setup-beta": {
+      ".read": true,
+      ".write": false
+    },
+
     "users": {
       ".read": false,
       ".write": false,
