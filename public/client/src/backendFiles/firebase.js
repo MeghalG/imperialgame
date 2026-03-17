@@ -11,16 +11,19 @@ import {
 	off,
 	remove,
 } from 'firebase/database';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const config = {
 	apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
 	authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
 	databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
 	storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+	projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
 };
 
 const app = initializeApp(config);
 const db = getDatabase(app);
+const functions = getFunctions(app);
 
 // Map v8 event names to v10 listener functions
 const listenerFns = {
@@ -110,4 +113,13 @@ async function fix() {
 }
 fix();
 
-export { database, fix };
+/**
+ * Creates a callable reference to a Cloud Function.
+ * @param {string} name - Cloud Function name (e.g. 'submitTurn')
+ * @returns {Function} Callable function that accepts data and returns a promise
+ */
+function callFunction(name) {
+	return httpsCallable(functions, name);
+}
+
+export { database, fix, callFunction };

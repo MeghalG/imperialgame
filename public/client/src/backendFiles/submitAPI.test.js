@@ -55,6 +55,7 @@ jest.mock('./firebase.js', () => ({
 			}),
 		})),
 	},
+	callFunction: jest.fn(() => jest.fn(() => Promise.resolve({ data: {} }))),
 }));
 
 // ---- Mock emailjs-com -----------------------------------------------------
@@ -3047,16 +3048,15 @@ describe('finalizeSubmit — via bid', () => {
 		expect(mockSetData['games/testGame']).toBeDefined();
 	});
 
-	test('saves old state to game histories', async () => {
+	test('saves old state to game histories (now handled by CF)', async () => {
+		// History archival is now done server-side in the Cloud Function.
+		// This test verifies the bid function completes without error.
 		const gs = createMockGameState({ mode: 'bid', countryUp: 'Austria', turnID: 7 });
 		setupMockDb(gs);
 		const context = { game: 'testGame', name: 'Alice', bid: 5 };
 
-		await bid(context);
-		await flushPromises();
-
-		// Old state should be saved at game histories/testGame/{turnID}
-		expect(mockSetData['game histories/testGame/7']).toBeDefined();
+		const result = await bid(context);
+		expect(result).toBe('done');
 	});
 });
 
@@ -3147,11 +3147,11 @@ describe('buyStock', () => {
 		// Stock denomination 3 is NOT in availStock
 		buyStock(gs, 'Alice', { country: 'Austria', stock: 3 }, 6, {});
 
-		// Before fix: indexOf returns -1, splice(-1,1) removes last element (5)
-		// After fix: indexOf guard prevents any removal
+		// Fix: early return prevents any mutation when stock not found
 		expect(gs.countryInfo.Austria.availStock).toEqual([1, 2, 4, 5]);
-		// Stock should still be added to player
-		expect(gs.playerInfo.Alice.stock).toEqual([{ country: 'Austria', stock: 3 }]);
+		expect(gs.playerInfo.Alice.stock).toEqual([]);
+		expect(gs.playerInfo.Alice.money).toBe(20);
+		expect(gs.countryInfo.Austria.money).toBe(0);
 	});
 });
 
@@ -3159,7 +3159,10 @@ describe('buyStock', () => {
 // finalizeSubmit — error propagation
 // ===========================================================================
 describe('finalizeSubmit — error propagation', () => {
-	test('rejects when Firebase write fails in finalizeSubmit', async () => {
+	test('handles Firebase write failure gracefully (CF is authoritative)', async () => {
+		// With server-side Cloud Functions, client-side Firebase write failures
+		// are expected (rules locked down). The bid function should complete
+		// via the CF call even when the local write fails.
 		const gs = createMockGameState({ mode: 'bid', countryUp: 'Austria' });
 		setupMockDb(gs);
 
@@ -3184,8 +3187,7 @@ describe('finalizeSubmit — error propagation', () => {
 				}),
 				off: jest.fn(),
 				set: jest.fn((data) => {
-					mockSetData[path] = JSON.parse(JSON.stringify(data));
-					// Reject for the games/ path to simulate a Firebase write failure
+					// Reject for the games/ path to simulate locked-down rules
 					if (path === 'games/testGame') {
 						return Promise.reject(new Error('Permission denied'));
 					}
@@ -3197,7 +3199,9 @@ describe('finalizeSubmit — error propagation', () => {
 		});
 
 		const context = { game: 'testGame', name: 'Alice', bid: 5 };
-		await expect(bid(context)).rejects.toThrow('Permission denied');
+		// Should complete without throwing — the try-catch in finalizeSubmit handles it
+		const result = await bid(context);
+		expect(result).toBe('done');
 
 		// Restore the original mock implementation
 		if (savedImpl) {

@@ -63,16 +63,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: functions
+
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
           name: build
           path: public/client/build
 
-      - name: Deploy to Firebase Hosting
+      - name: Deploy to Firebase (Hosting + Functions)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: imperialgame-e8a12
+
+      - name: Deploy Cloud Functions
+        run: npx firebase-tools deploy --only functions --project imperialgame-e8a12
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

@@ -35,6 +35,7 @@ jest.mock('./backendFiles/firebase.js', () => ({
 			set: jest.fn(() => Promise.resolve()),
 		})),
 	},
+	callFunction: jest.fn(() => jest.fn(() => Promise.resolve({ data: {} }))),
 }));
 
 jest.mock('./backendFiles/proposalAPI.js', () => ({

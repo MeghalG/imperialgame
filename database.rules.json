@@ -1,28 +1,28 @@
 {
   "rules": {
     "games": {
-      ".read": "auth !== null",
+      ".read": true,
       "$gameID": {
-        ".write": "auth !== null"
+        ".write": false
       }
     },
 
     "game histories": {
-      ".read": "auth !== null",
+      ".read": true,
       "$gameID": {
         "$turnID": {
-          ".write": "auth !== null"
+          ".write": false
         }
       }
     },
 
     "template game": {
-      ".read": "auth !== null",
+      ".read": true,
       ".write": false
     },
 
     "setups": {
-      ".read": "auth !== null",
+      ".read": true,
       ".write": false
     },
 

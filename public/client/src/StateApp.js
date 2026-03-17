@@ -23,16 +23,37 @@ function StateApp() {
 	contextRef.current = context;
 
 	const reinitialize = useCallback(async () => {
-		let [countriesData, countryInfoData, playerInfoData, playersOrderedData] = await Promise.all([
-			helper.getCountries(contextRef.current),
-			stateAPI.getCountryInfo(contextRef.current),
-			stateAPI.getPlayerInfo(contextRef.current),
-			helper.getPlayersInOrder(contextRef.current),
-		]);
-		setCountries(countriesData);
-		setCountryInfo(countryInfoData);
-		setPlayerInfo(playerInfoData);
-		setPlayersOrdered(playersOrderedData);
+		try {
+			let [countriesData, countryInfoData, playerInfoData, playersOrderedData] = await Promise.all([
+				helper.getCountries(contextRef.current),
+				stateAPI.getCountryInfo(contextRef.current),
+				stateAPI.getPlayerInfo(contextRef.current),
+				helper.getPlayersInOrder(contextRef.current),
+			]);
+			setCountries(countriesData || []);
+			setCountryInfo(countryInfoData || {});
+			setPlayerInfo(playerInfoData || {});
+			setPlayersOrdered(playersOrderedData || []);
+		} catch (e) {
+			console.warn('StateApp: failed to load game info, retrying...', e);
+			// Retry once after a short delay (handles race conditions on initial load)
+			setTimeout(async () => {
+				try {
+					let [countriesData, countryInfoData, playerInfoData, playersOrderedData] = await Promise.all([
+						helper.getCountries(contextRef.current),
+						stateAPI.getCountryInfo(contextRef.current),
+						stateAPI.getPlayerInfo(contextRef.current),
+						helper.getPlayersInOrder(contextRef.current),
+					]);
+					setCountries(countriesData || []);
+					setCountryInfo(countryInfoData || {});
+					setPlayerInfo(playerInfoData || {});
+					setPlayersOrdered(playersOrderedData || []);
+				} catch (retryErr) {
+					console.warn('StateApp: retry also failed', retryErr);
+				}
+			}, 1000);
+		}
 	}, []);
 
 	useEffect(() => {

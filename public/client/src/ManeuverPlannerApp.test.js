@@ -34,6 +34,7 @@ jest.mock('./backendFiles/firebase.js', () => ({
 			off: jest.fn(),
 		})),
 	},
+	callFunction: jest.fn(() => jest.fn(() => Promise.resolve({ data: {} }))),
 }));
 
 // Mock proposalAPI to avoid complex territory/adjacency lookups
