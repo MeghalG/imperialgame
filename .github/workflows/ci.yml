@@ -59,6 +59,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -67,6 +71,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Install functions dependencies
         run: npm ci
@@ -78,7 +87,7 @@ jobs:
           name: build
           path: public/client/build
 
-      - name: Deploy to Firebase (Hosting + Functions)
+      - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
@@ -87,8 +96,4 @@ jobs:
           projectId: imperialgame-e8a12
 
       - name: Deploy Cloud Functions
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa.json"
-          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
-          npx firebase-tools deploy --only functions --project imperialgame-e8a12
-          rm -f "$RUNNER_TEMP/sa.json"
+        run: npx firebase-tools deploy --only functions --project imperialgame-e8a12
