@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase/app';
 import {
 	getDatabase,
 	ref,
-	get,
 	set,
 	onValue,
 	onChildAdded,
@@ -46,32 +45,33 @@ const database = {
 			// and don't work with get() in Firebase v10+ (server rejects them).
 			// Use a one-shot onValue listener instead.
 			once: (eventType, callback) => {
-				let promise;
-				if (path && (path.startsWith('.info') || path.startsWith('/.info'))) {
-					// .info paths are client-only and don't work with get() in
-					// Firebase v10+ (server rejects them with "Invalid token in path").
-					// Use a one-shot onValue listener instead.
-					// NOTE: onValue may fire the callback synchronously when data is
-					// cached, so we use `let detach` (not `const`) to avoid a
-					// temporal dead zone ReferenceError.
-					promise = new Promise((resolve) => {
-						let detach = null;
-						detach = onValue(dbRef, (snapshot) => {
+				// Use a one-shot onValue listener for ALL paths instead of get().
+				// Firebase v10's get() can fail with "Permission denied" when an
+				// active WebSocket connection exists with stale auth state, even
+				// when rules allow public reads. onValue uses the persistent
+				// connection and works reliably.
+				// NOTE: onValue may fire the callback synchronously when data is
+				// cached, so we use `let detach` (not `const`) to avoid a
+				// temporal dead zone ReferenceError.
+				let promise = new Promise((resolve, reject) => {
+					let detach = null;
+					detach = onValue(
+						dbRef,
+						(snapshot) => {
 							resolve(snapshot);
 							if (detach) {
 								detach();
 							} else {
-								// Callback fired synchronously before assignment completed;
-								// schedule cleanup on the next microtask.
 								Promise.resolve().then(() => {
 									if (detach) detach();
 								});
 							}
-						});
-					});
-				} else {
-					promise = get(dbRef);
-				}
+						},
+						(error) => {
+							reject(error);
+						}
+					);
+				});
 				if (callback) {
 					promise.then(callback);
 					return promise;
