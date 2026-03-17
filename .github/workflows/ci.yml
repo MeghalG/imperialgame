@@ -75,7 +75,7 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.FIREBASE_FUNCTIONS_SA }}
 
       - name: Install functions dependencies
         run: npm ci
