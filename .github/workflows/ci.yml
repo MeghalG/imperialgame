@@ -87,6 +87,8 @@ jobs:
           projectId: imperialgame-e8a12
 
       - name: Deploy Cloud Functions
-        run: npx firebase-tools deploy --only functions --project imperialgame-e8a12
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx firebase-tools deploy --only functions --project imperialgame-e8a12
+          rm -f "$RUNNER_TEMP/sa.json"
