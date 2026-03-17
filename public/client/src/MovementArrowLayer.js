@@ -3,6 +3,7 @@ import UserContext from './UserContext.js';
 import MapInteractionContext from './MapInteractionContext.js';
 import { readSetup } from './backendFiles/stateCache.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
+import { actionColor } from './maneuverActionUtils.js';
 import './MapOverlay.css';
 
 function parsePercent(s) {
@@ -56,7 +57,8 @@ function MovementArrowLayer() {
 	// Collect unique colors for arrowhead markers
 	let colorSet = {};
 	for (let i = 0; i < moves.length; i++) {
-		let c = moves[i].color || '#c9a84c';
+		let move = moves[i];
+		let c = actionColor(move.action) || move.color || '#c9a84c';
 		colorSet[c] = true;
 	}
 	let uniqueColors = Object.keys(colorSet);
@@ -68,13 +70,15 @@ function MovementArrowLayer() {
 		let toT = territories[move.dest];
 		if (!fromT || !fromT.unitCoords || !toT || !toT.unitCoords) continue;
 
-		let color = move.color || '#c9a84c';
+		let color = actionColor(move.action) || move.color || '#c9a84c';
 		let colorIndex = uniqueColors.indexOf(color);
 		let x1 = parsePercent(fromT.unitCoords[0]);
 		let y1 = parsePercent(fromT.unitCoords[1]);
 		let x2 = parsePercent(toT.unitCoords[0]);
 		let y2 = parsePercent(toT.unitCoords[1]);
 		let d = computePath(x1, y1, x2, y2);
+		// Dashed when not locked (draft state); solid when locked or no locked field
+		let dashArray = move.locked === false ? '8 4' : undefined;
 
 		paths.push(
 			<path
@@ -85,6 +89,7 @@ function MovementArrowLayer() {
 				strokeWidth={0.5}
 				fill="none"
 				strokeLinecap="round"
+				strokeDasharray={dashArray}
 				markerEnd={'url(#imp-arr-' + colorIndex + ')'}
 				opacity={0.9}
 			/>

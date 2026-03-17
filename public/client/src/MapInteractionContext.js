@@ -10,7 +10,7 @@ const MapInteractionContext = React.createContext({
 	highlightedTerritories: {}, // { territoryName: color } for passive highlights
 	setInteraction: () => {}, // set interaction state (mode, items, color, callback, highlights, costs)
 	clearInteraction: () => {}, // reset to idle
-	plannedMoves: [], // [{ origin, dest, color }] for movement arrows
+	plannedMoves: [], // [{ origin, dest, color, action, locked }] for movement arrows
 	setPlannedMoves: () => {}, // update planned moves
 	unitMarkers: [], // [{ territoryName, unitType, phase, index, isActive, isPlanned, color }]
 	setUnitMarkers: () => {}, // update unit markers
