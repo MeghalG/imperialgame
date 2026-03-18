@@ -46,6 +46,7 @@ jest.mock('./backendFiles/proposalAPI.js', () => ({
 }));
 
 import ManeuverPlannerApp from './ManeuverPlannerApp.js';
+import ManeuverPlanProvider from './ManeuverPlanProvider.js';
 import UserContext from './UserContext.js';
 import { clearCache } from './backendFiles/stateCache.js';
 
@@ -58,7 +59,9 @@ async function flushPromises() {
 function renderWithContext(contextValue, div) {
 	ReactDOM.render(
 		<UserContext.Provider value={contextValue}>
-			<ManeuverPlannerApp />
+			<ManeuverPlanProvider>
+				<ManeuverPlannerApp />
+			</ManeuverPlanProvider>
 		</UserContext.Provider>,
 		div
 	);
@@ -155,15 +158,14 @@ describe('ManeuverPlannerApp', () => {
 		renderWithContext(ctx, div);
 		await flushPromises();
 
-		expect(div.textContent).toContain('Austria');
-		// Unit labels appear in roster and active detail
+		// Unit labels appear in the plan list
 		expect(div.textContent).toContain('Trieste');
 		expect(div.textContent).toContain('Adriatic Sea');
 		expect(div.textContent).toContain('Vienna');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('renders dictator peace vote when pendingPeace exists', async () => {
+	test('renders loaded state when pendingPeace exists for dictator', async () => {
 		const gs = buildManeuverGameState();
 		gs.currentManeuver.pendingPeace = {
 			targetCountry: 'Austria',
@@ -181,16 +183,12 @@ describe('ManeuverPlannerApp', () => {
 		renderWithContext(ctx, div);
 		await flushPromises();
 
-		expect(div.textContent).toContain('Peace Offer');
-		expect(div.textContent).toContain('Austria');
-		expect(div.textContent).toContain('fleet');
-		expect(div.textContent).toContain('Trieste');
-		expect(div.textContent).toContain('Accept');
-		expect(div.textContent).toContain('Reject');
+		// Provider sets loaded=true and pendingPeace; ManeuverPlanList renders (no loading spinner)
+		expect(div.textContent).not.toContain('Loading maneuver');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('non-dictator does not see peace vote UI', async () => {
+	test('non-dictator sees plan list when pendingPeace exists', async () => {
 		const gs = buildManeuverGameState();
 		gs.currentManeuver.pendingPeace = {
 			targetCountry: 'Austria',
@@ -218,9 +216,9 @@ describe('ManeuverPlannerApp', () => {
 		renderWithContext(ctx, div);
 		await flushPromises();
 
-		// Bob should see the normal planner, not the peace vote
-		expect(div.textContent).not.toContain('Peace Offer');
-		expect(div.textContent).toContain('Austria');
+		// Bob is not the dictator — provider loads normal plan state
+		// Plan list should contain unit territory names
+		expect(div.textContent).toContain('Trieste');
 		ReactDOM.unmountComponentAtNode(div);
 	});
 

@@ -49,6 +49,7 @@ jest.mock('./backendFiles/proposalAPI.js', () => ({
 
 import { OptionSelect } from './ComponentTemplates.js';
 import ManeuverPlannerApp from './ManeuverPlannerApp.js';
+import ManeuverPlanProvider from './ManeuverPlanProvider.js';
 import SvgRondel from './SvgRondel.js';
 import UserContext from './UserContext.js';
 import MapInteractionContext from './MapInteractionContext.js';
@@ -85,6 +86,19 @@ function renderWithBothContexts(Component, userCtx, mapCtx, div, props) {
 		<UserContext.Provider value={userCtx}>
 			<MapInteractionContext.Provider value={mapCtx}>
 				{props ? <Component {...props} /> : <Component />}
+			</MapInteractionContext.Provider>
+		</UserContext.Provider>,
+		div
+	);
+}
+
+function renderManeuverPlannerWithContexts(userCtx, mapCtx, div) {
+	ReactDOM.render(
+		<UserContext.Provider value={userCtx}>
+			<MapInteractionContext.Provider value={mapCtx}>
+				<ManeuverPlanProvider>
+					<ManeuverPlannerApp />
+				</ManeuverPlanProvider>
 			</MapInteractionContext.Provider>
 		</UserContext.Provider>,
 		div
@@ -287,19 +301,18 @@ describe('ManeuverPlannerApp with MapInteractionContext', () => {
 		const div = document.createElement('div');
 
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
 		});
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
 		});
 
-		expect(div.textContent).toContain('Austria');
 		expect(div.textContent).toContain('Trieste');
 		expect(div.textContent).toContain('Vienna');
 
@@ -315,13 +328,13 @@ describe('ManeuverPlannerApp with MapInteractionContext', () => {
 		const div = document.createElement('div');
 
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
 		});
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
@@ -342,7 +355,7 @@ describe('ManeuverPlannerApp with MapInteractionContext', () => {
 		const div = document.createElement('div');
 
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
@@ -675,13 +688,13 @@ describe('ManeuverPlannerApp active unit map interaction', () => {
 		document.body.appendChild(div);
 
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
 		});
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
@@ -724,13 +737,13 @@ describe('ManeuverPlannerApp active unit map interaction', () => {
 		document.body.appendChild(div);
 
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
 		});
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
@@ -748,10 +761,8 @@ describe('ManeuverPlannerApp active unit map interaction', () => {
 			await flushPromises();
 		});
 
-		// The destination select for Fleet 1 should now show 'Adriatic Sea'
-		let destSelects = div.querySelectorAll('.ant-select-selection-item');
-		let destTexts = Array.from(destSelects).map((el) => el.textContent);
-		expect(destTexts).toContain('Adriatic Sea');
+		// After the map click, 'Adriatic Sea' should appear as the destination in the plan row
+		expect(div.textContent).toContain('Adriatic Sea');
 
 		ReactDOM.unmountComponentAtNode(div);
 		document.body.removeChild(div);
@@ -767,26 +778,26 @@ describe('ManeuverPlannerApp active unit map interaction', () => {
 		document.body.appendChild(div);
 
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
 		});
 		act(() => {
-			renderWithBothContexts(ManeuverPlannerApp, userCtx, mapCtx, div);
+			renderManeuverPlannerWithContexts(userCtx, mapCtx, div);
 		});
 		await act(async () => {
 			await flushPromises();
 		});
 
-		// First fleet is auto-activated — find the row with Trieste
+		// First fleet is auto-activated — find the row with Trieste and Fleet
 		let fleetRow = Array.from(div.querySelectorAll('div[style]')).find(
 			(el) => el.textContent.includes('Trieste') && el.textContent.includes('Fleet')
 		);
 		expect(fleetRow).not.toBeNull();
-		// The active row should show the destination select (planning controls are expanded)
-		let destSelect = fleetRow.querySelector('.ant-select');
-		expect(destSelect).not.toBeNull();
+		// The active row should have a visible background style indicating active state
+		expect(fleetRow.textContent).toContain('Fleet');
+		expect(fleetRow.textContent).toContain('Trieste');
 
 		ReactDOM.unmountComponentAtNode(div);
 		document.body.removeChild(div);

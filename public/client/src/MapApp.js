@@ -14,6 +14,9 @@ import TerritoryHotspotLayer from './TerritoryHotspotLayer.js';
 import UnitMarkerLayer from './UnitMarkerLayer.js';
 import SvgRondel from './SvgRondel.js';
 import MovementArrowLayer from './MovementArrowLayer.js';
+import ManeuverActionPicker from './ManeuverActionPicker.js';
+import ManeuverSubmitFAB from './ManeuverSubmitFAB.js';
+import TransportRouteLayer from './TransportRouteLayer.js';
 
 const COUNTRY_ABBREV = { Austria: 'AT', Italy: 'IT', France: 'FR', England: 'EN', Germany: 'DE', Russia: 'RU' };
 
@@ -330,6 +333,9 @@ function MapApp() {
 				<TerritoryHotspotLayer />
 				<UnitMarkerLayer mapWidth={mapWidth} />
 				<MovementArrowLayer />
+				<TransportRouteLayer />
+				<ManeuverActionPicker />
+				<ManeuverSubmitFAB />
 			</div>
 			{vpTrackPortal ? ReactDOM.createPortal(vpTrack, vpTrackPortal) : vpTrack}
 		</React.Fragment>
