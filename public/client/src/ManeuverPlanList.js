@@ -365,20 +365,19 @@ function PhaseSection({ phase, colorPalette, planContext }) {
 	// Nothing to show for this phase
 	if (plans.length === 0 && unassigned.length === 0) return null;
 
-	// Determine lock boundary for this phase
-	// lockLine = {phase, index} — everything at or above is locked
+	// Use plan.locked directly — the provider sets it correctly for
+	// both same-phase and cross-phase locking (army peace locks all fleets)
 	function isRowLocked(idx) {
-		if (!lockLine) return false;
-		if (lockLine.phase === 'fleet' && phase === 'army') return false;
-		if (lockLine.phase === phase && idx <= lockLine.index) return true;
-		return false;
+		return !!plans[idx] && !!plans[idx].locked;
 	}
 
-	// Find the index in the ASSIGNED plans where the lock boundary falls
-	// We need to insert a LockDivider after the last locked row
+	// Find the last locked row to insert a LockDivider after it
 	let lastLockedIndex = -1;
-	if (lockLine && lockLine.phase === phase) {
-		lastLockedIndex = lockLine.index;
+	for (let i = plans.length - 1; i >= 0; i--) {
+		if (plans[i] && plans[i].locked) {
+			lastLockedIndex = i;
+			break;
+		}
 	}
 
 	function isUnitActive(idx) {
