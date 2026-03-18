@@ -242,3 +242,47 @@
 	opacity: 0.5;
 	cursor: not-allowed;
 }
+
+/* ============================================================
+   BottomSheet (mobile maneuver plan panel)
+   ============================================================ */
+.imp-bottom-sheet {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 80;
+	background: #141518;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 12px 12px 0 0;
+	transition: max-height 300ms ease-out;
+	overflow: hidden;
+}
+.imp-bottom-sheet--collapsed {
+	max-height: 60px;
+}
+.imp-bottom-sheet--half {
+	max-height: 40vh;
+}
+.imp-bottom-sheet--full {
+	max-height: 85vh;
+}
+.imp-bottom-sheet__handle {
+	padding: 8px 16px;
+	cursor: pointer;
+	touch-action: pan-y;
+	user-select: none;
+}
+.imp-bottom-sheet__handle-bar {
+	width: 32px;
+	height: 4px;
+	background: rgba(255, 255, 255, 0.3);
+	border-radius: 2px;
+	margin: 0 auto 8px;
+}
+.imp-bottom-sheet__content {
+	overflow-y: auto;
+	max-height: calc(85vh - 60px);
+	padding: 0 16px 16px;
+	-webkit-overflow-scrolling: touch;
+}
