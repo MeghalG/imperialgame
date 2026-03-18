@@ -30,7 +30,11 @@ function BottomSheet({ children, peekContent, defaultState = 'collapsed' }) {
 	};
 
 	const handleClick = () => {
-		setState((s) => (s === 'collapsed' ? 'half' : 'collapsed'));
+		setState((s) => {
+			if (s === 'collapsed') return 'half';
+			if (s === 'half') return 'collapsed';
+			return 'half'; // full → half (step down, don't skip)
+		});
 	};
 
 	return (
