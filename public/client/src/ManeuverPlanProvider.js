@@ -6,7 +6,12 @@ import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { readGameState, readSetup } from './backendFiles/stateCache.js';
 import { getCountryColorPalette } from './countryColors.js';
-import { normalizeAction, denormalizeAction, isPeaceAction } from './maneuverActionUtils.js';
+import {
+	normalizeAction,
+	denormalizeAction,
+	isPeaceAction,
+	formatCompletedAction,
+} from './maneuverActionUtils.js';
 import SoundManager from './SoundManager.js';
 
 /**
@@ -23,26 +28,6 @@ function ensureMapVisible(color) {
 		return '#8c8c8c';
 	}
 	return color;
-}
-
-/**
- * Converts a raw action code to a short label for completed moves.
- */
-function formatCompletedAction(action) {
-	if (!action) return '';
-	if (action === 'peace') return 'peace';
-	if (action === 'hostile') return 'hostile';
-	let parts = action.split(' ');
-	if (parts[0] === 'war') {
-		let country = parts.slice(1, parts.length - 1).join(' ');
-		let unitType = parts[parts.length - 1];
-		return 'war on ' + country + ' ' + unitType;
-	}
-	if (parts[0] === 'blow' && parts[1] === 'up') {
-		let country = parts.slice(2).join(' ');
-		return 'destroy ' + country + ' factory';
-	}
-	return action;
 }
 
 /**
@@ -189,14 +174,8 @@ function ManeuverPlanProvider({ children }) {
 		let destCountry = ts[plan.dest] && ts[plan.dest].country;
 		if (!destCountry || destCountry === countryRef.current) return false;
 
-		let opts = plan.actionOptions;
-		if (Array.isArray(opts)) {
-			return opts.some((a) => a.startsWith('war '));
-		}
-		if (opts && opts.countries) {
-			return true;
-		}
-		return false;
+		// Action is peace and destination is foreign territory — peace vote triggers
+		return true;
 	}
 
 	function hasJsonPeaceAction(action) {
