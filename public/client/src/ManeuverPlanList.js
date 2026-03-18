@@ -420,7 +420,7 @@ function PhaseSection({ phase, colorPalette, planContext }) {
 							context={planContext}
 						/>
 						{/* Insert lock divider after the last locked row */}
-						{idx === lastLockedIndex && plans.length > idx + 1 && <LockDivider />}
+						{idx === lastLockedIndex && (plans.length > idx + 1 || unassigned.length > 0) && <LockDivider />}
 					</React.Fragment>
 				);
 			})}
