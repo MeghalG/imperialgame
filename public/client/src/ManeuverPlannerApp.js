@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import ManeuverPlanProvider from './ManeuverPlanProvider.js';
 import ManeuverPlanList from './ManeuverPlanList.js';
 import BottomSheet from './BottomSheet.js';
 
 /**
  * Maneuver planning UI — thin wrapper.
- * State lives in ManeuverPlanProvider (context).
- * Plan list renders here in the turn panel (desktop) or in a
- * bottom sheet (mobile).
- * Action picker and FAB render on the map (via MapApp.js).
+ * State lives in ManeuverPlanProvider (context), which wraps the
+ * entire game layout in MainApp.js so that both this component
+ * and the map-level components (FAB, ActionPicker) share the same
+ * provider instance.
  */
 function ManeuverPlannerApp() {
 	const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -21,21 +20,15 @@ function ManeuverPlannerApp() {
 
 	if (isMobile) {
 		return (
-			<ManeuverPlanProvider>
-				<BottomSheet
-					peekContent={<span style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>Maneuver Plan &#9650;</span>}
-				>
-					<ManeuverPlanList />
-				</BottomSheet>
-			</ManeuverPlanProvider>
+			<BottomSheet
+				peekContent={<span style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>Maneuver Plan &#9650;</span>}
+			>
+				<ManeuverPlanList />
+			</BottomSheet>
 		);
 	}
 
-	return (
-		<ManeuverPlanProvider>
-			<ManeuverPlanList />
-		</ManeuverPlanProvider>
-	);
+	return <ManeuverPlanList />;
 }
 
 export default ManeuverPlannerApp;

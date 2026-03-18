@@ -14,7 +14,6 @@ import TerritoryHotspotLayer from './TerritoryHotspotLayer.js';
 import UnitMarkerLayer from './UnitMarkerLayer.js';
 import SvgRondel from './SvgRondel.js';
 import MovementArrowLayer from './MovementArrowLayer.js';
-import ManeuverActionPicker from './ManeuverActionPicker.js';
 import ManeuverSubmitFAB from './ManeuverSubmitFAB.js';
 import TransportRouteLayer from './TransportRouteLayer.js';
 
@@ -334,7 +333,6 @@ function MapApp() {
 				<UnitMarkerLayer mapWidth={mapWidth} />
 				<MovementArrowLayer />
 				<TransportRouteLayer />
-				<ManeuverActionPicker />
 				<ManeuverSubmitFAB />
 			</div>
 			{vpTrackPortal ? ReactDOM.createPortal(vpTrack, vpTrackPortal) : vpTrack}

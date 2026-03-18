@@ -15,6 +15,7 @@ const MapInteractionContext = React.createContext({
 	unitMarkers: [], // [{ territoryName, unitType, phase, index, isActive, isPlanned, color }]
 	setUnitMarkers: () => {}, // update unit markers
 	onUnitMarkerClicked: () => {}, // callback (phase, index) when a unit marker is clicked
+	setOnUnitMarkerClickedCb: () => {}, // setter for the unit marker click callback
 });
 
 export default MapInteractionContext;
