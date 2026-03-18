@@ -15,6 +15,10 @@ module.exports = defineConfig({
 		command: 'npm start',
 		port: 3000,
 		timeout: 60000,
-		reuseExistingServer: true,
+		reuseExistingServer: !process.env.CI, // Fresh server in CI, reuse locally if already configured
+		env: {
+			// Connect the React app to the Firebase emulator
+			REACT_APP_FIREBASE_EMULATOR: 'true',
+		},
 	},
 });

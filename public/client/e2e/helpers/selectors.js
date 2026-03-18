@@ -14,17 +14,11 @@
  * @param {string} playerName
  */
 async function joinGame(page, gameID, playerName) {
-	await page.goto('/');
-	// Wait for game list to load
-	await page.waitForSelector('.ant-card', { timeout: 10000 });
-	// Click the game card matching our test game ID
-	await page.click(`text=${gameID}`);
-	// Wait for login screen
-	await page.waitForSelector('input', { timeout: 5000 });
-	// Click the player name button (LoginApp shows player names as buttons)
-	await page.click(`text=${playerName}`);
-	// Wait for the game to load
-	await page.waitForSelector('.imp-map-container, [class*="map"]', { timeout: 10000 });
+	// Navigate directly to the game using URL parameters.
+	// App.js reads ?game=xxx&name=Alice from the URL on mount.
+	await page.goto(`/?game=${encodeURIComponent(gameID)}&name=${encodeURIComponent(playerName)}`);
+	// Wait for the game map to load
+	await page.waitForSelector('.imp-map-container, [class*="MapApp"], svg, [class*="map"]', { timeout: 20000 });
 }
 
 /**

@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { seedManeuverGame, cleanupGame } = require('./helpers/seed');
+const { seedManeuverGame, seedSetupData, cleanupGame } = require('./helpers/seed');
 const {
 	joinGame,
 	waitForPlannerReady,
@@ -20,6 +20,10 @@ const {
 let gameID;
 
 test.describe('Maneuver Planner — War Cancel Cascade (§8.4)', () => {
+	test.beforeAll(async () => {
+		await seedSetupData();
+	});
+
 	test.beforeEach(async () => {
 		// Setup: Austria has 2 armies. Italy has 1 army at Rome.
 		gameID = await seedManeuverGame({
@@ -75,6 +79,10 @@ test.describe('Maneuver Planner — War Cancel Cascade (§8.4)', () => {
 });
 
 test.describe('Maneuver Planner — Fleet Removal Cascade (§8.5)', () => {
+	test.beforeAll(async () => {
+		await seedSetupData();
+	});
+
 	test.beforeEach(async () => {
 		// Setup: Austria has 1 fleet at Adriatic Sea, 1 army at Trieste.
 		// Army can reach Albania via fleet convoy.

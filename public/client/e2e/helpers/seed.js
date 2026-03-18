@@ -260,12 +260,34 @@ async function cleanupGame(gameID) {
 	await dbDelete(`games/${gameID}`);
 }
 
+/**
+ * Seed the setup data (territories, countries, wheel, costs) from production
+ * into the emulator. Only needs to run once per emulator session.
+ * Copies from a known production setup URL.
+ */
+async function seedSetupData() {
+	// Check if setup data already exists
+	const checkUrl = `${BASE_URL}/setups/standard.json`;
+	const check = await fetch(checkUrl);
+	const existing = await check.json();
+	if (existing && existing.territories) return; // Already seeded
+
+	// Fetch from production and write to emulator
+	const prodUrl = 'https://imperialgame-e8a12.firebaseio.com/setups/oove.json';
+	const prodRes = await fetch(prodUrl);
+	const setupData = await prodRes.json();
+	if (setupData) {
+		await dbSet('setups/standard', setupData);
+	}
+}
+
 module.exports = {
 	dbSet,
 	dbDelete,
 	testGameID,
 	baseGameState,
 	seedManeuverGame,
+	seedSetupData,
 	cleanupGame,
 	EMULATOR_HOST,
 	EMULATOR_PORT,

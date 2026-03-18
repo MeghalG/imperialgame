@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { seedManeuverGame, cleanupGame } = require('./helpers/seed');
+const { seedManeuverGame, seedSetupData, cleanupGame } = require('./helpers/seed');
 const {
 	joinGame,
 	waitForPlannerReady,
@@ -17,6 +17,10 @@ const {
 let gameID;
 
 test.describe('Maneuver Planner — Multi-Unit War (§8.7)', () => {
+	test.beforeAll(async () => {
+		await seedSetupData();
+	});
+
 	test.beforeEach(async () => {
 		// Austria has 3 armies. Rome has 2 Italian armies + 1 Italian fleet.
 		gameID = await seedManeuverGame({

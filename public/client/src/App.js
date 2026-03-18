@@ -8,8 +8,10 @@ import UserContext from './UserContext.js';
 import { clearCache } from './backendFiles/stateCache.js';
 
 function App() {
-	const [game, setGameRaw] = useState('');
-	const [name, setNameRaw] = useState('');
+	// Support URL params for E2E testing: ?game=xxx&name=Alice
+	const urlParams = new URLSearchParams(window.location.search);
+	const [game, setGameRaw] = useState(urlParams.get('game') || '');
+	const [name, setNameRaw] = useState(urlParams.get('name') || '');
 	const [bid, setBid] = useState(0);
 	const [buyBid, setBuyBid] = useState('');
 	const [buyCountry, setBuyCountry] = useState('');

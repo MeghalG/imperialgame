@@ -20,6 +20,7 @@ function LoginApp() {
 	contextRef.current = context;
 
 	const doStuff = useCallback(async () => {
+		if (!contextRef.current.game) return; // No game selected yet
 		let [res, timerData, myTurnData] = await Promise.all([
 			helper.getPlayersInOrder(contextRef.current),
 			helper.getTimer(contextRef.current),
