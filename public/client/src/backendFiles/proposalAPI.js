@@ -525,11 +525,13 @@ async function getArmyPeaceOptions(context) {
 	let d = {};
 	for (let key in damage) {
 		d[key] = damage[key].map((x) => 'war ' + x);
-		d[key].push(MANEUVER_ACTIONS.PEACE);
-
-		if (territorySetup[key].country && territorySetup[key].country !== country) {
-			// Check if this territory holds the target country's last operational factory
-			// (a factory is "saturated"/non-operational if a hostile army from another country sits on it)
+		let hasEnemies = damage[key].length > 0;
+		if (hasEnemies) {
+			// Enemies present: war + peace only. Hostile NOT available.
+			d[key].push(MANEUVER_ACTIONS.PEACE);
+		} else if (territorySetup[key].country && territorySetup[key].country !== country) {
+			// No enemies at foreign territory: peace + hostile (if not last factory)
+			d[key].push(MANEUVER_ACTIONS.PEACE);
 			let targetName = territorySetup[key].country;
 			let isLastFactory = false;
 			if (gameState.countryInfo[targetName].factories.includes(key)) {
@@ -550,6 +552,9 @@ async function getArmyPeaceOptions(context) {
 			if (!isLastFactory) {
 				d[key].push(MANEUVER_ACTIONS.HOSTILE);
 			}
+		} else {
+			// Own/neutral territory, no enemies: just peace
+			d[key].push(MANEUVER_ACTIONS.PEACE);
 		}
 		if (
 			territorySetup[key].country &&
@@ -1031,18 +1036,17 @@ async function getUnitActionOptionsFromPlans(context, plan, phase, unitIndex, de
 		let isForeign = territorySetup[destination].country && territorySetup[destination].country !== country;
 
 		if (enemyCountries.length > 1) {
-			// Multi-country: per-country breakdown
+			// Multi-country enemies present: war targets + peace only.
+			// hostile is NOT available when enemies are present (must clear them first).
 			let countries = enemyCountries.map((c) => ({
 				country: c,
 				units: countriesAtDest[c],
 				actions: countriesAtDest[c].map((u) => 'war ' + c + ' ' + u).concat([MANEUVER_ACTIONS.PEACE]),
 			}));
-			let otherActions = [];
-			if (isForeign) {
-				otherActions.push(MANEUVER_ACTIONS.HOSTILE);
-			}
-			return { countries: countries, otherActions: otherActions };
+			return { countries: countries, otherActions: [] };
 		} else if (enemyCountries.length === 1) {
+			// One enemy country present: war targets + peace.
+			// hostile is NOT available when enemies are present.
 			let actions = [];
 			let c = enemyCountries[0];
 			for (let u of countriesAtDest[c]) {
@@ -1051,14 +1055,36 @@ async function getUnitActionOptionsFromPlans(context, plan, phase, unitIndex, de
 			actions.push(MANEUVER_ACTIONS.PEACE);
 			return actions;
 		} else if (isForeign) {
-			let actions = [MANEUVER_ACTIONS.PEACE, MANEUVER_ACTIONS.HOSTILE];
-			// Blow up factory check
+			// No enemies at foreign territory: peace + hostile (+ blow up if eligible).
+			let actions = [MANEUVER_ACTIONS.PEACE];
+			// Check if hostile is allowed (can't hostile the last operational factory)
 			let territoryOwner = territorySetup[destination].country;
-			if (virtualCountryInfo[territoryOwner].factories.includes(destination)) {
+			let isLastFactory = false;
+			if (virtualCountryInfo[territoryOwner] && virtualCountryInfo[territoryOwner].factories.includes(destination)) {
+				let opCount = 0;
+				for (let f of virtualCountryInfo[territoryOwner].factories) {
+					let occupied = false;
+					for (let oc in virtualCountryInfo) {
+						if (oc !== territoryOwner) {
+							for (let a of virtualCountryInfo[oc].armies || []) {
+								if (a.hostile && a.territory === f) occupied = true;
+							}
+						}
+					}
+					if (!occupied) opCount++;
+				}
+				if (opCount <= 1) isLastFactory = true;
+			}
+			if (!isLastFactory) {
+				actions.push(MANEUVER_ACTIONS.HOSTILE);
+			}
+			// Blow up factory check
+			if (virtualCountryInfo[territoryOwner] && virtualCountryInfo[territoryOwner].factories.includes(destination)) {
 				let friendlyArmiesAtDest = (virtualCountryInfo[country].armies || []).filter(
 					(a) => a.territory === destination
 				).length;
-				if (friendlyArmiesAtDest + 1 >= 3) {
+				// Need the blow-up army itself + 2 more = 3 total
+				if (friendlyArmiesAtDest + 1 >= 3 && !isLastFactory) {
 					actions.push('blow up ' + territoryOwner);
 				}
 			}

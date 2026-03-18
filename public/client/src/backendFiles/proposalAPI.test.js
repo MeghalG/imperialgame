@@ -990,18 +990,26 @@ describe('getArmyPeaceOptions', () => {
 		}
 	});
 
-	test('includes hostile option for foreign territories with multiple factories', async () => {
+	test('hostile NOT offered when enemies present (even coexisting)', async () => {
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
-		// Italy has 2 factories (Rome, Naples) — hostile is allowed
-		expect(result['Rome']).toContain('hostile');
-		// France has only 1 factory (Paris) — last factory protection blocks hostile
-		expect(result['Paris']).not.toContain('hostile');
-		// Give France a second factory so hostile is allowed
-		mockDbData.games.g1.countryInfo.France.factories = ['Paris', 'Marseille'];
+		// Italy has an army at Rome (hostile: false / coexisting) — hostile still NOT available
+		// because hostile requires no enemies at all at the destination
+		expect(result['Rome']).not.toContain('hostile');
+		expect(result['Rome']).toContain('war Italy army');
+		expect(result['Rome']).toContain('peace');
+	});
+
+	test('hostile IS offered at empty foreign territory with multiple factories', async () => {
+		// Remove Italian army from Rome so it's empty foreign territory
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
 		clearCache();
-		const result2 = await getArmyPeaceOptions(context);
-		expect(result2['Paris']).toContain('hostile');
+		const context = { game: 'g1', fleetMan: [], armyMan: [] };
+		const result = await getArmyPeaceOptions(context);
+		// Italy has 2 factories (Rome, Naples) — hostile is allowed at empty Rome
+		expect(result['Rome']).toContain('hostile');
+		expect(result['Rome']).toContain('peace');
+		expect(result['Rome']).not.toContain('war Italy army');
 	});
 
 	test('does not include hostile option for home territories', async () => {
@@ -1790,29 +1798,36 @@ describe('getUnitActionOptionsFromPlans', () => {
 		expect(result).toContain('hostile');
 	});
 
-	it('includes blow up when 3+ friendly armies at destination', async () => {
+	it('includes blow up when 3+ friendly armies at destination and target has >1 operational factory', async () => {
+		clearCache();
 		mockDbData.games.g1.countryInfo.Italy.armies = []; // remove Italian army
+		// Give Italy a 3rd factory so blow-up doesn't take its last operational one
+		mockDbData.games.g1.countryInfo.Italy.factories = ['Rome', 'Naples', 'Genoa'];
 		mockDbData.games.g1.countryInfo.Austria.armies = [
-			{ territory: 'Rome', hostile: true },
-			{ territory: 'Rome', hostile: true },
-			{ territory: 'Vienna', hostile: false },
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+			{ territory: 'Trieste', hostile: true },
 		];
 		const plan = {
 			country: 'Austria',
 			pendingFleets: [],
 			pendingArmies: [
-				{ territory: 'Rome', hostile: true },
-				{ territory: 'Rome', hostile: true },
-				{ territory: 'Vienna', hostile: false },
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Budapest', hostile: true },
+				{ territory: 'Trieste', hostile: true },
 			],
 			fleetTuples: [],
+			// First 2 armies move to Rome
 			armyTuples: [
-				['Rome', 'Rome', ''],
-				['Rome', 'Rome', ''],
+				['Vienna', 'Rome', ''],
+				['Budapest', 'Rome', ''],
 			],
 		};
+		// 3rd army moves to Rome — 3 armies total, blow up should be available
 		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 2, 'Rome');
 		expect(result).toContain('blow up Italy');
+		expect(result).toContain('peace');
+		expect(result).toContain('hostile');
 	});
 
 	it('fleet: returns war + peace when enemy fleet at destination', async () => {
@@ -1850,5 +1865,70 @@ describe('getUnitActionOptionsFromPlans', () => {
 		// Fleet 1 moves to Adriatic Sea — Italian fleet is already destroyed by fleet 0
 		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1, 'Adriatic Sea');
 		expect(result).toEqual([]); // no enemy units remaining
+	});
+});
+
+// ===========================================================================
+// Hostile rule enforcement — hostile NOT available when enemies present
+// ===========================================================================
+describe('getUnitActionOptionsFromPlans — hostile rule', () => {
+	test('hostile NOT offered when enemies present at destination', async () => {
+		let data = buildMockDbData();
+		// Put Italian army at Rome (enemy territory with enemy units)
+		data.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
+		mockDbData = data;
+		let plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Rome');
+		expect(result).toContain('war Italy army');
+		expect(result).toContain('peace');
+		expect(result).not.toContain('hostile');
+	});
+
+	test('hostile IS offered when no enemies at foreign destination', async () => {
+		let data = buildMockDbData();
+		// Rome has no enemy units
+		data.games.g1.countryInfo.Italy.armies = [];
+		data.games.g1.countryInfo.Italy.fleets = [];
+		mockDbData = data;
+		let plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Rome');
+		expect(result).toContain('peace');
+		expect(result).toContain('hostile');
+		expect(result).not.toContain('war Italy army');
+	});
+
+	test('hostile available after earlier war move clears enemies in plan', async () => {
+		let data = buildMockDbData();
+		// Italian army at Rome
+		data.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
+		mockDbData = data;
+		let plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Budapest', hostile: true },
+			],
+			fleetTuples: [],
+			// Army 0 wars the Italian army — clears enemies at Rome
+			armyTuples: [['Vienna', 'Rome', 'war Italy army']],
+		};
+		// Army 1 checks options at Rome — enemies cleared by army 0's war
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 1, 'Rome');
+		expect(result).toContain('peace');
+		expect(result).toContain('hostile');
+		expect(result).not.toContain('war Italy army');
 	});
 });
