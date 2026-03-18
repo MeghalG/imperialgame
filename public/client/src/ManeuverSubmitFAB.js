@@ -11,7 +11,7 @@ import UserContext from './UserContext.js';
  * target country. Otherwise it shows the final "Submit Maneuver" button.
  */
 function ManeuverSubmitFAB() {
-	const { loaded, nextPeace, canSubmit, requestPeace, submitManeuver, submitting } = useContext(ManeuverPlanContext);
+	const { loaded, nextPeace, canSubmit, submitManeuver, submitting } = useContext(ManeuverPlanContext);
 	const { colorblindMode } = useContext(UserContext);
 
 	if (!loaded) return null;

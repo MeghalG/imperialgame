@@ -1181,11 +1181,9 @@ async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
 		// For each prior army move, determine if it used fleet transport (crossed a sea).
 		// If so, exclude that fleet from the BFS for this army.
 		let usedFleetSeas = new Set();
-		let pendingArmySurvivingIdx = 0;
 		for (let i = 0; i < unitIndex; i++) {
 			let armyTuple = plan.armyTuples[i];
 			if (!armyTuple || !armyTuple[1]) {
-				pendingArmySurvivingIdx++;
 				continue;
 			}
 			let armySplit = (armyTuple[2] || '').split(' ');
@@ -1234,7 +1232,6 @@ async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
 					}
 				}
 			}
-			pendingArmySurvivingIdx++;
 		}
 
 		// Exclude used fleets from the virtual fleet maneuver array
