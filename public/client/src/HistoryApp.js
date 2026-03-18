@@ -45,7 +45,7 @@ function HistoryApp() {
 		historyRef.current = database.ref('games/' + context.game + '/history');
 		historyRef.current.on('value', (dataSnapshot) => {
 			let h = dataSnapshot.val();
-			setHistory(h.reverse());
+			setHistory((h || []).reverse());
 		});
 		return () => {
 			if (historyRef.current) {

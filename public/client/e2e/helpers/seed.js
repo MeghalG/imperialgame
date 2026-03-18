@@ -70,7 +70,7 @@ function baseGameState() {
 		setup: 'setups/standard',
 		sameTurn: false,
 		undo: null,
-		history: [],
+		history: ['Game started.'],
 		'proposal 1': null,
 		'proposal 2': null,
 		voting: null,

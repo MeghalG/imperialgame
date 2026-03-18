@@ -28,8 +28,10 @@ async function joinGame(page, gameID, playerName) {
  * @param {import('@playwright/test').Page} page
  */
 async function waitForPlannerReady(page) {
-	// The plan list container should be visible
-	await page.waitForSelector('[class*="ManeuverPlan"], [class*="maneuver-plan"]', { timeout: 10000 });
+	// Wait for the maneuver plan list to render (shows "FLEET MOVES" or "ARMY MOVES")
+	await page.waitForSelector('text="FLEET MOVES"', { timeout: 15000 }).catch(() =>
+		page.waitForSelector('text="ARMY MOVES"', { timeout: 5000 })
+	);
 }
 
 /**
@@ -119,17 +121,28 @@ async function pickAction(page, actionText) {
  * @returns {Promise<Array<{text: string, isAssigned: boolean, isLocked: boolean, actionBadge: string}>>}
  */
 async function getPlanListRows(page) {
+	// Plan rows are divs with borderLeft styling containing "Fleet N:" or "Army N:" text.
+	// They use inline styles (no CSS classes), so we find them by content + structure.
 	return page.evaluate(() => {
-		let rows = document.querySelectorAll('[class*="UnitRow"], [class*="unit-row"]');
-		return Array.from(rows).map((row) => {
-			let badge = row.querySelector('[class*="action-badge"], [class*="ActionBadge"]');
-			return {
-				text: row.textContent.trim(),
-				isAssigned: !row.textContent.includes('unassigned'),
-				isLocked: row.classList.contains('locked') || row.querySelector('[class*="lock"]') !== null,
+		let results = [];
+		// Find all strong elements containing unit labels
+		let strongs = document.querySelectorAll('strong');
+		for (let strong of strongs) {
+			let label = strong.textContent.trim();
+			if (!/^(Fleet|Army)\s+\d+:$/.test(label)) continue;
+			// The row is the nearest ancestor div with borderLeft
+			let row = strong.closest('div[style]');
+			if (!row) continue;
+			let text = row.textContent.trim();
+			let badge = row.querySelector('.ant-tag');
+			results.push({
+				text: text,
+				isAssigned: !text.includes('unassigned'),
+				isLocked: parseFloat(row.style.opacity) < 0.35,
 				actionBadge: badge ? badge.textContent.trim() : '',
-			};
-		});
+			});
+		}
+		return results;
 	});
 }
 
