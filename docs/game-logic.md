@@ -187,14 +187,7 @@ After every stock purchase, `changeLeadership()` recalculates:
 
 When a player selects L-Maneuver or R-Maneuver on the rondel, the game moves **all** of the country's fleets and armies. Each unit's movement is encoded as a ManeuverTuple: `[origin, destination, actionCode]`.
 
-There are two submission paths:
-
-| Path | Mode | UI | Code |
-|------|------|----|------|
-| **Batch** | `continue-man` with ManeuverPlanProvider | Map-based planner: assign all moves, then submit once | `submitBatchManeuver()` |
-| **Step-by-step** | `continue-man` with ContinueManeuverApp | Dropdown per unit, submit one at a time | `submitManeuver()` |
-
-Both paths produce the same ManeuverTuples and feed into the same execution logic. The batch path is the default UI; step-by-step is the legacy fallback.
+All moves are planned in the map-based ManeuverPlanProvider UI and submitted as a single batch via `submitBatchManeuver()`. The player assigns destinations and actions for all units, then submits once.
 
 ### Entering a Maneuver (`enterManeuver`)
 
@@ -391,21 +384,17 @@ After all army tuples: replace `gameState.countryInfo[country].armies` with the 
 proposal ─── (select L/R-Maneuver) ──→ continue-man
 proposal-opp (select L/R-Maneuver) ──→ continue-man
 
-During continue-man (step-by-step path):
-  (move unit, no conflict)              → continue-man (next unit)
-  (unit peace to dictatorship target)   → dictator sees accept/reject in continue-man
-  (unit peace to democracy target)      → peace-vote mode → stockholders vote → continue-man
-  (all fleets done)                     → switch to army phase → continue-man
-  (all units done, dictatorship)        → executeProposal → buy/next
-  (all units done, democracy leader)    → store proposal 1 → proposal-opp
-  (all units done, democracy opposition)→ store proposal 2 → vote
-
-During continue-man (batch path):
-  (no peace votes in entire batch)      → completeManeuver → same as "all units done" above
+During continue-man:
+  (no peace votes in entire batch)      → completeManeuver (see below)
   (peace vote triggered at move N)      → commit moves 0..N-1, store remaining plans,
                                           trigger peace vote (dict or democracy),
                                           after resolution → ManeuverPlanProvider reloads
                                           with remaining plans
+
+After completeManeuver:
+  (dictatorship)                        → executeProposal → buy/next
+  (democracy leader)                    → store proposal 1 → proposal-opp
+  (democracy opposition)               → store proposal 2 → vote
 ```
 
 ### Firebase Data Model During Maneuvers
