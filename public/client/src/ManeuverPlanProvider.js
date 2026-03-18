@@ -247,35 +247,44 @@ function ManeuverPlanProvider({ children }) {
 		try {
 			let actionOptions = await proposalAPI.getUnitActionOptionsFromPlans(contextRef.current, plan, phase, index, dest);
 
-			// Determine if we can auto-assign (only 1 option or no options)
-			let canAutoAssign = false;
-			let autoAction = '';
+			// Determine default action and whether to show picker
+			let defaultAction = '';
+			let showPicker = false;
+
 			if (Array.isArray(actionOptions)) {
 				if (actionOptions.length === 0) {
-					canAutoAssign = true;
+					// No actions needed (e.g. moving to own empty territory)
+					defaultAction = '';
 				} else if (actionOptions.length === 1) {
-					canAutoAssign = true;
-					autoAction = actionOptions[0];
+					// Only one option — auto-assign it
+					defaultAction = actionOptions[0];
+				} else {
+					// Multiple options — default to first war option, show picker to allow change
+					let firstWar = actionOptions.find((a) => a.startsWith('war '));
+					defaultAction = firstWar || actionOptions[0];
+					showPicker = true;
 				}
 			} else if (actionOptions && !Array.isArray(actionOptions)) {
-				// Grouped format — always needs picker
-				canAutoAssign = false;
+				// Grouped format (multi-country) — default to first war, show picker
+				let countries = actionOptions.countries || [];
+				if (countries.length > 0 && countries[0].actions && countries[0].actions.length > 0) {
+					let firstWar = countries[0].actions.find((a) => a.startsWith('war '));
+					defaultAction = firstWar || countries[0].actions[0];
+				}
+				showPicker = true;
 			}
 
 			setter((prev) => {
 				let plans = [...prev];
 				if (plans[index]) {
-					plans[index] = { ...plans[index], actionOptions: actionOptions || [] };
-					if (canAutoAssign) {
-						plans[index].action = autoAction;
-					}
+					plans[index] = { ...plans[index], actionOptions: actionOptions || [], action: defaultAction };
 				}
 				ref.current = plans;
 				return plans;
 			});
 
-			// If >1 option, show the action picker at click position
-			if (!canAutoAssign && clickPosition) {
+			// Show picker so player can change from the default
+			if (showPicker && clickPosition) {
 				setActionPickerState({
 					phase,
 					index,
@@ -288,7 +297,7 @@ function ManeuverPlanProvider({ children }) {
 				detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
 			}, 0);
 
-			return canAutoAssign;
+			return !showPicker;
 		} catch (e) {
 			console.error('Failed to compute action options for', phase, index, e);
 			return true; // Treat error as auto-assign (no picker)
@@ -534,17 +543,15 @@ function ManeuverPlanProvider({ children }) {
 	}
 
 	function dismissActionPicker() {
-		// If the picker is dismissed without selecting an action, revert the move
-		// so the unit doesn't end up with a dest but no required action
+		// Dismiss keeps the default action (war) and advances to next unit
 		let picker = actionPickerState;
+		setActionPickerState(null);
 		if (picker) {
-			let plans = picker.phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
-			let plan = plans[picker.index];
-			if (plan && plan.dest && !plan.action) {
-				removeMove(picker.phase, picker.index);
+			let next = findNextUnplannedUnit(picker.phase, picker.index);
+			if (next) {
+				setActiveUnit(next);
 			}
 		}
-		setActionPickerState(null);
 	}
 
 	// ===== Peace detection =====
@@ -656,8 +663,9 @@ function ManeuverPlanProvider({ children }) {
 		SoundManager.playPlace();
 		setSubmitting(true);
 		try {
-			let fleetMan = fleetPlansRef.current.map((p) => [p.origin, p.dest, p.action || '']);
-			let armyMan = armyPlansRef.current.map((p) => [p.origin, p.dest, p.action || '']);
+			// Only send tuples for units that have a destination assigned
+			let fleetMan = fleetPlansRef.current.map((p) => [p.origin, p.dest || p.origin, p.action || '']);
+			let armyMan = armyPlansRef.current.map((p) => [p.origin, p.dest || p.origin, p.action || '']);
 
 			context.setFleetMan(fleetMan);
 			context.setArmyMan(armyMan);
@@ -872,8 +880,14 @@ function ManeuverPlanProvider({ children }) {
 						initFleetPlans[i].dest
 					);
 					initFleetPlans[i] = { ...initFleetPlans[i], actionOptions: opts || [] };
-					if (Array.isArray(opts) && opts.length === 1) {
-						initFleetPlans[i].action = opts[0];
+					if (Array.isArray(opts)) {
+						if (opts.length === 1) {
+							initFleetPlans[i].action = opts[0];
+						} else if (opts.length > 1 && !initFleetPlans[i].action) {
+							// Default to first war option when resuming
+							let firstWar = opts.find((a) => a.startsWith('war '));
+							initFleetPlans[i].action = firstWar || opts[0];
+						}
 					}
 				}
 			}
@@ -894,8 +908,13 @@ function ManeuverPlanProvider({ children }) {
 						initArmyPlans[i].dest
 					);
 					initArmyPlans[i] = { ...initArmyPlans[i], actionOptions: opts || [] };
-					if (Array.isArray(opts) && opts.length === 1) {
-						initArmyPlans[i].action = opts[0];
+					if (Array.isArray(opts)) {
+						if (opts.length === 1) {
+							initArmyPlans[i].action = opts[0];
+						} else if (opts.length > 1 && !initArmyPlans[i].action) {
+							let firstWar = opts.find((a) => a.startsWith('war '));
+							initArmyPlans[i].action = firstWar || opts[0];
+						}
 					}
 				}
 			}
