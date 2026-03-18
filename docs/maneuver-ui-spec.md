@@ -242,8 +242,10 @@ When multiple actions are available, a popup appears at the click position on th
 ```
 
 **Behavior:**
-- Click an action → assigns it, closes picker, auto-advances to next unassigned unit.
+- Click an action → assigns it, closes picker. **No auto-advance** — the player explicitly clicks the next unit when ready.
 - Click outside / press Escape → dismisses picker, keeps the default action (first war option if available, otherwise first option).
+- **Desktop:** Position-aware popup at click position (flips/repositions near viewport edges).
+- **Mobile:** Bottom sheet action menu (not a positioned popup).
 - `⚠ GAP: No keyboard navigation in the action picker.`
 
 ### 4.3 Hostile Availability
@@ -471,13 +473,16 @@ These trace exact user scenarios step-by-step, showing what the player sees at e
 
 **Scenario:** Austria has 2 fleets and 3 armies. Player opens the maneuver planner.
 
+**Selectable indicator:** In maneuver mode, the maneuvering country's unit markers get a subtle pulsing glow or ring in the country color, signaling "you can click me." Enemy country units remain flat (no glow) — they are visible for context but not interactive. Hovering over a selectable unit changes the cursor to pointer.
+
 ```
 INITIAL STATE (no active unit):
-  Map: 5 unit markers at their origins (fleet icons at seas/ports, army icons at land)
+  Map: 5 unit markers at their origins, all with selectable glow (country color)
+       Enemy units visible but flat (no glow, not interactive)
   Plan list: 5 rows, all "(unassigned)", all dimmed
   No territory highlighting on map
 
-STEP 1 — Player clicks Army 1 marker on the map:
+STEP 1 — Player clicks Army 1 marker on the map (recognizable by glow):
   Map: Army 1 marker gets highlighted border (Austria color)
        All reachable land territories light up in Austria color
        Army 1's origin highlights in gold
@@ -492,10 +497,11 @@ STEP 2 — Player clicks a highlighted territory (Budapest):
        If action picker needed: picker popup appears at click position
   Plan list: Army 1 row updates to "Vienna → Budapest [move]"
 
-STEP 3 — Auto-advance: Next unassigned unit activates automatically
-  Map: Army 2 marker gets highlighted border
-       Army 2's reachable territories light up
-  Plan list: Army 2 row highlights
+STEP 3 — No auto-advance. Player remains on the map with no active unit.
+  Map: Army 1's arrow visible. All selectable units still have glow.
+       No territory highlighting (no active unit).
+  Plan list: Army 1 row shows assigned. Other rows still unassigned.
+  Player clicks next unit when ready.
 
 DESELECTION — Player clicks empty map area (not a territory, not a unit):
   Map: All highlighting clears. No active unit.
