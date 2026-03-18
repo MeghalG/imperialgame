@@ -907,7 +907,7 @@ function ManeuverPlanProvider({ children }) {
 			highlights
 		);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeUnit, loaded, pendingPeace, country]);
+	}, [activeUnit, loaded, pendingPeace, country, fleetPlans, armyPlans]);
 
 	// Cleanup map interaction on unmount
 	useEffect(() => {
