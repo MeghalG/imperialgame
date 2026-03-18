@@ -677,6 +677,8 @@ function ManeuverPlanProvider({ children }) {
 			});
 
 			clearDraftFromLocalStorage();
+		} catch (e) {
+			console.error('ManeuverPlanProvider submitManeuver failed:', e);
 		} finally {
 			setSubmitting(false);
 		}
