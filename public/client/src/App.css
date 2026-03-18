@@ -160,3 +160,85 @@
 	animation-play-state: running;
 	pointer-events: none;
 }
+
+/* ============================================================
+   ManeuverActionPicker
+   ============================================================ */
+.imp-action-picker {
+	position: absolute;
+	z-index: 100;
+	background: rgba(20, 21, 24, 0.95);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 6px;
+	padding: 8px;
+	min-width: 200px;
+	max-width: 320px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.imp-action-picker__group {
+	margin-bottom: 8px;
+}
+.imp-action-picker__group:last-child {
+	margin-bottom: 0;
+}
+.imp-action-picker__label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	color: rgba(255, 255, 255, 0.45);
+	margin-bottom: 4px;
+	padding-left: 4px;
+}
+.imp-action-picker__btn {
+	display: block;
+	width: 100%;
+	padding: 10px 12px;
+	margin-bottom: 4px;
+	background: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-left: 3px solid;
+	border-radius: 4px;
+	color: rgba(255, 255, 255, 0.85);
+	font-size: 14px;
+	cursor: pointer;
+	text-align: left;
+	min-height: 44px;
+	transition: background 150ms ease-out;
+}
+.imp-action-picker__btn:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+.imp-action-picker__btn:last-child {
+	margin-bottom: 0;
+}
+
+/* ============================================================
+   ManeuverSubmitFAB
+   ============================================================ */
+.imp-submit-fab {
+	position: absolute;
+	bottom: 60px;
+	right: 20px;
+	z-index: 90;
+	padding: 12px 20px;
+	border: none;
+	border-radius: 24px;
+	color: #fff;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+	min-height: 44px;
+	min-width: 44px;
+	transition:
+		opacity 200ms ease-out,
+		transform 200ms ease-out;
+	font-family: 'DM Sans', -apple-system, sans-serif;
+}
+.imp-submit-fab:hover:not(:disabled) {
+	transform: scale(1.04);
+}
+.imp-submit-fab:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
