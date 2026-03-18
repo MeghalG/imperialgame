@@ -14,6 +14,10 @@
 
 const EMULATOR_HOST = process.env.FIREBASE_EMULATOR_HOST || 'localhost';
 const EMULATOR_PORT = process.env.FIREBASE_EMULATOR_PORT || 9000;
+// The Firebase SDK connects to the emulator with ns=PROJECT_ID (no suffix).
+// REST API calls must include ?ns=PROJECT_ID to write to the same namespace.
+const PROJECT_ID = process.env.REACT_APP_FIREBASE_PROJECT_ID || 'imperialgame-e8a12';
+const NAMESPACE = PROJECT_ID;
 const BASE_URL = `http://${EMULATOR_HOST}:${EMULATOR_PORT}`;
 
 /**
@@ -22,7 +26,7 @@ const BASE_URL = `http://${EMULATOR_HOST}:${EMULATOR_PORT}`;
  * @param {*} data - JSON-serializable data
  */
 async function dbSet(path, data) {
-	const url = `${BASE_URL}/${path}.json`;
+	const url = `${BASE_URL}/${path}.json?ns=${NAMESPACE}&access_token=owner`;
 	const res = await fetch(url, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
@@ -38,7 +42,7 @@ async function dbSet(path, data) {
  * @param {string} path - Database path to delete
  */
 async function dbDelete(path) {
-	const url = `${BASE_URL}/${path}.json`;
+	const url = `${BASE_URL}/${path}.json?ns=${NAMESPACE}&access_token=owner`;
 	const res = await fetch(url, { method: 'DELETE' });
 	if (!res.ok) {
 		throw new Error(`Firebase emulator DELETE ${path} failed: ${res.status} ${await res.text()}`);
@@ -266,8 +270,8 @@ async function cleanupGame(gameID) {
  * Copies from a known production setup URL.
  */
 async function seedSetupData() {
-	// Check if setup data already exists
-	const checkUrl = `${BASE_URL}/setups/standard.json`;
+	// Check if setup data already exists (in the project namespace)
+	const checkUrl = `${BASE_URL}/setups/standard.json?ns=${NAMESPACE}&access_token=owner`;
 	const check = await fetch(checkUrl);
 	const existing = await check.json();
 	if (existing && existing.territories) return; // Already seeded

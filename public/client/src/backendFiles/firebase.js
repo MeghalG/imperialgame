@@ -26,9 +26,10 @@ const db = getDatabase(app);
 const functions = getFunctions(app);
 
 // Connect to Firebase emulator if REACT_APP_FIREBASE_EMULATOR is set
+console.log('[firebase] REACT_APP_FIREBASE_EMULATOR =', process.env.REACT_APP_FIREBASE_EMULATOR);
 if (process.env.REACT_APP_FIREBASE_EMULATOR === 'true') {
 	connectDatabaseEmulator(db, 'localhost', 9000);
-	console.log('Connected to Firebase Database Emulator on localhost:9000');
+	console.log('[firebase] Connected to Database Emulator on localhost:9000');
 }
 
 // Map v8 event names to v10 listener functions
