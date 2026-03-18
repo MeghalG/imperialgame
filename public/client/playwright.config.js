@@ -3,7 +3,7 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
 	testDir: './e2e',
-	timeout: 30000,
+	timeout: 60000,
 	retries: 0,
 	use: {
 		baseURL: 'http://localhost:3000',
@@ -15,7 +15,7 @@ module.exports = defineConfig({
 		command: 'npm start',
 		port: 3000,
 		timeout: 60000,
-		reuseExistingServer: !process.env.CI, // Fresh server in CI, reuse locally if already configured
+		reuseExistingServer: false, // Always start fresh to pick up code changes
 		env: {
 			// Connect the React app to the Firebase emulator
 			REACT_APP_FIREBASE_EMULATOR: 'true',

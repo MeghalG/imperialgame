@@ -177,7 +177,7 @@ function baseGameState() {
 			Russia: {
 				money: 5,
 				points: 0,
-				factories: ['Moscow', 'St. Petersburg'],
+				factories: ['Moscow', 'St Petersburg'],
 				wheelSpot: 'center',
 				gov: 'dictatorship',
 				leadership: [],

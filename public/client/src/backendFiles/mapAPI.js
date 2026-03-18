@@ -83,6 +83,7 @@ async function getSeaFactories(context) {
 		let t = [];
 		let factories = countryInfo[key].factories;
 		for (let j = 0; j < factories.length; j++) {
+			if (!territorySetup[factories[j]]) continue;
 			let port = territorySetup[factories[j]].port;
 			if (port) {
 				let coord = territorySetup[factories[j]].factoryCoords;
@@ -120,6 +121,7 @@ async function getLandFactories(context) {
 			factories = [];
 		}
 		for (let j = 0; j < factories.length; j++) {
+			if (!territorySetup[factories[j]]) continue;
 			let port = territorySetup[factories[j]].port;
 			if (!port) {
 				let coord = territorySetup[factories[j]].factoryCoords;

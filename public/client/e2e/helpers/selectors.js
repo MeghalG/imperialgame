@@ -18,7 +18,9 @@ async function joinGame(page, gameID, playerName) {
 	// App.js reads ?game=xxx&name=Alice from the URL on mount.
 	await page.goto(`/?game=${encodeURIComponent(gameID)}&name=${encodeURIComponent(playerName)}`);
 	// Wait for the game map to load
-	await page.waitForSelector('.imp-map-container, [class*="MapApp"], svg, [class*="map"]', { timeout: 20000 });
+	// Wait for the SVG map to render — may take a while on first load
+	// while the dev server compiles and Firebase emulator connects
+	await page.waitForSelector('svg', { timeout: 30000 });
 }
 
 /**

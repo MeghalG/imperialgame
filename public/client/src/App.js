@@ -69,8 +69,10 @@ function App() {
 	}, []);
 
 	useEffect(() => {
-		setNameRaw(localStorage.getItem('name'));
-		setGameRaw(localStorage.getItem('game'));
+		// Restore from localStorage, but don't override URL params
+		const params = new URLSearchParams(window.location.search);
+		if (!params.get('name')) setNameRaw(localStorage.getItem('name'));
+		if (!params.get('game')) setGameRaw(localStorage.getItem('game'));
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
