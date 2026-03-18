@@ -11,8 +11,7 @@ import UserContext from './UserContext.js';
  * target country. Otherwise it shows the final "Submit Maneuver" button.
  */
 function ManeuverSubmitFAB() {
-	const { loaded, nextPeace, canSubmit, requestPeace, submitManeuver, submitting } =
-		useContext(ManeuverPlanContext);
+	const { loaded, nextPeace, canSubmit, requestPeace, submitManeuver, submitting } = useContext(ManeuverPlanContext);
 	const { colorblindMode } = useContext(UserContext);
 
 	if (!loaded) return null;
@@ -25,8 +24,7 @@ function ManeuverSubmitFAB() {
 	let disabled;
 
 	if (nextPeace) {
-		const countryColor =
-			(palette.bright && palette.bright[nextPeace.country]) || '#13a8a8';
+		const countryColor = (palette.bright && palette.bright[nextPeace.country]) || '#13a8a8';
 		label = submitting ? 'Submitting\u2026' : `\u262E Peace: ${nextPeace.country}`;
 		backgroundColor = countryColor;
 		onClick = () => requestPeace(nextPeace.phase, nextPeace.index);
@@ -39,12 +37,7 @@ function ManeuverSubmitFAB() {
 	}
 
 	return (
-		<button
-			className="imp-submit-fab"
-			style={{ backgroundColor }}
-			onClick={onClick}
-			disabled={disabled}
-		>
+		<button className="imp-submit-fab" style={{ backgroundColor }} onClick={onClick} disabled={disabled}>
 			{label}
 		</button>
 	);

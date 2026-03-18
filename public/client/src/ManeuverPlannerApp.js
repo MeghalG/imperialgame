@@ -23,11 +23,7 @@ function ManeuverPlannerApp() {
 		return (
 			<ManeuverPlanProvider>
 				<BottomSheet
-					peekContent={
-						<span style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>
-							Maneuver Plan &#9650;
-						</span>
-					}
+					peekContent={<span style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>Maneuver Plan &#9650;</span>}
 				>
 					<ManeuverPlanList />
 				</BottomSheet>

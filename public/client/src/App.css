@@ -230,9 +230,7 @@
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 	min-height: 44px;
 	min-width: 44px;
-	transition:
-		opacity 200ms ease-out,
-		transform 200ms ease-out;
+	transition: opacity 200ms ease-out, transform 200ms ease-out;
 	font-family: 'DM Sans', -apple-system, sans-serif;
 }
 .imp-submit-fab:hover:not(:disabled) {

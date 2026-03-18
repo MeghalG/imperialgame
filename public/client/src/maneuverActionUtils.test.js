@@ -34,21 +34,15 @@ describe('normalizeAction', () => {
 	});
 
 	test('war action extracts country', () => {
-		expect(normalizeAction('war France fleet')).toEqual([
-			{ country: 'France', action: 'war France fleet' },
-		]);
+		expect(normalizeAction('war France fleet')).toEqual([{ country: 'France', action: 'war France fleet' }]);
 	});
 
 	test('war action with army unit type', () => {
-		expect(normalizeAction('war Austria army')).toEqual([
-			{ country: 'Austria', action: 'war Austria army' },
-		]);
+		expect(normalizeAction('war Austria army')).toEqual([{ country: 'Austria', action: 'war Austria army' }]);
 	});
 
 	test('blow up action extracts country', () => {
-		expect(normalizeAction('blow up Italy')).toEqual([
-			{ country: 'Italy', action: 'blow up Italy' },
-		]);
+		expect(normalizeAction('blow up Italy')).toEqual([{ country: 'Italy', action: 'blow up Italy' }]);
 	});
 
 	test('blow up action with multi-word country', () => {
@@ -73,9 +67,7 @@ describe('normalizeAction', () => {
 	});
 
 	test('unknown action string wraps generically', () => {
-		expect(normalizeAction('something weird')).toEqual([
-			{ country: null, action: 'something weird' },
-		]);
+		expect(normalizeAction('something weird')).toEqual([{ country: null, action: 'something weird' }]);
 	});
 });
 
@@ -105,15 +97,11 @@ describe('denormalizeAction', () => {
 	});
 
 	test('single war entry returns action string', () => {
-		expect(denormalizeAction([{ country: 'France', action: 'war France fleet' }])).toBe(
-			'war France fleet'
-		);
+		expect(denormalizeAction([{ country: 'France', action: 'war France fleet' }])).toBe('war France fleet');
 	});
 
 	test('single blow up entry returns action string', () => {
-		expect(denormalizeAction([{ country: 'Italy', action: 'blow up Italy' }])).toBe(
-			'blow up Italy'
-		);
+		expect(denormalizeAction([{ country: 'Italy', action: 'blow up Italy' }])).toBe('blow up Italy');
 	});
 
 	test('multiple entries return JSON string', () => {

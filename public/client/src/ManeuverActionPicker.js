@@ -47,9 +47,7 @@ function ManeuverActionPicker({ position, actions, onSelect, onDismiss }) {
 
 	// Multi-country grouped format: { countries: [{country, units, actions}], otherActions }
 	const { countries = [], otherActions = [] } = actions;
-	const totalActions =
-		countries.reduce((sum, g) => sum + (g.actions ? g.actions.length : 0), 0) +
-		otherActions.length;
+	const totalActions = countries.reduce((sum, g) => sum + (g.actions ? g.actions.length : 0), 0) + otherActions.length;
 
 	if (totalActions <= 1) return null;
 

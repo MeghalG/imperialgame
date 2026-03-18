@@ -37,19 +37,14 @@ function TransportRouteLayer() {
 	}
 
 	// Only render fleets that have a destination assigned
-	let assignedFleets = fleetPlans.filter(
-		(plan) => plan.dest != null && plan.dest !== ''
-	);
+	let assignedFleets = fleetPlans.filter((plan) => plan.dest != null && plan.dest !== '');
 
 	if (assignedFleets.length === 0 || Object.keys(territories).length === 0) {
 		return null;
 	}
 
 	let palette = getCountryColorPalette(context.colorblindMode);
-	let color =
-		(palette.bright && palette.bright[country]) ||
-		palette.bright['Austria'] ||
-		'#c9a84c';
+	let color = (palette.bright && palette.bright[country]) || palette.bright['Austria'] || '#c9a84c';
 
 	let circles = [];
 	for (let i = 0; i < assignedFleets.length; i++) {

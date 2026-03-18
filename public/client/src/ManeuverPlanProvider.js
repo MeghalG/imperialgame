@@ -6,7 +6,13 @@ import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { readGameState, readSetup } from './backendFiles/stateCache.js';
 import { getCountryColorPalette } from './countryColors.js';
-import { normalizeAction, denormalizeAction, actionColor, isPeaceAction, hasPeaceInAction } from './maneuverActionUtils.js';
+import {
+	normalizeAction,
+	denormalizeAction,
+	actionColor,
+	isPeaceAction,
+	hasPeaceInAction,
+} from './maneuverActionUtils.js';
 import SoundManager from './SoundManager.js';
 
 /**
@@ -168,8 +174,16 @@ function ManeuverPlanProvider({ children }) {
 			country: cm.country,
 			pendingFleets: cm.pendingFleets || [],
 			pendingArmies: cm.pendingArmies || [],
-			fleetTuples: fleetPlansRef.current.map((p) => [p.origin, p.dest || '', denormalizeAction(normalizeAction(p.action || ''))]),
-			armyTuples: armyPlansRef.current.map((p) => [p.origin, p.dest || '', denormalizeAction(normalizeAction(p.action || ''))]),
+			fleetTuples: fleetPlansRef.current.map((p) => [
+				p.origin,
+				p.dest || '',
+				denormalizeAction(normalizeAction(p.action || '')),
+			]),
+			armyTuples: armyPlansRef.current.map((p) => [
+				p.origin,
+				p.dest || '',
+				denormalizeAction(normalizeAction(p.action || '')),
+			]),
 		};
 	}
 

@@ -130,7 +130,7 @@ function AssignedUnitRow({ phase, index, plan, isLocked, isActive, colorPalette,
 	// Determine peace actions (for inline peace button)
 	let hasPeace = hasPeaceInAction(actionCompound);
 	let peaceCountry = peaceTargetCountry(actionCompound);
-	let peaceColor = peaceCountry ? (colorPalette.bright[peaceCountry] || '#52c41a') : '#52c41a';
+	let peaceColor = peaceCountry ? colorPalette.bright[peaceCountry] || '#52c41a' : '#52c41a';
 
 	// Row border color: orange for peace rows, green for planned, gray for unplanned
 	let borderColor = hasPeace ? '#fa8c16' : '#52c41a';
@@ -545,17 +545,13 @@ function ManeuverPlanList() {
 			/>
 
 			{/* Fleet section */}
-			{hasFleets && (
-				<PhaseSection phase="fleet" colorPalette={colorPalette} planContext={planContext} />
-			)}
+			{hasFleets && <PhaseSection phase="fleet" colorPalette={colorPalette} planContext={planContext} />}
 
 			{/* Hard divider between fleet and army */}
 			{hasFleets && hasArmies && <SectionDivider />}
 
 			{/* Army section */}
-			{hasArmies && (
-				<PhaseSection phase="army" colorPalette={colorPalette} planContext={planContext} />
-			)}
+			{hasArmies && <PhaseSection phase="army" colorPalette={colorPalette} planContext={planContext} />}
 
 			{/* Submit button */}
 			<SubmitButton planContext={planContext} />
