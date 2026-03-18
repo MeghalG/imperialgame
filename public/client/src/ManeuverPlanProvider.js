@@ -6,13 +6,7 @@ import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import { readGameState, readSetup } from './backendFiles/stateCache.js';
 import { getCountryColorPalette } from './countryColors.js';
-import {
-	normalizeAction,
-	denormalizeAction,
-	actionColor,
-	isPeaceAction,
-	hasPeaceInAction,
-} from './maneuverActionUtils.js';
+import { normalizeAction, denormalizeAction, isPeaceAction } from './maneuverActionUtils.js';
 import SoundManager from './SoundManager.js';
 
 /**
