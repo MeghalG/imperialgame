@@ -185,68 +185,264 @@ After every stock purchase, `changeLeadership()` recalculates:
 
 ## Maneuver System
 
-Maneuvers move a country's military units **one at a time** in a step-by-step interactive flow. Each unit's movement generates a ManeuverTuple: `[origin, destination, actionCode]`.
+When a player selects L-Maneuver or R-Maneuver on the rondel, the game moves **all** of the country's fleets and armies. Each unit's movement is encoded as a ManeuverTuple: `[origin, destination, actionCode]`.
 
-### Step-by-Step Movement (Continue-Man Mode)
+There are two submission paths:
 
-When a player selects L-Maneuver or R-Maneuver on the rondel, the game enters `continue-man` mode instead of collecting all moves at once:
+| Path | Mode | UI | Code |
+|------|------|----|------|
+| **Batch** | `continue-man` with ManeuverPlanProvider | Map-based planner: assign all moves, then submit once | `submitBatchManeuver()` |
+| **Step-by-step** | `continue-man` with ContinueManeuverApp | Dropdown per unit, submit one at a time | `submitManeuver()` |
 
-1. **Fleet phase first**: Each fleet is presented one at a time. The player selects a destination and action for each.
-2. **Army phase second**: After all fleets are done, each army is presented one at a time.
-3. **Virtual state**: Moves are tracked in `currentManeuver` but NOT applied to `gameState.countryInfo` until the maneuver is fully complete. Movement options for each unit are computed from the virtual board state (original positions + completed moves).
-4. **Completion**: After all units are processed, the full maneuver is assembled with resolved ManeuverTuples and either executed (dictatorship) or stored as a proposal (democracy).
+Both paths produce the same ManeuverTuples and feed into the same execution logic. The batch path is the default UI; step-by-step is the legacy fallback.
 
-### Peace Vote Mechanics
+### Entering a Maneuver (`enterManeuver`)
 
-When a unit declares "peace" entering foreign territory, the target country must vote:
+Called from `submitProposal()` or `submitNoCounter()` when a player selects L/R-Maneuver.
 
-- **Target is dictatorship**: The dictator (leadership[0]) alone votes accept/reject.
-- **Target is democracy**: Full stockholder vote among the target country's stockholders, weighted by stock denomination. The target country's leader gets a +0.1 tiebreak bonus. Threshold: `votes > (totalStock + 0.01) / 2.0`.
-- **If accepted**: ManeuverTuple action stays `"peace"` (unit enters with `hostile: false`).
-- **If rejected**: ManeuverTuple action becomes `"war {targetCountry} {unitType}"` (both units destroyed).
-- The proposing country never votes on its own peace offers.
-- Peace votes happen during proposal **building**, before the proposal enters the democracy flow.
+1. Snapshot the country's current fleets and armies into `currentManeuver.pendingFleets` / `pendingArmies` (deep copy).
+2. Set `phase: 'fleet'` if fleets exist, else `phase: 'army'`. Set `unitIndex: 0`.
+3. Determine `returnMode` and `proposalSlot` based on government type and who is proposing:
+   - **Dictatorship**: `returnMode = 'execute'`, `proposalSlot = 0` (execute immediately after all moves)
+   - **Democracy, leader proposing** (mode was `proposal`): `returnMode = 'proposal-opp'`, `proposalSlot = 1`
+   - **Democracy, opposition proposing** (mode was `proposal-opp`): `returnMode = 'vote'`, `proposalSlot = 2`
+4. Set `gameState.mode = 'continue-man'`. Only the proposing player's `myTurn` is true.
+5. **Edge case**: If the country has zero fleets and zero armies, skip directly to `completeManeuver()`.
+
+### Phase Order
+
+Maneuvers always process in this order:
+
+1. **Fleet phase**: All fleets are assigned destinations and actions.
+2. **Army phase**: All armies are assigned destinations and actions.
+
+The fleet phase must complete before armies begin, because army movement depends on where fleets end up (fleets provide sea transport for armies).
+
+### Movement Rules
+
+#### Fleet Movement
+
+Fleets move between **sea territories and ports**. Legal destinations are the direct adjacencies of the fleet's current territory, as defined in the territory setup.
+
+- Source: `proposalAPI.getFleetOptions()` → calls `getAdjacentSeas(territory, territorySetup)`.
+- Each fleet gets a list of adjacent sea/port territories it can move to.
+- A fleet may also stay at its current territory (destination = origin).
+
+#### Army Movement
+
+Armies can reach any **land territory** connected through:
+1. **Home territory chains**: Connected sequences of territories belonging to the army's country, where both the source and destination of each step belong to that country.
+2. **Friendly-fleet-controlled seas**: A sea territory counts as passable if one of the country's fleets is moving there with action `""` (normal move) or `"peace"`. This lets armies cross seas via naval transport.
+
+The reachable set is computed in two steps:
+
+1. **`getD0(territory)`** — BFS from the army's position. Expands through:
+   - Adjacent territories where both sides of the border belong to the army's country.
+   - Adjacent sea territories where a friendly fleet is moving (action is `""` or `"peace"`).
+   - Result: the "distance-0" connected zone.
+
+2. **`getAdjacentLands(territory)`** — From every territory in the D0 set, expand one more step outward (including through seas reachable from those territories), then filter to land-only. Deduplicate.
+
+- Source: `proposalAPI.getArmyOptions()`.
+- **Constraint**: Armies cannot move to sea territories. Validated in `submitManeuver()` / `_submitBatchManeuverLocal()`.
+
+#### Staying in Place
+
+A unit may stay at its current territory. In this case `destination === origin`, and no action is needed (the action code is `""`).
+
+### Action Codes (ManeuverTuple[2])
+
+The third element of every ManeuverTuple encodes what happens when the unit arrives:
+
+| Code | Name | Applies to | What happens |
+|------|------|-----------|--------------|
+| `""` (empty string) | Normal move | Fleet or Army | Unit moves to destination. If destination is a neutral territory (not belonging to any country), removes all other countries' tax chips there and places the moving country's tax chip. |
+| `"peace"` | Peaceful entry | Fleet or Army | Unit enters foreign territory non-hostilely (`hostile: false` on the unit object). Triggers a peace vote (see below). Only meaningful when destination belongs to another country AND enemy units are present there. |
+| `"hostile"` | Hostile entry | Fleet or Army | Unit enters foreign territory hostilely (`hostile: true`). Used as the fallback when a peace vote is rejected but no enemy unit exists to destroy. |
+| `"war {country} {unitType}"` | War / Attack | Fleet or Army | Destroys one enemy unit of the specified type at the destination. The attacking unit is also destroyed (mutual destruction). Example: `"war France fleet"`. |
+| `"blow up {country}"` | Destroy factory | Army only | Destroys one factory belonging to `{country}` at the destination. The army that blows up the factory is destroyed. Two additional friendly armies at the same territory are also consumed (3 armies total destroyed per blow-up). Example: `"blow up Austria"`. |
+
+#### When Actions Are Required
+
+A unit needs an action code (war/peace/hostile) when **all** of these are true:
+1. The destination belongs to a different country than the moving country.
+2. There are hostile enemy units at the destination (fleets or armies with `hostile: true` from any country other than the moving country).
+3. The destination is different from the origin (the unit is actually entering the territory, not staying).
+
+If any condition is false, the action code is `""` (normal move).
+
+"Blow up" is available when: an army enters a territory with an enemy factory AND the moving country has at least 3 armies at that territory (including the blowing-up army itself, after all moves resolve).
+
+### Peace Vote System
+
+Peace votes happen **during maneuver planning**, before the maneuver proposal enters the democracy flow. They interrupt the maneuver to ask the target country whether to accept or reject a peaceful entry.
+
+#### Trigger Conditions
+
+A peace vote is triggered when ALL of these are true:
+1. The unit's action code starts with `"peace"`.
+2. `destination !== origin` (the unit is actually moving).
+3. The destination territory belongs to another country (`destCountry !== movingCountry`).
+4. There are enemy units at the destination (from any country other than the moving country).
+
+In the batch path, destroyed units from earlier war moves in the same batch are tracked in a `destroyedUnits` set and excluded from the enemy unit check. This prevents spurious peace votes when a prior move in the batch already destroyed all enemies at that territory.
+
+#### Dictatorship Peace Vote
+
+When the target country is a dictatorship:
+
+1. `currentManeuver.pendingPeace` is set with the peace offer details (origin, destination, targetCountry, unitType, tuple).
+2. Only the dictator (target country's `leadership[0]`) has `myTurn = true`.
+3. The mode stays `continue-man` — the dictator sees accept/reject buttons inline.
+4. The dictator submits via `submitDictatorPeaceVote(context)`.
+
+**If accepted**: The tuple's action stays `"peace"`. History: `"{dictator} accepts the peace offer from {country} at {destination}."`.
+
+**If rejected**: The code finds the first enemy unit at the destination:
+- If an enemy unit exists → tuple becomes `"war {targetCountry} {unitType}"` (mutual destruction).
+- If no enemy unit exists (edge case) → tuple becomes `"hostile"`.
+- History: `"{dictator} rejects the peace offer from {country} at {destination}."`.
+
+After the dictator decides, `unitIndex` advances and control returns to the proposer.
+
+#### Democracy Peace Vote
+
+When the target country is a democracy:
+
+1. `gameState.peaceVote` is set with: `movingCountry`, `targetCountry`, `unitType`, `origin`, `destination`, `acceptVotes: 0`, `rejectVotes: 0`, `voters: []`, `totalStock`, `tuple`.
+2. `totalStock` = sum of all stockholders' stock denominations for the target country.
+3. Mode changes to `peace-vote`. All of the target country's leadership (stockholders) have `myTurn = true`.
+4. Each stockholder submits via `submitPeaceVote(context)`.
+
+**Vote weight**: Each voter's weight = sum of their stock denominations for the target country. The target country's leader (`leadership[0]`) gets a +0.1 tiebreak bonus added to their weight.
+
+**Threshold**: `votes > (totalStock + 0.01) / 2.0`. This means a strict majority is needed, with the +0.01 ensuring that exactly 50% is not enough.
+
+**If accepted** (acceptVotes > threshold): Tuple action stays `"peace"`. History logged. `peaceVote` is cleared, mode returns to `continue-man`, `unitIndex` advances, control returns to proposer.
+
+**If rejected** (rejectVotes > threshold): Same logic as dictatorship rejection — finds enemy unit, converts to war or hostile. `peaceVote` is cleared, mode returns to `continue-man`, `unitIndex` advances, control returns to proposer.
+
+**If neither threshold reached**: More votes needed. Stay in `peace-vote` mode.
+
+#### Batch Path Peace Interruption
+
+In the batch submission path (`submitBatchManeuver`), if a peace vote is triggered at move index N:
+
+1. Moves 0 through N-1 are committed to `completedFleetMoves`/`completedArmyMoves`.
+2. Move N triggers the peace vote (dictatorship pendingPeace or democracy peace-vote mode).
+3. Remaining moves (N+1 onward) are stored in `cm.remainingFleetPlans` / `cm.remainingArmyPlans`.
+4. The batch function calls `finalizeSubmit()` and returns — the batch is split.
+5. After the peace vote resolves, the ManeuverPlanProvider reloads and pre-populates the remaining plans from `cm.remainingFleetPlans`/`cm.remainingArmyPlans`.
+
+### Completing a Maneuver (`completeManeuver`)
+
+Called when all units in both phases have been processed (unitIndex >= pendingArmies.length while in army phase).
+
+1. Assembles `fullContext` with `fleetMan = cm.completedFleetMoves`, `armyMan = cm.completedArmyMoves`.
+2. Routes based on `cm.returnMode`:
+
+| `returnMode` | What happens |
+|---|---|
+| `'execute'` | Dictatorship: calls `executeProposal()` immediately. Maneuver takes effect now. |
+| `'proposal-opp'` | Democracy leader: serializes context into `gameState['proposal 1']` via `stringifyFunctions()`. Adds history entry. Sets mode to `proposal-opp`. Gives turn to opposition. |
+| `'vote'` | Democracy opposition: serializes context into `gameState['proposal 2']`. Adds history entry. Sets mode to `vote`. Sets up `gameState.voting` with both proposals. All leadership stockholders get `myTurn = true`. |
+
+3. Clears `gameState.currentManeuver = null`.
+
+### Execution (`executeProposal`, L/R-Maneuver case)
+
+When the maneuver proposal is finally executed (after democracy vote resolves, or immediately for dictatorship):
+
+#### Fleet Execution (processed first)
+
+For each fleet tuple in order:
+
+1. **War**: If action starts with `"war"`, parse target country and unit type. Find the first matching enemy unit at the destination and remove it from `gameState.countryInfo`. The attacking fleet is NOT added to the new fleet list (consumed). **Skip to next tuple.**
+2. **Tax chips** (normal move, action is `""`): Remove all other countries' tax chips at the destination. If the destination is a neutral territory (no owning country), place the moving country's tax chip there.
+3. **Add fleet**: Add `{ territory: destination, hostile: true }` to the new fleet list.
+
+After all fleet tuples: replace `gameState.countryInfo[country].fleets` with the new list. Note: all surviving fleets are set to `hostile: true` regardless of action code. (Peace/hostile distinction only applies to armies.)
+
+#### Army Execution (processed second)
+
+**Pre-sort**: Army tuples are sorted by action code character value, descending. This means:
+- `"war ..."` (starts with 'w', charCode 119) executes first
+- `"blow up ..."` (starts with 'b', charCode 98) executes second
+- `"peace"` (starts with 'p', charCode 112) executes third
+- `"hostile"` (starts with 'h', charCode 104) executes fourth
+- `""` (charCode 0) executes last
+
+This ordering ensures destroyed units are removed before peaceful/hostile entries are placed, preventing conflicts.
+
+For each army tuple (in sorted order):
+
+1. **Blow-up consumption check**: If a previous blow-up at this territory consumed this army (3 armies destroyed per blow-up), skip this tuple.
+2. **War**: Parse target country and unit type. Find and remove the first matching enemy unit. The attacking army is consumed. **Skip to next tuple.**
+3. **Tax chips** (normal move, action is `""`): Same as fleets — clear other countries' chips, place own chip on neutral territory.
+4. **Peace**: If action is `"peace"` and destination belongs to a foreign country, set `hostile = false`. Otherwise `hostile = true`.
+5. **Blow up**: If action starts with `"blow"`, find and remove the factory from the target country. The army is consumed. Mark 2 more armies at this territory for consumption (`blowUpConsumed`). **Skip to next tuple.**
+6. **Add army**: Add `{ territory: destination, hostile: hostile }` to the new army list.
+
+After all army tuples: replace `gameState.countryInfo[country].armies` with the new list.
 
 ### Mode Transitions for Maneuvers
 
 ```
-proposal → (select L/R-Maneuver) → continue-man
+proposal ─── (select L/R-Maneuver) ──→ continue-man
+proposal-opp (select L/R-Maneuver) ──→ continue-man
 
-During continue-man:
-  (move unit, no conflict) → continue-man (next unit)
-  (unit peace to dictatorship target) → dictator sees accept/reject in continue-man
-  (unit peace to democracy target) → peace-vote mode → stockholders vote → continue-man
-  (all fleets done) → switch to army phase → continue-man
-  (all units done, dictatorship) → executeProposal → buy/next
-  (all units done, democracy leader) → store proposal 1 → proposal-opp
-  (all units done, democracy opposition) → store proposal 2 → vote
+During continue-man (step-by-step path):
+  (move unit, no conflict)              → continue-man (next unit)
+  (unit peace to dictatorship target)   → dictator sees accept/reject in continue-man
+  (unit peace to democracy target)      → peace-vote mode → stockholders vote → continue-man
+  (all fleets done)                     → switch to army phase → continue-man
+  (all units done, dictatorship)        → executeProposal → buy/next
+  (all units done, democracy leader)    → store proposal 1 → proposal-opp
+  (all units done, democracy opposition)→ store proposal 2 → vote
+
+During continue-man (batch path):
+  (no peace votes in entire batch)      → completeManeuver → same as "all units done" above
+  (peace vote triggered at move N)      → commit moves 0..N-1, store remaining plans,
+                                          trigger peace vote (dict or democracy),
+                                          after resolution → ManeuverPlanProvider reloads
+                                          with remaining plans
 ```
 
-### Action Codes
+### Firebase Data Model During Maneuvers
 
-| Code | Meaning | Effect |
-|------|---------|--------|
-| `""` (empty) | Normal move | Unit moves. Places tax chip on neutral territory. |
-| `"peace"` | Peaceful entry | Army enters foreign territory non-hostilely (`hostile: false`). Triggers peace vote. |
-| `"hostile"` | Hostile entry | Army enters foreign territory hostilely |
-| `"war {country} {unitType}"` | Attack | Destroys one enemy unit at the destination. Attacking unit is also removed. |
-| `"blow up {country}"` | Destroy factory | Army destroys a factory at the destination. Army is removed. |
+**`gameState.currentManeuver`** (exists only during `continue-man`):
 
-### Processing Order (executeProposal)
+| Field | Type | Description |
+|-------|------|-------------|
+| `country` | string | Country being maneuvered |
+| `player` | string | Player who is building the proposal |
+| `wheelSpot` | string | `"L-Maneuver"` or `"R-Maneuver"` |
+| `phase` | `"fleet"` or `"army"` | Current phase |
+| `unitIndex` | number | Index into pendingFleets or pendingArmies |
+| `pendingFleets` | FleetUnit[] | Snapshot of original fleet positions |
+| `pendingArmies` | ArmyUnit[] | Snapshot of original army positions |
+| `completedFleetMoves` | ManeuverTuple[] | Resolved fleet tuples so far |
+| `completedArmyMoves` | ManeuverTuple[] | Resolved army tuples so far |
+| `returnMode` | string | `"execute"`, `"proposal-opp"`, or `"vote"` |
+| `proposalSlot` | number | 0 (execute), 1 (leader proposal), or 2 (opposition proposal) |
+| `pendingPeace` | object or null | Dictatorship peace vote info (origin, destination, targetCountry, unitType, tuple) |
+| `remainingFleetPlans` | ManeuverTuple[] or undefined | Remaining fleet plans after a batch peace interruption |
+| `remainingArmyPlans` | ManeuverTuple[] or undefined | Remaining army plans after a batch peace interruption |
 
-When the maneuver proposal is finally executed (after all moves collected and proposal accepted):
+**`gameState.peaceVote`** (exists only during `peace-vote` mode):
 
-1. **Fleets first**: All fleets are moved/resolved before armies
-2. **Armies sorted**: Sorted by action code (wars processed before peaceful moves)
-3. **Tax chips**: When a unit enters a neutral territory (not belonging to any country), removes any other country's tax chip there and places the moving country's tax chip
-4. **Wars**: The attacking unit AND the target unit are both removed
-5. **Factory destruction**: The army is removed and the factory is removed from the target country
-
-### Fleet vs Army Movement
-
-- **Fleets** move between sea territories and ports. Movement options come from adjacencies.
-- **Armies** can reach any land territory connected through friendly territory and/or friendly fleets (fleets that moved to `"peace"` provide sea transport). Uses BFS in `getD0()` and `getAdjacentLands()`.
-- During step-by-step mode, `getCurrentUnitOptions()` computes destinations from the virtual board state (accounting for completed moves).
+| Field | Type | Description |
+|-------|------|-------------|
+| `movingCountry` | string | Country whose unit is requesting peace |
+| `targetCountry` | string | Country being asked to accept peace |
+| `unitType` | `"fleet"` or `"army"` | Type of the moving unit |
+| `origin` | string | Territory the unit is moving from |
+| `destination` | string | Territory the unit is entering |
+| `acceptVotes` | number | Weighted accept votes so far |
+| `rejectVotes` | number | Weighted reject votes so far |
+| `voters` | string[] | Players who have already voted |
+| `totalStock` | number | Total stock denominations across all stockholders |
+| `tuple` | ManeuverTuple | The original tuple (may be rewritten on rejection) |
 
 ---
 
