@@ -95,7 +95,6 @@ import {
 	submitBuy,
 	submitVote,
 	submitNoCounter,
-	submitManeuver,
 	submitBatchManeuver,
 	submitDictatorPeaceVote,
 	submitPeaceVote,
@@ -312,68 +311,6 @@ beforeEach(() => {
 	mockRemovedPaths = [];
 	clearCache();
 	jest.clearAllMocks();
-});
-
-// ===========================================================================
-// submitManeuver (step-by-step maneuver)
-// ===========================================================================
-describe('submitManeuver', () => {
-	test('returns "done" when no currentManeuver exists', async () => {
-		const gs = createMockGameState({ mode: 'continue-man' });
-		gs.currentManeuver = null;
-		setupMockDb(gs);
-		const result = await submitManeuver({ game: 'testGame', name: 'Alice' });
-		expect(result).toBe('done');
-	});
-
-	test('processes a normal fleet move and advances unitIndex', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'West Med', hostile: true },
-		];
-		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'fleet',
-			unitIndex: 0,
-			pendingFleets: [
-				{ territory: 'Adriatic Sea', hostile: true },
-				{ territory: 'West Med', hostile: true },
-			],
-			pendingArmies: [{ territory: 'Vienna', hostile: true }],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		// Add territory setup
-		mockDbData['setups/standard'].territories = { 'Adriatic Sea': {}, 'West Med': {}, Vienna: { country: 'Austria' } };
-		mockDbData.setups.standard.territories = { 'Adriatic Sea': {}, 'West Med': {}, Vienna: { country: 'Austria' } };
-
-		const result = await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'West Med',
-			maneuverAction: '',
-		});
-		await flushPromises();
-		expect(result).toBe('done');
-
-		const written = mockSetData['games/testGame'];
-		expect(written.currentManeuver.completedFleetMoves).toEqual([['Adriatic Sea', 'West Med', '']]);
-		expect(written.currentManeuver.unitIndex).toBe(1);
-		expect(written.currentManeuver.phase).toBe('fleet');
-		expect(written.mode).toBe('continue-man');
-	});
 });
 
 // ===========================================================================
@@ -2451,243 +2388,6 @@ describe('enterManeuver (via submitProposal)', () => {
 });
 
 // ===========================================================================
-// Continue-Man Mode — submitManeuver (full flow)
-// ===========================================================================
-describe('submitManeuver — full maneuver flow', () => {
-	function addTerritorySetup(territories) {
-		mockDbData['setups/standard'].territories = territories || {};
-		mockDbData.setups.standard.territories = territories || {};
-	}
-
-	test('fleet-to-army phase transition', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
-		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'fleet',
-			unitIndex: 0,
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
-			pendingArmies: [{ territory: 'Vienna', hostile: true }],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({ 'Adriatic Sea': {}, 'West Med': {}, Vienna: { country: 'Austria' } });
-
-		await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'West Med',
-			maneuverAction: '',
-		});
-		await flushPromises();
-
-		const written = mockSetData['games/testGame'];
-		expect(written.currentManeuver.phase).toBe('army');
-		expect(written.currentManeuver.unitIndex).toBe(0);
-		expect(written.currentManeuver.completedFleetMoves).toEqual([['Adriatic Sea', 'West Med', '']]);
-		expect(written.mode).toBe('continue-man');
-	});
-
-	test('completes maneuver and executes for dictatorship when all units done', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
-		gs.countryInfo.Austria.armies = [];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'fleet',
-			unitIndex: 0,
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
-			pendingArmies: [],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({ 'Adriatic Sea': {}, 'West Med': {} });
-
-		await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'West Med',
-			maneuverAction: '',
-		});
-		await flushPromises();
-
-		const written = mockSetData['games/testGame'];
-		// Maneuver should be completed and executed
-		expect(written.currentManeuver).toBeNull();
-		expect(written.mode).not.toBe('continue-man');
-	});
-
-	test('peace offer to dictatorship sets dictator myTurn', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
-		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
-		gs.countryInfo.Austria.fleets = [];
-		gs.countryInfo.Italy.gov = 'dictatorship';
-		gs.countryInfo.Italy.leadership = ['Bob'];
-		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: false }];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'army',
-			unitIndex: 0,
-			pendingFleets: [],
-			pendingArmies: [{ territory: 'Vienna', hostile: true }],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
-
-		await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'Rome',
-			maneuverAction: 'peace',
-		});
-		await flushPromises();
-
-		const written = mockSetData['games/testGame'];
-		// Should have pendingPeace set and dictator Bob gets myTurn
-		expect(written.currentManeuver.pendingPeace).not.toBeNull();
-		expect(written.currentManeuver.pendingPeace.targetCountry).toBe('Italy');
-		expect(written.playerInfo.Bob.myTurn).toBe(true);
-		expect(written.playerInfo.Alice.myTurn).toBe(false);
-		expect(written.mode).toBe('continue-man');
-		// sameTurn must be false so the dictator's TurnApp refreshes
-		expect(written.sameTurn).toBe(false);
-	});
-
-	test('peace offer to democracy creates peace-vote mode', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
-		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
-		gs.countryInfo.Austria.fleets = [];
-		gs.countryInfo.Italy.gov = 'democracy';
-		gs.countryInfo.Italy.leadership = ['Bob', 'Alice'];
-		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: false }];
-		gs.playerInfo.Bob.stock = [{ country: 'Italy', stock: 3 }];
-		gs.playerInfo.Alice.stock = [{ country: 'Italy', stock: 2 }];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'army',
-			unitIndex: 0,
-			pendingFleets: [],
-			pendingArmies: [{ territory: 'Vienna', hostile: true }],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
-
-		await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'Rome',
-			maneuverAction: 'peace',
-		});
-		await flushPromises();
-
-		const written = mockSetData['games/testGame'];
-		expect(written.mode).toBe('peace-vote');
-		expect(written.peaceVote).not.toBeNull();
-		expect(written.peaceVote.movingCountry).toBe('Austria');
-		expect(written.peaceVote.targetCountry).toBe('Italy');
-		expect(written.peaceVote.totalStock).toBe(5);
-		// All stockholders of target country vote, including Alice (the proposer)
-		expect(written.playerInfo.Bob.myTurn).toBe(true);
-		expect(written.playerInfo.Alice.myTurn).toBe(true);
-		// sameTurn must be false so all voters' TurnApp refreshes
-		expect(written.sameTurn).toBe(false);
-	});
-
-	test('peace to foreign territory with no enemy units skips peace vote', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
-		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
-		gs.countryInfo.Austria.fleets = [];
-		gs.countryInfo.Italy.gov = 'dictatorship';
-		gs.countryInfo.Italy.leadership = ['Bob'];
-		// No Italian units at Rome — only factories might be there
-		gs.countryInfo.Italy.armies = [];
-		gs.countryInfo.Italy.fleets = [];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'army',
-			unitIndex: 0,
-			pendingFleets: [],
-			pendingArmies: [{ territory: 'Vienna', hostile: true }],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
-
-		await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'Rome',
-			maneuverAction: 'peace',
-		});
-		await flushPromises();
-
-		const written = mockSetData['games/testGame'];
-		// No peace vote triggered — move was recorded directly
-		expect(written.currentManeuver).toBeNull(); // maneuver completed (only 1 army)
-		expect(written.peaceVote).toBeUndefined();
-		// Mode should not be peace-vote (it should have progressed past maneuver)
-		expect(written.mode).not.toBe('peace-vote');
-	});
-});
-
-// ===========================================================================
 // Dictator Peace Vote
 // ===========================================================================
 describe('submitDictatorPeaceVote', () => {
@@ -3015,11 +2715,11 @@ describe('completeManeuver — democracy proposal storage', () => {
 		setupMockDb(gs);
 		addTerritorySetup({ Vienna: { country: 'Austria' }, Budapest: {} });
 
-		await submitManeuver({
+		await submitBatchManeuver({
 			game: 'testGame',
 			name: 'Alice',
-			maneuverDest: 'Budapest',
-			maneuverAction: '',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Budapest', '']],
 		});
 		await flushPromises();
 
@@ -3514,147 +3214,18 @@ describe('adjustTime', () => {
 });
 
 // ===========================================================================
-// Army-to-sea validation in submitManeuver
+// Army execution order — player-chosen order preserved (no sort)
 // ===========================================================================
-describe('submitManeuver — army-to-sea validation', () => {
+describe('executeProposal — army execution order', () => {
 	function addTerritorySetup(territories) {
 		mockDbData['setups/standard'].territories = territories;
 		mockDbData.setups.standard.territories = territories;
 	}
 
-	test('rejects army move to a sea territory', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'army',
-			unitIndex: 0,
-			pendingFleets: [],
-			pendingArmies: [{ territory: 'Vienna', hostile: true }],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			'Adriatic Sea': { sea: true },
-		});
-
-		const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-		const result = await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'Adriatic Sea',
-			maneuverAction: '',
-		});
-		expect(result).toBe('done');
-		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('armies cannot move to sea'));
-		// The move should NOT have been recorded
-		const saved = mockSetData['games/testGame'];
-		expect(saved).toBeUndefined();
-		consoleSpy.mockRestore();
-	});
-
-	test('allows army move to a land territory', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
-		gs.countryInfo.Austria.fleets = [];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'army',
-			unitIndex: 0,
-			pendingFleets: [],
-			pendingArmies: [{ territory: 'Vienna', hostile: true }],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-		});
-
-		const result = await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'Budapest',
-			maneuverAction: '',
-		});
-		expect(result).toBe('done');
-		// The move should have been recorded and finalizeSubmit called
-		const saved = mockSetData['games/testGame'];
-		expect(saved).toBeDefined();
-	});
-
-	test('allows fleet move to a sea territory (validation only blocks armies)', async () => {
-		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
-		gs.countryInfo.Austria.gov = 'dictatorship';
-		gs.countryInfo.Austria.leadership = ['Alice'];
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
-		gs.countryInfo.Austria.armies = [];
-		gs.currentManeuver = {
-			country: 'Austria',
-			player: 'Alice',
-			wheelSpot: 'L-Maneuver',
-			phase: 'fleet',
-			unitIndex: 0,
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
-			pendingArmies: [],
-			completedFleetMoves: [],
-			completedArmyMoves: [],
-			returnMode: 'execute',
-			proposalSlot: 0,
-			pendingPeace: null,
-		};
-		gs.playerInfo.Alice.myTurn = true;
-		gs.playerInfo.Bob.myTurn = false;
-		setupMockDb(gs);
-		addTerritorySetup({
-			'Adriatic Sea': { sea: true },
-			'Ionian Sea': { sea: true },
-		});
-
-		const result = await submitManeuver({
-			game: 'testGame',
-			name: 'Alice',
-			maneuverDest: 'Ionian Sea',
-			maneuverAction: '',
-		});
-		expect(result).toBe('done');
-		// Fleet move to sea should work
-		const saved = mockSetData['games/testGame'];
-		expect(saved).toBeDefined();
-	});
-});
-
-// ===========================================================================
-// executeProposal — army sort order
-// ===========================================================================
-describe('executeProposal — army sort order', () => {
-	function addTerritorySetup(territories) {
-		mockDbData['setups/standard'].territories = territories;
-		mockDbData.setups.standard.territories = territories;
-	}
-
-	test('sorts war actions before peace/normal moves', async () => {
+	test('executes army tuples in player-chosen order, not sorted by action type', async () => {
+		// This test verifies that armies execute in the order the player arranged them.
+		// Previously, army tuples were sorted by charCode (war first, then peace, then move).
+		// Now they execute in input order — the UI constrains ordering so dependencies work.
 		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
@@ -3676,13 +3247,55 @@ describe('executeProposal — army sort order', () => {
 			Trieste: { country: 'Austria' },
 		});
 
+		// Player puts war FIRST (correct ordering — clear enemies before placing)
 		const context = {
 			game: 'testGame',
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
 			fleetMan: [],
-			// The war action should be sorted to execute first so the enemy army
-			// is removed before the second army places into that territory.
+			armyMan: [
+				['Budapest', 'Venice', 'war Italy army'],
+				['Vienna', 'Trieste', ''],
+			],
+		};
+
+		await executeProposal(gs, context);
+
+		// War executed first: Italy's army destroyed, Austrian army consumed
+		expect(gs.countryInfo.Italy.armies).toEqual([]);
+		// Normal move executed second: army at Trieste
+		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Trieste', hostile: true }]);
+	});
+
+	test('normal move before war — normal move places first, war destroys second', async () => {
+		// Verify that if the player puts a normal move before a war, the normal
+		// move actually executes first (it would have been reordered by the old sort).
+		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.wheelSpot = 'center';
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+		];
+		gs.countryInfo.Italy.armies = [{ territory: 'Venice', hostile: true }];
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({
+			Vienna: { country: 'Austria' },
+			Budapest: { country: 'Austria' },
+			Venice: { country: 'Italy' },
+			Trieste: { country: 'Austria' },
+		});
+
+		// Player puts normal move FIRST, war SECOND
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			fleetMan: [],
 			armyMan: [
 				['Vienna', 'Trieste', ''],
 				['Budapest', 'Venice', 'war Italy army'],
@@ -3691,13 +3304,13 @@ describe('executeProposal — army sort order', () => {
 
 		await executeProposal(gs, context);
 
-		// Italy's army at Venice should be destroyed (war executed first)
+		// Normal move executed first: army placed at Trieste
+		// War executed second: Italy army destroyed, Austrian army consumed
 		expect(gs.countryInfo.Italy.armies).toEqual([]);
-		// Austria's surviving army at Trieste should remain
 		expect(gs.countryInfo.Austria.armies).toEqual([{ territory: 'Trieste', hostile: true }]);
 	});
 
-	test('handles empty action strings in sort without NaN errors', async () => {
+	test('handles empty action strings without errors', async () => {
 		const gs = createMockGameState({ mode: 'proposal', countryUp: 'Austria' });
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
@@ -3722,7 +3335,6 @@ describe('executeProposal — army sort order', () => {
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
 			fleetMan: [],
-			// Both moves have empty action strings (normal moves)
 			armyMan: [
 				['Vienna', 'Trieste', ''],
 				['Budapest', 'Zagreb', ''],
@@ -3731,7 +3343,6 @@ describe('executeProposal — army sort order', () => {
 
 		await executeProposal(gs, context);
 
-		// Both armies should end up at their destinations
 		const territories = gs.countryInfo.Austria.armies.map((a) => a.territory).sort();
 		expect(territories).toEqual(['Trieste', 'Zagreb']);
 	});

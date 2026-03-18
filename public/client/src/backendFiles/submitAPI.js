@@ -630,182 +630,6 @@ async function completeManeuver(gameState, context) {
 }
 
 /**
- * Submits one unit's movement in the step-by-step maneuver flow.
- * Processes the current unit's destination and action, handles peace
- * offer detection, and advances to the next unit or completes the maneuver.
- *
- * @param {Object} context - UserContext with { game, name, maneuverDest, maneuverAction }
- * @returns {Promise<string>} 'done' on success
- */
-async function submitManeuver(context) {
-	await _submitManeuverLocal(context);
-
-	// Call CF (authoritative)
-	await callCF(
-		submitManeuverCF,
-		{
-			type: 'maneuver',
-			gameID: context.game,
-			playerName: context.name,
-			destination: context.maneuverDest,
-			action: context.maneuverAction || '',
-		},
-		context.game
-	);
-
-	return 'done';
-}
-
-async function _submitManeuverLocal(context) {
-	let gameState = await database.ref('games/' + context.game).once('value');
-	gameState = gameState.val();
-	let cm = gameState.currentManeuver;
-	if (!cm) return 'done';
-
-	let setup = await database.ref('games/' + context.game + '/setup').once('value');
-	setup = setup.val();
-	let territorySetup = await readSetup(setup + '/territories');
-
-	gameState.sameTurn = true;
-
-	// Get current unit info
-	let phase = cm.phase;
-	let unitIndex = cm.unitIndex;
-	let pendingUnits = phase === 'fleet' ? cm.pendingFleets : cm.pendingArmies;
-	let currentUnit = pendingUnits[unitIndex];
-	let origin = currentUnit.territory;
-	let dest = context.maneuverDest;
-	let action = context.maneuverAction || '';
-
-	// Validate: armies cannot move to sea territories
-	if (phase === 'army' && territorySetup[dest] && territorySetup[dest].sea) {
-		console.error('Invalid army move: armies cannot move to sea territory "' + dest + '"');
-		return 'done';
-	}
-
-	// Build ManeuverTuple
-	let tuple = [origin, dest, action];
-
-	// Check if this is a peace offer to foreign territory
-	let split = action.split(' ');
-	if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
-		let destCountry = territorySetup[dest].country;
-		// Peace is only meaningful when entering another country's territory
-		if (destCountry && destCountry !== cm.country) {
-			// Check if there are enemy units at the destination
-			let hasEnemyUnits = false;
-			for (let c in gameState.countryInfo) {
-				if (c !== cm.country) {
-					for (let f of gameState.countryInfo[c].fleets || []) {
-						if (f.territory === dest) hasEnemyUnits = true;
-					}
-					for (let a of gameState.countryInfo[c].armies || []) {
-						if (a.territory === dest) hasEnemyUnits = true;
-					}
-				}
-			}
-			// Only trigger peace vote if enemy units are present;
-			// factories alone don't get to decide on peace
-			if (hasEnemyUnits) {
-				let targetGov = gameState.countryInfo[destCountry].gov;
-				if (targetGov === GOV_TYPES.DICTATORSHIP) {
-					// Dictatorship: dictator decides
-					let dictator = gameState.countryInfo[destCountry].leadership[0];
-					cm.pendingPeace = {
-						origin: origin,
-						destination: dest,
-						targetCountry: destCountry,
-						unitType: phase,
-						tuple: tuple,
-					};
-					for (let key in gameState.playerInfo) {
-						gameState.playerInfo[key].myTurn = false;
-					}
-					gameState.playerInfo[dictator].myTurn = true;
-					// Active player is changing — force TurnApp refresh for the dictator
-					gameState.sameTurn = false;
-					// Stay in continue-man mode; the dictator sees accept/reject
-					gameState.undo = context.name;
-					await finalizeSubmit(gameState, context.game, context);
-					return 'done';
-				} else {
-					// Democracy: all stockholders of target country vote
-					let leadership = gameState.countryInfo[destCountry].leadership;
-					let totalStock = 0;
-					for (let player of leadership) {
-						for (let s of gameState.playerInfo[player].stock || []) {
-							if (s.country === destCountry) {
-								totalStock += s.stock;
-							}
-						}
-					}
-					gameState.peaceVote = {
-						movingCountry: cm.country,
-						targetCountry: destCountry,
-						unitType: phase,
-						origin: origin,
-						destination: dest,
-						acceptVotes: 0,
-						rejectVotes: 0,
-						voters: [],
-						totalStock: totalStock,
-						tuple: tuple,
-					};
-					gameState.mode = MODES.PEACE_VOTE;
-					for (let key in gameState.playerInfo) {
-						gameState.playerInfo[key].myTurn = false;
-					}
-					// All stockholders of the target country vote, including the proposer
-					// (they may own stock in the target country)
-					for (let player of leadership) {
-						gameState.playerInfo[player].myTurn = true;
-					}
-					// Active players are changing — force TurnApp refresh for all voters
-					gameState.sameTurn = false;
-					gameState.undo = context.name;
-					await finalizeSubmit(gameState, context.game, context);
-					return 'done';
-				}
-			}
-		}
-	}
-
-	// Normal move (not a peace offer to foreign territory): add tuple and advance
-	if (phase === 'fleet') {
-		if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
-		cm.completedFleetMoves.push(tuple);
-	} else {
-		if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
-		cm.completedArmyMoves.push(tuple);
-	}
-	cm.unitIndex++;
-
-	// Check phase transition
-	if (phase === 'fleet' && cm.unitIndex >= (cm.pendingFleets || []).length) {
-		cm.phase = 'army';
-		cm.unitIndex = 0;
-	}
-
-	// Check completion
-	if (cm.phase === 'army' && cm.unitIndex >= (cm.pendingArmies || []).length) {
-		await completeManeuver(gameState, context);
-		gameState.sameTurn = false;
-		gameState.undo = context.name;
-		await finalizeSubmit(gameState, context.game, context);
-		return 'done';
-	}
-
-	// More units to move — stay in continue-man
-	for (let key in gameState.playerInfo) {
-		gameState.playerInfo[key].myTurn = false;
-	}
-	gameState.playerInfo[cm.player].myTurn = true;
-	gameState.undo = context.name;
-	await finalizeSubmit(gameState, context.game, context);
-	return 'done';
-}
-
-/**
  * Submits a complete maneuver plan in one batch. Processes fleet moves then army
  * moves sequentially, checking each for peace vote triggers. If no peace votes
  * are triggered, the entire maneuver completes in a single Firebase write.
@@ -1454,10 +1278,10 @@ async function makeHistory(gameState, context) {
 		}
 		case WHEEL_ACTIONS.L_MANEUVER:
 		case WHEEL_ACTIONS.R_MANEUVER:
-			let sortedF = [...(context.fleetMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
+			let sortedF = [...(context.fleetMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(0));
 			let f = sortedF.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
 
-			let sortedA = [...(context.armyMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(1));
+			let sortedA = [...(context.armyMan || [])].sort((a, b) => b[2].charCodeAt(0) - a[2].charCodeAt(0));
 			let a = sortedA.map((x) => x[0] + ' to ' + x[1] + w(x[2]) + x[2]);
 
 			let parts = [];
@@ -1646,15 +1470,10 @@ async function executeProposal(gameState, context) {
 
 			let armies = [];
 			let blowUpConsumed = {};
-			let sortedArmyMan = [...(context.armyMan || [])].sort((a, b) => {
-				// Sort order: war > blow up > peace > hostile > normal move
-				// War actions ('w') need to execute first so destroyed units are removed
-				// before peace/hostile units are placed.
-				let aCode = a[2] ? a[2].charCodeAt(0) : 0;
-				let bCode = b[2] ? b[2].charCodeAt(0) : 0;
-				return bCode - aCode;
-			});
-			for (let army of sortedArmyMan) {
+			// Army tuples execute in the order the player arranged them.
+			// The UI constrains ordering so dependencies are respected
+			// (e.g., wars that clear enemies come before hostile entries).
+			for (let army of context.armyMan || []) {
 				// Check if this army is consumed by a previous blow-up at this territory
 				if (blowUpConsumed[army[1]] && blowUpConsumed[army[1]] > 0) {
 					blowUpConsumed[army[1]]--;
@@ -2222,7 +2041,6 @@ export {
 	submitBuy,
 	submitVote,
 	submitNoCounter,
-	submitManeuver,
 	submitBatchManeuver,
 	submitDictatorPeaceVote,
 	submitPeaceVote,
