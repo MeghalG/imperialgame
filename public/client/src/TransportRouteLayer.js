@@ -44,7 +44,7 @@ function TransportRouteLayer() {
 	}
 
 	let palette = getCountryColorPalette(context.colorblindMode);
-	let color = (palette.bright && palette.bright[country]) || palette.bright['Austria'] || '#c9a84c';
+	let color = (palette.bright && palette.bright[country]) || '#c9a84c';
 
 	let circles = [];
 	for (let i = 0; i < assignedFleets.length; i++) {
@@ -52,8 +52,11 @@ function TransportRouteLayer() {
 		let territory = territories[plan.dest];
 		if (!territory || !territory.unitCoords) continue;
 
-		let x = parsePercent(territory.unitCoords[0]);
-		let y = parsePercent(territory.unitCoords[1]);
+		let coords = territory.unitCoords;
+		if (!Array.isArray(coords) || coords.length < 2) continue;
+		let x = parsePercent(coords[0]);
+		let y = parsePercent(coords[1]);
+		if (isNaN(x) || isNaN(y)) continue;
 
 		circles.push(
 			<circle
