@@ -244,24 +244,6 @@ function ManeuverPlanProvider({ children }) {
 		let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
 		let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
 
-		// If unit stays at origin, no action is needed (can't war/peace your own territory)
-		let plans = phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
-		let unitOrigin = plans[index] && plans[index].origin;
-		if (dest === unitOrigin) {
-			setter((prev) => {
-				let p = [...prev];
-				if (p[index]) {
-					p[index] = { ...p[index], actionOptions: [], action: '' };
-				}
-				ref.current = p;
-				return p;
-			});
-			setTimeout(() => {
-				detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
-			}, 0);
-			return true; // Auto-assigned (no action needed)
-		}
-
 		try {
 			let actionOptions = await proposalAPI.getUnitActionOptionsFromPlans(contextRef.current, plan, phase, index, dest);
 
