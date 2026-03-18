@@ -516,88 +516,44 @@ RE-ASSIGNMENT — Player clicks a new territory while an assigned unit is active
 
 ### 8.2 Visualizing Many Units
 
-**Scenario:** Russia has 4 fleets and 6 armies.
+The map already has three layers relevant to maneuvers:
+- **Base map**: Territory boundaries, territory name labels, factory icons (land/sea factories shown at their positions)
+- **UnitMarkerLayer**: Shows ⚓ (fleet) and ⚔ (army) icons at each territory's `unitCoords`. Already handles grouping/stacking when multiple units share a territory (horizontal offset spacing). Each marker is clickable with hover tooltip ("army at Vienna").
+- **MovementArrowLayer**: Shows colored lines from origin to destination for each planned move.
 
-```
-MAP VISUALIZATION:
-  ┌─────────────────────────────────────────────┐
-  │                                             │
-  │    ⚓1  ⚓2        ← fleet markers with     │
-  │                      index numbers          │
-  │         🏠3  🏠4   ← army markers with      │
-  │    🏠5       🏠6     index numbers          │
-  │         🏠7  🏠8                            │
-  │    ⚓9  ⚓10                                │
-  │                                             │
-  └─────────────────────────────────────────────┘
+**During maneuver planning, the existing UnitMarkerLayer shows three visual states:**
 
-UNIT MARKER DESIGN:
-  - Each marker shows unit type icon (anchor for fleet, shield for army)
-  - Index number displayed on or next to the marker
-  - Unassigned units: outlined marker, origin position
-  - Assigned units: filled marker, at destination position
-  - Active unit: pulsing border in country color
-  - Multiple units at same territory: markers stack with slight offset
-    (like a card fan — each slightly overlapping, all visible)
+| State | CSS class | Appearance |
+|-------|----------|-----------|
+| **Idle** (unassigned) | `imp-unit-marker--idle` | Unit icon at origin, default styling |
+| **Planned** (assigned) | `imp-unit-marker--planned` | Unit icon at destination, checkmark overlay ✓ |
+| **Active** (selected) | `imp-unit-marker--active` | Pulsing/highlighted border in country color |
 
-STACKING at same territory:
-  When 3 armies share Vienna as origin:
-  ┌──┐
-  │A1├──┐
-  └──┤A2├──┐
-     └──┤A3│
-        └──┘
-  Each is individually clickable. Hover shows tooltip: "Army 3 at Vienna"
+**Key behavior with many units:**
+- Stacking: When 3+ units share a territory, markers space horizontally (offset by `markerSpacing`). All remain individually clickable.
+- Planned units appear at their DESTINATION, not origin. The map reflects the "planned future state."
+- Arrows connect origin → destination for each assigned unit.
+- Unassigned units stay at their ORIGIN.
 
-PLANNED vs ORIGINAL positions:
-  - Unassigned units show at ORIGIN
-  - Assigned units show at DESTINATION with arrow from origin
-  - This means the map reflects the "planned future state" for assigned
-    units and the "current state" for unassigned units
-```
+**What needs to be added for destruction visualization:** See §8.3.
 
 ### 8.3 Visualizing Unit Destruction (War)
 
-**Scenario:** Austrian Army 1 is assigned to war Italy Army at Rome.
+`⚠ GAP: Destruction visualization not yet implemented. Currently all arrows look the same regardless of action.`
 
-```
-WAR MOVE VISUALIZATION:
-  Map shows:
-  ┌────────────────────────────────────┐
-  │                                    │
-  │  Vienna ──────✕ Rome               │
-  │  (A1 origin)    (A1 destination)   │
-  │                  🇮🇹 army here      │
-  │                                    │
-  └────────────────────────────────────┘
+Building on the existing MovementArrow and UnitMarkerLayer:
 
-  Arrow: Solid line from Vienna to Rome
-  Arrow tip: Red ✕ symbol (not a normal arrowhead)
-  The Austrian army marker does NOT appear at Rome
-    (it is consumed in the war — there is no surviving unit)
-  The Italian army marker at Rome is shown with a faded/crossed-out
-    appearance (it will be destroyed when this plan executes)
+**War move:** The MovementArrow from origin to destination should use a red color or add a ✕ marker at the tip. The attacking unit's marker does NOT appear at the destination (it is consumed — no surviving unit to show). The targeted enemy unit marker (already shown by the base UnitMarkerLayer from mapAPI data) should be shown with reduced opacity or a crossed-out overlay to indicate it will be destroyed.
 
-  Plan list row:
-  ┌──────────────────────────────────────────────┐
-  │  Army 1: Vienna → Rome ✕                     │
-  │          [war Italy army]  💀     [↑][↓][✕]  │
-  └──────────────────────────────────────────────┘
-  The 💀 skull (or ✕) icon indicates this unit is consumed.
-  The row is styled differently — strikethrough or dimmed text for the
-  unit name, since this unit won't survive.
+**Blow-up move:** Arrow to destination with a distinct style (dark red or explosion icon). The factory icon at that territory (already rendered by the base map) should be shown crossed out. Three army markers at the destination are consumed — they should not appear at destination.
 
-BLOW-UP VISUALIZATION:
-  Similar to war but the arrow tip shows a factory explosion icon.
-  Three army markers at the destination are shown with 💀/✕ (all consumed).
-  The factory icon at that territory is shown crossed out.
+**Peace move:** Arrow with green tint. The moving unit marker DOES appear at the destination (it survives). Enemy unit markers remain as-is (no destruction).
 
-PEACE MOVE VISUALIZATION:
-  Arrow: Solid line with a dove/olive branch icon or green tint
-  The unit marker DOES appear at the destination (it survives)
-  The enemy units remain visible (no destruction)
-  Both the moving unit and enemy units coexist on the map
-```
+**Plan list row styling for consumed units:**
+- War/blow-up rows: Dimmed text or strikethrough for the unit name. A skull ✕ icon indicates the unit won't survive.
+- Peace rows: Normal text. Green badge.
+
+**The base map's territory labels and factory icons remain unchanged** — they show the current real state. The maneuver visualization overlays planned changes on top.
 
 ### 8.4 Cancel Cascade — The War→Move→Cancel Scenario
 
