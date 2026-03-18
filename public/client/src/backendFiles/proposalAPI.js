@@ -1278,7 +1278,7 @@ async function getUnitActionOptionsFromPlans(context, plan, phase, unitIndex, de
 	for (let c in virtualCountryInfo) {
 		if (c !== country) {
 			let unitTypes = [];
-			let hasFleet = (virtualCountryInfo[c].fleets || []).some((f) => f.hostile && f.territory === destination);
+			let hasFleet = (virtualCountryInfo[c].fleets || []).some((f) => f.territory === destination);
 			let hasArmy = (virtualCountryInfo[c].armies || []).some((a) => a.territory === destination);
 			if (hasFleet) unitTypes.push('fleet');
 			if (hasArmy) unitTypes.push('army');

@@ -119,11 +119,12 @@ function MovementArrowLayer() {
 				}
 			}
 			points.push({ x: x2, y: y2 });
-			let segments = [];
-			for (let j = 0; j < points.length - 1; j++) {
-				segments.push(computePath(points[j].x, points[j].y, points[j + 1].x, points[j + 1].y));
+			// Build a single continuous polyline (M for first, L for rest)
+			// so SVG only puts arrowhead at the final endpoint
+			d = 'M ' + points[0].x + ' ' + points[0].y;
+			for (let j = 1; j < points.length; j++) {
+				d += ' L ' + points[j].x + ' ' + points[j].y;
 			}
-			d = segments.join(' ');
 		} else {
 			d = computePath(x1, y1, x2, y2);
 		}

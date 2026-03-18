@@ -241,10 +241,29 @@ function ManeuverPlanProvider({ children }) {
 
 	async function computeActionOptionsForUnit(phase, index, dest, clickPosition) {
 		let plan = buildPlan();
+		let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
+		let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
+
+		// If unit stays at origin, no action is needed (can't war/peace your own territory)
+		let plans = phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
+		let unitOrigin = plans[index] && plans[index].origin;
+		if (dest === unitOrigin) {
+			setter((prev) => {
+				let p = [...prev];
+				if (p[index]) {
+					p[index] = { ...p[index], actionOptions: [], action: '' };
+				}
+				ref.current = p;
+				return p;
+			});
+			setTimeout(() => {
+				detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
+			}, 0);
+			return true; // Auto-assigned (no action needed)
+		}
+
 		try {
 			let actionOptions = await proposalAPI.getUnitActionOptionsFromPlans(contextRef.current, plan, phase, index, dest);
-			let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
-			let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
 
 			// Determine if we can auto-assign (only 1 option or no options)
 			let canAutoAssign = false;
@@ -382,16 +401,32 @@ function ManeuverPlanProvider({ children }) {
 				return plans;
 			});
 		}
-		// Refresh downstream options
+		// Refresh downstream options and cascade-cancel invalid moves
 		setTimeout(async () => {
 			let currentPlans = phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
 			for (let i = index + 1; i < currentPlans.length; i++) {
 				await computeOptionsForUnit(phase, i);
 			}
 			if (phase === 'fleet') {
+				// Refresh all army options — fleet removal may invalidate army transports
 				for (let i = 0; i < armyPlansRef.current.length; i++) {
 					await computeOptionsForUnit('army', i);
 				}
+				// Cascade-cancel: clear army moves whose dest is no longer reachable
+				setArmyPlans((prev) => {
+					let changed = false;
+					let plans = [...prev];
+					for (let i = 0; i < plans.length; i++) {
+						if (plans[i].dest && plans[i].destOptions && plans[i].destOptions.length > 0) {
+							if (!plans[i].destOptions.includes(plans[i].dest)) {
+								plans[i] = { ...plans[i], dest: '', action: '', actionOptions: [], peaceVote: false };
+								changed = true;
+							}
+						}
+					}
+					if (changed) armyPlansRef.current = plans;
+					return changed ? plans : prev;
+				});
 			}
 			detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
 		}, 0);
@@ -517,6 +552,16 @@ function ManeuverPlanProvider({ children }) {
 	}
 
 	function dismissActionPicker() {
+		// If the picker is dismissed without selecting an action, revert the move
+		// so the unit doesn't end up with a dest but no required action
+		let picker = actionPickerState;
+		if (picker) {
+			let plans = picker.phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
+			let plan = plans[picker.index];
+			if (plan && plan.dest && !plan.action) {
+				removeMove(picker.phase, picker.index);
+			}
+		}
 		setActionPickerState(null);
 	}
 
