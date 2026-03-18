@@ -94,10 +94,10 @@ function PriorCompleted({ priorCompleted }) {
 // ProgressIndicator
 // ---------------------------------------------------------------------------
 
-function ProgressIndicator({ fleetPlans, armyPlans, unassignedFleets, unassignedArmies }) {
-	let assigned = fleetPlans.length + armyPlans.length;
-	let total = assigned + unassignedFleets.length + unassignedArmies.length;
+function ProgressIndicator({ fleetPlans, armyPlans }) {
+	let total = fleetPlans.length + armyPlans.length;
 	if (total === 0) return null;
+	let assigned = fleetPlans.filter((p) => p.dest).length + armyPlans.filter((p) => p.dest).length;
 	return (
 		<div
 			style={{
@@ -537,12 +537,7 @@ function ManeuverPlanList() {
 			<PriorCompleted priorCompleted={priorCompleted} />
 
 			{/* Progress indicator */}
-			<ProgressIndicator
-				fleetPlans={fleetPlans}
-				armyPlans={armyPlans}
-				unassignedFleets={unassignedFleets}
-				unassignedArmies={unassignedArmies}
-			/>
+			<ProgressIndicator fleetPlans={fleetPlans} armyPlans={armyPlans} />
 
 			{/* Fleet section */}
 			{hasFleets && <PhaseSection phase="fleet" colorPalette={colorPalette} planContext={planContext} />}
