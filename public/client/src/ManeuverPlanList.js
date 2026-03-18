@@ -356,7 +356,7 @@ function LockDivider() {
 // ---------------------------------------------------------------------------
 
 function PhaseSection({ phase, colorPalette, planContext }) {
-	let { fleetPlans, armyPlans, unassignedFleets, unassignedArmies, activeUnit, lockLine } = planContext;
+	let { fleetPlans, armyPlans, unassignedFleets, unassignedArmies, activeUnit } = planContext;
 
 	let plans = phase === 'fleet' ? fleetPlans : armyPlans;
 	let unassigned = phase === 'fleet' ? unassignedFleets : unassignedArmies;
