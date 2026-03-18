@@ -516,10 +516,19 @@ RE-ASSIGNMENT — Player clicks a new territory while an assigned unit is active
 
 ### 8.2 Visualizing Many Units
 
-The map already has three layers relevant to maneuvers:
-- **Base map**: Territory boundaries, territory name labels, factory icons (land/sea factories shown at their positions)
-- **UnitMarkerLayer**: Shows ⚓ (fleet) and ⚔ (army) icons at each territory's `unitCoords`. Already handles grouping/stacking when multiple units share a territory (horizontal offset spacing). Each marker is clickable with hover tooltip ("army at Vienna").
-- **MovementArrowLayer**: Shows colored lines from origin to destination for each planned move.
+The map has two unit visualization layers that coexist during maneuver planning:
+
+**1. Base map units (MapApp, always visible):** Renders the REAL current game state using FontAwesome icons at each territory's `unitCoords`:
+- **Fleets:** `fa-play fa-rotate-90` — triangles (rotated play icons), colored per country
+- **Hostile armies:** `fa-circle` — filled circles, colored per country
+- **Coexisting armies:** `fa-plus-circle` — circles with plus sign, colored per country
+- These are grouped inline at the territory coords. They are NOT clickable (`pointerEvents: 'none'`). They show what's on the board RIGHT NOW, not what the plan will produce.
+
+**2. Maneuver planner overlay (UnitMarkerLayer, only during `continue-man`):** Shows the PLANNED state using ⚓ (fleet) and ⚔ (army) icons. These are clickable, support hover tooltips, and handle stacking with horizontal offset.
+
+**3. MovementArrowLayer:** Shows colored lines from origin to destination for each planned move.
+
+During maneuver planning, both layers are visible simultaneously — the base map's circles/triangles show current reality, while the planner's ⚓/⚔ markers show planned destinations. The planner markers are interactive; the base map markers are not.
 
 **During maneuver planning, the existing UnitMarkerLayer shows three visual states:**
 
