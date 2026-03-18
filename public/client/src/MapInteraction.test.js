@@ -908,7 +908,7 @@ describe('TerritoryHotspot component', () => {
 			hotspot.click();
 		});
 
-		expect(onClick).toHaveBeenCalledWith('Vienna');
+		expect(onClick).toHaveBeenCalledWith('Vienna', expect.anything());
 
 		ReactDOM.unmountComponentAtNode(div);
 		document.body.removeChild(div);

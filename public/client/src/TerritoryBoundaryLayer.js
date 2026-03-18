@@ -17,6 +17,7 @@ function TerritoryBoundaryLayer({
 	selectedItem,
 	highlightColor,
 	highlightedTerritories,
+	onRightClick,
 	onItemSelected,
 	selectableCosts,
 }) {
@@ -103,7 +104,16 @@ function TerritoryBoundaryLayer({
 					isSelectable
 						? (e) => {
 								e.stopPropagation();
-								onItemSelected(name);
+								onItemSelected(name, e);
+						  }
+						: undefined
+				}
+				onContextMenu={
+					onRightClick && (isSelectable || isHighlighted)
+						? (e) => {
+								e.preventDefault();
+								e.stopPropagation();
+								onRightClick(name, e);
 						  }
 						: undefined
 				}

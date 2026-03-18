@@ -63,6 +63,14 @@ function MovementArrowLayer() {
 	}
 	let uniqueColors = Object.keys(colorSet);
 
+	// Count how many arrows share the same origin→dest pair for offset
+	let routeCount = {};
+	for (let i = 0; i < moves.length; i++) {
+		let key = moves[i].origin + '→' + moves[i].dest;
+		routeCount[key] = (routeCount[key] || 0) + 1;
+	}
+	let routeIndex = {};
+
 	let paths = [];
 	for (let i = 0; i < moves.length; i++) {
 		let move = moves[i];
@@ -76,7 +84,50 @@ function MovementArrowLayer() {
 		let y1 = parsePercent(fromT.unitCoords[1]);
 		let x2 = parsePercent(toT.unitCoords[0]);
 		let y2 = parsePercent(toT.unitCoords[1]);
-		let d = computePath(x1, y1, x2, y2);
+
+		// Offset parallel arrows so multiple units on the same route are visible
+		let routeKey = move.origin + '→' + move.dest;
+		let count = routeCount[routeKey] || 1;
+		let idx = routeIndex[routeKey] || 0;
+		routeIndex[routeKey] = idx + 1;
+
+		if (count > 1) {
+			let dx = x2 - x1;
+			let dy = y2 - y1;
+			let dist = Math.sqrt(dx * dx + dy * dy) || 1;
+			let nx = -dy / dist;
+			let ny = dx / dist;
+			// Spread arrows perpendicular to direction, centered
+			let offset = (idx - (count - 1) / 2) * 0.6;
+			x1 += nx * offset;
+			y1 += ny * offset;
+			x2 += nx * offset;
+			y2 += ny * offset;
+		}
+
+		// Build path through waypoints for army transport visualization
+		let d;
+		if (move.waypoints && move.waypoints.length > 0) {
+			let points = [{ x: x1, y: y1 }];
+			for (let wp of move.waypoints) {
+				let wpT = territories[wp];
+				if (wpT && wpT.unitCoords) {
+					points.push({
+						x: parsePercent(wpT.unitCoords[0]),
+						y: parsePercent(wpT.unitCoords[1]),
+					});
+				}
+			}
+			points.push({ x: x2, y: y2 });
+			let segments = [];
+			for (let j = 0; j < points.length - 1; j++) {
+				segments.push(computePath(points[j].x, points[j].y, points[j + 1].x, points[j + 1].y));
+			}
+			d = segments.join(' ');
+		} else {
+			d = computePath(x1, y1, x2, y2);
+		}
+
 		// Dashed when not locked (draft state); solid when locked or no locked field
 		let dashArray = move.locked === false ? '8 4' : undefined;
 

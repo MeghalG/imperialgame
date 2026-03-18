@@ -173,7 +173,7 @@
 	z-index: 99;
 }
 .imp-action-picker {
-	position: absolute;
+	position: fixed;
 	z-index: 100;
 	background: rgba(20, 21, 24, 0.95);
 	border: 1px solid rgba(255, 255, 255, 0.15);

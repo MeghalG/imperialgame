@@ -228,6 +228,7 @@ function TerritoryHotspotLayer() {
 			highlightColor={mapInteraction.highlightColor}
 			highlightedTerritories={mapInteraction.highlightedTerritories}
 			onItemSelected={mapInteraction.onItemSelected}
+			onRightClick={mapInteraction.onItemRightClicked}
 			selectableCosts={mapInteraction.selectableCosts || {}}
 		/>
 	);

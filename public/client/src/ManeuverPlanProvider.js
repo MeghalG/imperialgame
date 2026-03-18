@@ -55,6 +55,7 @@ function ManeuverPlanProvider({ children }) {
 	const [pendingPeace, setPendingPeace] = useState(null);
 	const [activeUnit, setActiveUnit] = useState(null);
 	const [lockLine, setLockLine] = useState(null);
+	const [actionPickerState, setActionPickerState] = useState(null); // { phase, index, position: {x,y}, actions }
 
 	// ===== Refs (for async callbacks) =====
 	const contextRef = useRef(context);
@@ -238,46 +239,58 @@ function ManeuverPlanProvider({ children }) {
 		}
 	}
 
-	async function computeActionOptionsForUnit(phase, index, dest) {
+	async function computeActionOptionsForUnit(phase, index, dest, clickPosition) {
 		let plan = buildPlan();
 		try {
 			let actionOptions = await proposalAPI.getUnitActionOptionsFromPlans(contextRef.current, plan, phase, index, dest);
-			if (phase === 'fleet') {
-				setFleetPlans((prev) => {
-					let plans = [...prev];
-					if (plans[index]) {
-						plans[index] = { ...plans[index], actionOptions: actionOptions || [] };
-						if (Array.isArray(actionOptions)) {
-							if (actionOptions.includes('hostile')) {
-								plans[index].action = 'hostile';
-							} else if (actionOptions.length === 1) {
-								plans[index].action = actionOptions[0];
-							}
-						}
+			let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
+			let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
+
+			// Determine if we can auto-assign (only 1 option or no options)
+			let canAutoAssign = false;
+			let autoAction = '';
+			if (Array.isArray(actionOptions)) {
+				if (actionOptions.length === 0) {
+					canAutoAssign = true;
+				} else if (actionOptions.length === 1) {
+					canAutoAssign = true;
+					autoAction = actionOptions[0];
+				}
+			} else if (actionOptions && !Array.isArray(actionOptions)) {
+				// Grouped format — always needs picker
+				canAutoAssign = false;
+			}
+
+			setter((prev) => {
+				let plans = [...prev];
+				if (plans[index]) {
+					plans[index] = { ...plans[index], actionOptions: actionOptions || [] };
+					if (canAutoAssign) {
+						plans[index].action = autoAction;
 					}
-					return plans;
-				});
-			} else {
-				setArmyPlans((prev) => {
-					let plans = [...prev];
-					if (plans[index]) {
-						plans[index] = { ...plans[index], actionOptions: actionOptions || [] };
-						if (Array.isArray(actionOptions)) {
-							if (actionOptions.includes('hostile')) {
-								plans[index].action = 'hostile';
-							} else if (actionOptions.length === 1) {
-								plans[index].action = actionOptions[0];
-							}
-						}
-					}
-					return plans;
+				}
+				ref.current = plans;
+				return plans;
+			});
+
+			// If >1 option, show the action picker at click position
+			if (!canAutoAssign && clickPosition) {
+				setActionPickerState({
+					phase,
+					index,
+					position: clickPosition,
+					actions: actionOptions,
 				});
 			}
+
 			setTimeout(() => {
 				detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
 			}, 0);
+
+			return canAutoAssign;
 		} catch (e) {
 			console.error('Failed to compute action options for', phase, index, e);
+			return true; // Treat error as auto-assign (no picker)
 		}
 	}
 
@@ -304,26 +317,27 @@ function ManeuverPlanProvider({ children }) {
 	/**
 	 * assignMove — handles destination selection and auto-computes action options.
 	 * Called when user picks a destination from the map or dropdown.
+	 * @param {string} phase - 'fleet' or 'army'
+	 * @param {number} index - unit index
+	 * @param {string} dest - destination territory name
+	 * @param {{x: number, y: number}|null} clickPosition - screen position for action picker
 	 */
-	async function assignMove(phase, index, dest) {
+	async function assignMove(phase, index, dest, clickPosition) {
 		SoundManager.playDestination();
-		if (phase === 'fleet') {
-			setFleetPlans((prev) => {
-				let plans = [...prev];
-				plans[index] = { ...plans[index], dest: dest, action: '', actionOptions: [], peaceVote: false };
-				fleetPlansRef.current = plans;
-				return plans;
-			});
-		} else {
-			setArmyPlans((prev) => {
-				let plans = [...prev];
-				plans[index] = { ...plans[index], dest: dest, action: '', actionOptions: [], peaceVote: false };
-				armyPlansRef.current = plans;
-				return plans;
-			});
-		}
+		// Dismiss any open action picker
+		setActionPickerState(null);
 
-		await computeActionOptionsForUnit(phase, index, dest);
+		let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
+		let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
+		setter((prev) => {
+			let plans = [...prev];
+			plans[index] = { ...plans[index], dest: dest, action: '', actionOptions: [], peaceVote: false };
+			ref.current = plans;
+			return plans;
+		});
+
+		let autoAssigned = await computeActionOptionsForUnit(phase, index, dest, clickPosition);
+
 		// Refresh dest options for subsequent units since virtual state changed
 		let currentPlans = phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
 		for (let i = index + 1; i < currentPlans.length; i++) {
@@ -336,16 +350,11 @@ function ManeuverPlanProvider({ children }) {
 			}
 		}
 
-		// Auto-advance when the action choice is unambiguous
-		let updatedPlan = (phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current)[index];
-		if (updatedPlan && updatedPlan.action) {
-			let opts = updatedPlan.actionOptions;
-			let onlyOneChoice = Array.isArray(opts) && opts.length <= 1;
-			if (onlyOneChoice) {
-				let next = findNextUnplannedUnit(phase, index);
-				if (next) {
-					setActiveUnit(next);
-				}
+		// Auto-advance to next unplanned unit only if action was auto-assigned
+		if (autoAssigned) {
+			let next = findNextUnplannedUnit(phase, index);
+			if (next) {
+				setActiveUnit(next);
 			}
 		}
 	}
@@ -479,6 +488,38 @@ function ManeuverPlanProvider({ children }) {
 		});
 	}
 
+	// ===== Action picker handlers =====
+
+	/**
+	 * onActionPickerSelect — called when user picks an action from the popup picker.
+	 * Handles both flat actions and per-country grouped actions.
+	 */
+	function onActionPickerSelect(countryName, action) {
+		let picker = actionPickerState;
+		if (!picker) return;
+		let { phase, index } = picker;
+
+		if (countryName) {
+			// Per-country action (grouped format)
+			onPerCountryActionChange(phase, index, countryName, action);
+		} else {
+			// Simple flat action
+			onActionChange(phase, index, action);
+		}
+
+		setActionPickerState(null);
+
+		// Auto-advance to next unplanned unit
+		let next = findNextUnplannedUnit(phase, index);
+		if (next) {
+			setActiveUnit(next);
+		}
+	}
+
+	function dismissActionPicker() {
+		setActionPickerState(null);
+	}
+
 	// ===== Peace detection =====
 
 	/**
@@ -486,14 +527,19 @@ function ManeuverPlanProvider({ children }) {
 	 * Acts as getNextPeaceAction.
 	 */
 	function findFirstPeaceStop() {
+		let ts = territorySetupRef.current;
 		for (let i = 0; i < fleetPlansRef.current.length; i++) {
-			if (fleetPlansRef.current[i].peaceVote) {
-				return { phase: 'fleet', index: i, country: countryRef.current };
+			let plan = fleetPlansRef.current[i];
+			if (plan.peaceVote) {
+				let targetCountry = (plan.dest && ts[plan.dest] && ts[plan.dest].country) || countryRef.current;
+				return { phase: 'fleet', index: i, country: targetCountry };
 			}
 		}
 		for (let i = 0; i < armyPlansRef.current.length; i++) {
-			if (armyPlansRef.current[i].peaceVote) {
-				return { phase: 'army', index: i, country: countryRef.current };
+			let plan = armyPlansRef.current[i];
+			if (plan.peaceVote) {
+				let targetCountry = (plan.dest && ts[plan.dest] && ts[plan.dest].country) || countryRef.current;
+				return { phase: 'army', index: i, country: targetCountry };
 			}
 		}
 		return null;
@@ -799,12 +845,8 @@ function ManeuverPlanProvider({ children }) {
 						initFleetPlans[i].dest
 					);
 					initFleetPlans[i] = { ...initFleetPlans[i], actionOptions: opts || [] };
-					if (Array.isArray(opts)) {
-						if (opts.includes('hostile')) {
-							initFleetPlans[i].action = 'hostile';
-						} else if (opts.length === 1) {
-							initFleetPlans[i].action = opts[0];
-						}
+					if (Array.isArray(opts) && opts.length === 1) {
+						initFleetPlans[i].action = opts[0];
 					}
 				}
 			}
@@ -825,12 +867,8 @@ function ManeuverPlanProvider({ children }) {
 						initArmyPlans[i].dest
 					);
 					initArmyPlans[i] = { ...initArmyPlans[i], actionOptions: opts || [] };
-					if (Array.isArray(opts)) {
-						if (opts.includes('hostile')) {
-							initArmyPlans[i].action = 'hostile';
-						} else if (opts.length === 1) {
-							initArmyPlans[i].action = opts[0];
-						}
+					if (Array.isArray(opts) && opts.length === 1) {
+						initArmyPlans[i].action = opts[0];
 					}
 				}
 			}
@@ -898,16 +936,68 @@ function ManeuverPlanProvider({ children }) {
 			'select-territory',
 			selectables,
 			countryColor,
-			(name) => {
+			(name, event) => {
 				let au = activeUnitRef.current;
 				if (au) {
-					assignMove(au.phase, au.index, name);
+					let clickPos = event ? { x: event.clientX, y: event.clientY } : null;
+					assignMove(au.phase, au.index, name, clickPos);
 				}
 			},
 			highlights
 		);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [activeUnit, loaded, pendingPeace, country, fleetPlans, armyPlans]);
+
+	// Right-click handler: open action picker for an already-assigned territory
+	useEffect(() => {
+		if (!loaded || !mapInteraction.setOnItemRightClickedCb) return;
+		mapInteraction.setOnItemRightClickedCb(() => (name, event) => {
+			// Find which plan row has this territory as destination
+			for (let i = 0; i < fleetPlansRef.current.length; i++) {
+				let plan = fleetPlansRef.current[i];
+				if (
+					plan.dest === name &&
+					plan.actionOptions &&
+					(Array.isArray(plan.actionOptions) ? plan.actionOptions.length > 1 : plan.actionOptions)
+				) {
+					let clickPos = event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 };
+					setActiveUnit({ phase: 'fleet', index: i });
+					setActionPickerState({
+						phase: 'fleet',
+						index: i,
+						position: clickPos,
+						actions: plan.actionOptions,
+					});
+					return;
+				}
+			}
+			for (let i = 0; i < armyPlansRef.current.length; i++) {
+				let plan = armyPlansRef.current[i];
+				if (
+					plan.dest === name &&
+					plan.actionOptions &&
+					(Array.isArray(plan.actionOptions) ? plan.actionOptions.length > 1 : plan.actionOptions)
+				) {
+					let clickPos = event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 };
+					setActiveUnit({ phase: 'army', index: i });
+					setActionPickerState({
+						phase: 'army',
+						index: i,
+						position: clickPos,
+						actions: plan.actionOptions,
+					});
+					return;
+				}
+			}
+		});
+
+		return () => {
+			if (mapInteractionRef.current.setOnItemRightClickedCb) {
+				mapInteractionRef.current.setOnItemRightClickedCb(null);
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loaded]);
 
 	// Cleanup map interaction on unmount
 	useEffect(() => {
@@ -935,12 +1025,33 @@ function ManeuverPlanProvider({ children }) {
 		});
 		armyPlans.forEach((p) => {
 			if (p.dest && p.dest !== p.origin) {
+				// For army moves, find fleet-controlled sea waypoints between origin and dest
+				let waypoints = [];
+				let ts = territorySetupRef.current;
+				if (ts && ts[p.origin] && ts[p.dest]) {
+					let originAdj = ts[p.origin].adjacencies || [];
+					let destAdj = ts[p.dest].adjacencies || [];
+					// Find fleet sea territories adjacent to either origin or dest
+					for (let fp of fleetPlans) {
+						if (!fp.dest || !ts[fp.dest] || !ts[fp.dest].sea) continue;
+						let action = fp.action || '';
+						let split = action.split(' ');
+						if (split[0] !== '' && split[0] !== 'peace') continue;
+						// Check if this fleet's sea is adjacent to origin's landmass or dest's landmass
+						let nearOrigin = originAdj.includes(fp.dest);
+						let nearDest = destAdj.includes(fp.dest);
+						if (nearOrigin || nearDest) {
+							waypoints.push(fp.dest);
+						}
+					}
+				}
 				moves.push({
 					origin: p.origin,
 					dest: p.dest,
 					color: countryColor,
 					action: p.action || null,
 					locked: !!p.locked,
+					waypoints: waypoints.length > 0 ? waypoints : undefined,
 				});
 			}
 		});
@@ -1007,7 +1118,7 @@ function ManeuverPlanProvider({ children }) {
 	let unassignedArmies = armyPlans.filter((p) => !p.dest);
 
 	let peaceStop = findFirstPeaceStop();
-	let canSubmitValue = allPlanned() && !lockLine;
+	let canSubmitValue = allPlanned();
 	let nextPeace = peaceStop;
 
 	// ===== Context value (memoized) =====
@@ -1040,6 +1151,11 @@ function ManeuverPlanProvider({ children }) {
 			getNextPeaceAction,
 			onActionChange,
 			onPerCountryActionChange,
+			onActionPickerSelect,
+			dismissActionPicker,
+
+			// Action picker
+			actionPickerState,
 
 			// Computed / Helpers
 			canSubmit: canSubmitValue,
@@ -1064,6 +1180,7 @@ function ManeuverPlanProvider({ children }) {
 			currentManeuver,
 			territorySetup,
 			canSubmitValue,
+			actionPickerState,
 		]
 	);
 

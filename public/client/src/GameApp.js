@@ -112,6 +112,7 @@ function GameApp() {
 	const [selectableCosts, setSelectableCosts] = useState({});
 	const [unitMarkers, setUnitMarkers] = useState([]);
 	const [onUnitMarkerClickedCb, setOnUnitMarkerClickedCb] = useState(() => () => {});
+	const [onItemRightClickedCb, setOnItemRightClickedCb] = useState(null);
 
 	const setInteraction = useCallback((mode, items, color, callback, highlights, costs) => {
 		setInteractionMode(mode);
@@ -134,13 +135,22 @@ function GameApp() {
 	}, []);
 
 	const handleItemSelected = useCallback(
-		(name) => {
+		(name, event) => {
 			setSelectedItem(name);
 			if (onItemSelectedCb) {
-				onItemSelectedCb(name);
+				onItemSelectedCb(name, event);
 			}
 		},
 		[onItemSelectedCb]
+	);
+
+	const handleItemRightClicked = useCallback(
+		(name, event) => {
+			if (onItemRightClickedCb) {
+				onItemRightClickedCb(name, event);
+			}
+		},
+		[onItemRightClickedCb]
 	);
 
 	const handleUnitMarkerClicked = useCallback(
@@ -159,6 +169,7 @@ function GameApp() {
 		selectedItem,
 		highlightColor,
 		onItemSelected: handleItemSelected,
+		onItemRightClicked: onItemRightClickedCb ? handleItemRightClicked : null,
 		highlightedTerritories,
 		setInteraction,
 		clearInteraction,
@@ -168,6 +179,7 @@ function GameApp() {
 		setUnitMarkers,
 		onUnitMarkerClicked: handleUnitMarkerClicked,
 		setOnUnitMarkerClickedCb,
+		setOnItemRightClickedCb,
 	};
 
 	return (

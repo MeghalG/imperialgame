@@ -1177,7 +1177,70 @@ async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
 		let targetArmy = virtualArmies[survivingIndex];
 		if (!targetArmy) return [];
 
-		let virtualContext = { fleetMan: virtualFleetMan };
+		// Fleet transport limit: each fleet can transport at most 1 army.
+		// For each prior army move, determine if it used fleet transport (crossed a sea).
+		// If so, exclude that fleet from the BFS for this army.
+		let usedFleetSeas = new Set();
+		let pendingArmySurvivingIdx = 0;
+		for (let i = 0; i < unitIndex; i++) {
+			let armyTuple = plan.armyTuples[i];
+			if (!armyTuple || !armyTuple[1]) {
+				pendingArmySurvivingIdx++;
+				continue;
+			}
+			let armySplit = (armyTuple[2] || '').split(' ');
+			if (armySplit[0] === MANEUVER_ACTIONS.WAR_PREFIX || armySplit[0] === 'blow') {
+				// Army was destroyed — skip
+				continue;
+			}
+			let armyOrigin = armyTuple[0];
+			let armyDest = armyTuple[1];
+			// Check if this army required fleet transport: run land-only BFS
+			let landOnlyD0 = getD0(armyOrigin, territorySetup, country, { fleetMan: [] });
+			let landAdj = [];
+			for (let t of landOnlyD0) {
+				let adj = [...territorySetup[t].adjacencies];
+				adj.push(t);
+				for (let a of adj) {
+					let d0a = getD0(a, territorySetup, country, { fleetMan: [] });
+					for (let elt of d0a) {
+						if (!territorySetup[elt].sea) landAdj.push(elt);
+					}
+				}
+			}
+			if (!landAdj.includes(armyDest)) {
+				// Army needed fleet transport — find which fleet sea(s) it used
+				for (let fm of virtualFleetMan) {
+					if (!fm[1] || usedFleetSeas.has(fm[1])) continue;
+					let action = fm[2] || '';
+					if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) continue;
+					// Test: can army reach dest using only this fleet + already-used fleets?
+					let testFleetMan = virtualFleetMan.filter((f) => f[1] === fm[1] || !usedFleetSeas.has(f[1]));
+					let testD0 = getD0(armyOrigin, territorySetup, country, { fleetMan: testFleetMan });
+					let testAdj = [];
+					for (let t of testD0) {
+						let adj2 = [...territorySetup[t].adjacencies];
+						adj2.push(t);
+						for (let a of adj2) {
+							let d0a = getD0(a, territorySetup, country, { fleetMan: testFleetMan });
+							for (let elt of d0a) {
+								if (!territorySetup[elt].sea) testAdj.push(elt);
+							}
+						}
+					}
+					if (testAdj.includes(armyDest)) {
+						usedFleetSeas.add(fm[1]);
+						break;
+					}
+				}
+			}
+			pendingArmySurvivingIdx++;
+		}
+
+		// Exclude used fleets from the virtual fleet maneuver array
+		let availableFleetMan = virtualFleetMan.filter((fm) => !usedFleetSeas.has(fm[1]));
+
+		let virtualContext = { fleetMan: availableFleetMan };
 		return getAdjacentLands(targetArmy.territory, territorySetup, country, virtualContext);
 	}
 }

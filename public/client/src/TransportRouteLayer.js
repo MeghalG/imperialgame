@@ -36,10 +36,19 @@ function TransportRouteLayer() {
 		return null;
 	}
 
-	// Only render fleets that have a destination assigned
-	let assignedFleets = fleetPlans.filter((plan) => plan.dest != null && plan.dest !== '');
+	// Only render circles for fleets that provide army transport
+	// (destination is a sea territory with peace or normal-move action)
+	let transportFleets = fleetPlans.filter((plan) => {
+		if (!plan.dest || plan.dest === '') return false;
+		let territory = territories[plan.dest];
+		if (!territory || !territory.sea) return false;
+		// Only peaceful/normal fleets provide transport
+		let action = plan.action || '';
+		let split = action.split(' ');
+		return split[0] === '' || split[0] === 'peace';
+	});
 
-	if (assignedFleets.length === 0 || Object.keys(territories).length === 0) {
+	if (transportFleets.length === 0 || Object.keys(territories).length === 0) {
 		return null;
 	}
 
@@ -47,8 +56,8 @@ function TransportRouteLayer() {
 	let color = (palette.bright && palette.bright[country]) || '#c9a84c';
 
 	let circles = [];
-	for (let i = 0; i < assignedFleets.length; i++) {
-		let plan = assignedFleets[i];
+	for (let i = 0; i < transportFleets.length; i++) {
+		let plan = transportFleets[i];
 		let territory = territories[plan.dest];
 		if (!territory || !territory.unitCoords) continue;
 
@@ -58,17 +67,19 @@ function TransportRouteLayer() {
 		let y = parsePercent(coords[1]);
 		if (isNaN(x) || isNaN(y)) continue;
 
+		// Transport bridge indicator: anchor icon-like circle
 		circles.push(
 			<circle
 				key={'transport-' + i}
 				cx={x}
 				cy={y}
-				r={1.5}
-				fill="none"
+				r={1.2}
+				fill={color}
+				fillOpacity={0.08}
 				stroke={color}
-				strokeWidth={0.25}
-				strokeDasharray="1 0.5"
-				opacity={0.35}
+				strokeWidth={0.2}
+				strokeDasharray="0.8 0.4"
+				opacity={0.5}
 			/>
 		);
 	}

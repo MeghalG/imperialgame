@@ -21,7 +21,7 @@ function TerritoryHotspot({ name, coords, isClickable, isSelected, highlightColo
 			onClick={(e) => {
 				if (isClickable) {
 					e.stopPropagation();
-					onClick(name);
+					onClick(name, e);
 				}
 			}}
 			style={{

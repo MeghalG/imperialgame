@@ -356,14 +356,13 @@ function LockDivider() {
 // ---------------------------------------------------------------------------
 
 function PhaseSection({ phase, colorPalette, planContext }) {
-	let { fleetPlans, armyPlans, unassignedFleets, unassignedArmies, activeUnit } = planContext;
+	let { fleetPlans, armyPlans, activeUnit } = planContext;
 
 	let plans = phase === 'fleet' ? fleetPlans : armyPlans;
-	let unassigned = phase === 'fleet' ? unassignedFleets : unassignedArmies;
 	let label = phase === 'fleet' ? 'FLEET MOVES' : 'ARMY MOVES';
 
 	// Nothing to show for this phase
-	if (plans.length === 0 && unassigned.length === 0) return null;
+	if (plans.length === 0) return null;
 
 	// Use plan.locked directly — the provider sets it correctly for
 	// both same-phase and cross-phase locking (army peace locks all fleets)
@@ -384,11 +383,6 @@ function PhaseSection({ phase, colorPalette, planContext }) {
 		return activeUnit && activeUnit.phase === phase && activeUnit.index === idx;
 	}
 
-	// Unassigned rows start at index plans.length
-	function isUnassignedActive(unassignedIdx) {
-		return activeUnit && activeUnit.phase === phase && activeUnit.index === plans.length + unassignedIdx;
-	}
-
 	return (
 		<div style={{ marginBottom: 16 }}>
 			{/* Section header */}
@@ -405,37 +399,36 @@ function PhaseSection({ phase, colorPalette, planContext }) {
 				{label}
 			</div>
 
-			{/* Assigned rows */}
+			{/* All rows — assigned rendered as AssignedUnitRow, unassigned as UnassignedUnitRow */}
 			{plans.map((plan, idx) => {
 				let locked = isRowLocked(idx);
+				let isAssigned = !!plan.dest;
 				return (
-					<React.Fragment key={phase + '-assigned-' + idx}>
-						<AssignedUnitRow
-							phase={phase}
-							index={idx}
-							plan={plan}
-							isLocked={locked}
-							isActive={isUnitActive(idx)}
-							colorPalette={colorPalette}
-							context={planContext}
-						/>
+					<React.Fragment key={phase + '-' + idx}>
+						{isAssigned ? (
+							<AssignedUnitRow
+								phase={phase}
+								index={idx}
+								plan={plan}
+								isLocked={locked}
+								isActive={isUnitActive(idx)}
+								colorPalette={colorPalette}
+								context={planContext}
+							/>
+						) : (
+							<UnassignedUnitRow
+								phase={phase}
+								index={idx}
+								unit={plan}
+								isActive={isUnitActive(idx)}
+								context={planContext}
+							/>
+						)}
 						{/* Insert lock divider after the last locked row */}
-						{idx === lastLockedIndex && (plans.length > idx + 1 || unassigned.length > 0) && <LockDivider />}
+						{idx === lastLockedIndex && plans.length > idx + 1 && <LockDivider />}
 					</React.Fragment>
 				);
 			})}
-
-			{/* Unassigned rows */}
-			{unassigned.map((unit, unassignedIdx) => (
-				<UnassignedUnitRow
-					key={phase + '-unassigned-' + unassignedIdx}
-					phase={phase}
-					index={plans.length + unassignedIdx}
-					unit={unit}
-					isActive={isUnassignedActive(unassignedIdx)}
-					context={planContext}
-				/>
-			))}
 		</div>
 	);
 }
@@ -521,15 +514,15 @@ function ManeuverPlanList() {
 	const planContext = useContext(ManeuverPlanContext);
 	const userContext = useContext(UserContext);
 
-	let { loaded, fleetPlans, armyPlans, unassignedFleets, unassignedArmies, priorCompleted } = planContext;
+	let { loaded, fleetPlans, armyPlans, priorCompleted } = planContext;
 	let colorPalette = getCountryColorPalette(userContext.colorblindMode);
 
 	if (!loaded) {
 		return <div style={{ textAlign: 'center', padding: 40 }}>Loading maneuver...</div>;
 	}
 
-	let hasFleets = fleetPlans.length > 0 || unassignedFleets.length > 0;
-	let hasArmies = armyPlans.length > 0 || unassignedArmies.length > 0;
+	let hasFleets = fleetPlans.length > 0;
+	let hasArmies = armyPlans.length > 0;
 
 	return (
 		<div>

@@ -6,7 +6,8 @@ const MapInteractionContext = React.createContext({
 	selectableCosts: {}, // { itemName: '($2)' } dynamic cost labels per selectable item
 	selectedItem: null, // what was last clicked
 	highlightColor: '#c9a84c', // color for highlighting selectable items
-	onItemSelected: () => {}, // callback when an item is clicked
+	onItemSelected: () => {}, // callback(name, event) when an item is clicked
+	onItemRightClicked: null, // callback(name, event) when an item is right-clicked (optional)
 	highlightedTerritories: {}, // { territoryName: color } for passive highlights
 	setInteraction: () => {}, // set interaction state (mode, items, color, callback, highlights, costs)
 	clearInteraction: () => {}, // reset to idle

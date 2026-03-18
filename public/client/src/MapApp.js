@@ -15,12 +15,15 @@ import UnitMarkerLayer from './UnitMarkerLayer.js';
 import SvgRondel from './SvgRondel.js';
 import MovementArrowLayer from './MovementArrowLayer.js';
 import ManeuverSubmitFAB from './ManeuverSubmitFAB.js';
+import ManeuverActionPicker from './ManeuverActionPicker.js';
+import ManeuverPlanContext from './ManeuverPlanContext.js';
 import TransportRouteLayer from './TransportRouteLayer.js';
 
 const COUNTRY_ABBREV = { Austria: 'AT', Italy: 'IT', France: 'FR', England: 'EN', Germany: 'DE', Russia: 'RU' };
 
 function MapApp() {
 	const context = useContext(UserContext);
+	const planContext = useContext(ManeuverPlanContext);
 	const [countries, setCountries] = useState([]);
 	const [seaFactories, setSeaFactories] = useState([]);
 	const [landFactories, setLandFactories] = useState([]);
@@ -334,6 +337,14 @@ function MapApp() {
 				<MovementArrowLayer />
 				<TransportRouteLayer />
 				<ManeuverSubmitFAB />
+				{planContext && planContext.actionPickerState && (
+					<ManeuverActionPicker
+						position={planContext.actionPickerState.position}
+						actions={planContext.actionPickerState.actions}
+						onSelect={planContext.onActionPickerSelect}
+						onDismiss={planContext.dismissActionPicker}
+					/>
+				)}
 			</div>
 			{vpTrackPortal ? ReactDOM.createPortal(vpTrack, vpTrackPortal) : vpTrack}
 		</React.Fragment>

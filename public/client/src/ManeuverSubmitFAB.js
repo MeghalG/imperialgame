@@ -24,11 +24,13 @@ function ManeuverSubmitFAB() {
 	let disabled;
 
 	if (nextPeace) {
+		// Peace stop detected: submit the full batch and the backend will pause at the
+		// peace point, trigger the vote, and store remaining moves for later.
 		const countryColor = (palette.bright && palette.bright[nextPeace.country]) || '#13a8a8';
 		label = submitting ? 'Submitting\u2026' : `\u262E Peace: ${nextPeace.country}`;
 		backgroundColor = countryColor;
-		onClick = () => requestPeace(nextPeace.phase, nextPeace.index);
-		disabled = submitting;
+		onClick = submitManeuver;
+		disabled = submitting || !canSubmit;
 	} else {
 		label = submitting ? 'Submitting\u2026' : 'Submit Maneuver';
 		backgroundColor = '#13a8a8';
