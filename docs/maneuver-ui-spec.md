@@ -516,19 +516,28 @@ RE-ASSIGNMENT — Player clicks a new territory while an assigned unit is active
 
 ### 8.2 Visualizing Many Units
 
-The map has two unit visualization layers that coexist during maneuver planning:
+`⚠ GAP: Currently TWO separate unit layers exist — the base map (MapApp) renders non-interactive circles/triangles, and the maneuver planner (UnitMarkerLayer) renders interactive ⚓/⚔ on top. These must be unified into a single layer.`
 
-**1. Base map units (MapApp, always visible):** Renders the REAL current game state using FontAwesome icons at each territory's `unitCoords`:
-- **Fleets:** `fa-play fa-rotate-90` — triangles (rotated play icons), colored per country
-- **Hostile armies:** `fa-circle` — filled circles, colored per country
-- **Coexisting armies:** `fa-plus-circle` — circles with plus sign, colored per country
-- These are grouped inline at the territory coords. They are NOT clickable (`pointerEvents: 'none'`). They show what's on the board RIGHT NOW, not what the plan will produce.
+**Target: One unified unit layer** that renders in both normal and maneuver modes:
 
-**2. Maneuver planner overlay (UnitMarkerLayer, only during `continue-man`):** Shows the PLANNED state using ⚓ (fleet) and ⚔ (army) icons. These are clickable, support hover tooltips, and handle stacking with horizontal offset.
+**Normal mode (not maneuvering):**
+- Shows all units at their real positions using the standard visual language:
+  - **Fleets:** triangles (rotated play icons), colored per country
+  - **Hostile armies:** filled circles, colored per country
+  - **Coexisting armies:** circles with plus sign, colored per country
+- Non-interactive (display only), grouped at territory `unitCoords`
 
-**3. MovementArrowLayer:** Shows colored lines from origin to destination for each planned move.
+**Maneuver mode (`continue-man`):**
+- Same visual language (triangles, circles) but gains interactivity and state:
+  - **Clickable:** Click a unit to select it as active
+  - **Active state:** Pulsing border in country color
+  - **Planned state:** Unit marker moves to destination, checkmark overlay
+  - **Idle state:** Unit at origin, default styling, still clickable
+  - **Stacking:** When multiple units share a territory, offset horizontally
+  - **Hover tooltip:** "Army 3 at Vienna"
+- Shows both the maneuvering country's units (interactive) and other countries' units (non-interactive, used for context — the player needs to see where enemies are)
 
-During maneuver planning, both layers are visible simultaneously — the base map's circles/triangles show current reality, while the planner's ⚓/⚔ markers show planned destinations. The planner markers are interactive; the base map markers are not.
+**MovementArrowLayer:** Shows colored lines from origin to destination for each planned move. Coexists with the unified unit layer.
 
 **During maneuver planning, the existing UnitMarkerLayer shows three visual states:**
 
