@@ -19,83 +19,88 @@ function ManeuverActionPicker({ position, actions, onSelect, onDismiss }) {
 
 	const isFlatArray = Array.isArray(actions);
 
+	let content;
+
 	if (isFlatArray) {
 		if (actions.length <= 1) return null;
 
-		return (
-			<div
-				className="imp-action-picker"
-				style={{ left: position.x, top: position.y }}
-				onClick={(e) => e.stopPropagation()}
-			>
-				{actions.map((action) => {
-					const color = actionColor(action);
+		content = actions.map((action) => {
+			const color = actionColor(action);
+			return (
+				<button
+					key={action}
+					className="imp-action-picker__btn"
+					style={{ borderLeftColor: color || 'rgba(255,255,255,0.3)' }}
+					onClick={() => onSelect(null, action)}
+				>
+					{formatActionLabel(action)}
+				</button>
+			);
+		});
+	} else {
+		// Multi-country grouped format: { countries: [{country, units, actions}], otherActions }
+		const { countries = [], otherActions = [] } = actions;
+		const totalActions =
+			countries.reduce((sum, g) => sum + (g.actions ? g.actions.length : 0), 0) + otherActions.length;
+
+		if (totalActions <= 1) return null;
+
+		content = (
+			<React.Fragment>
+				{countries.map((group) => {
+					if (!group.actions || group.actions.length === 0) return null;
 					return (
-						<button
-							key={action}
-							className="imp-action-picker__btn"
-							style={{ borderLeftColor: color || 'rgba(255,255,255,0.3)' }}
-							onClick={() => onSelect(null, action)}
-						>
-							{formatActionLabel(action)}
-						</button>
+						<div key={group.country} className="imp-action-picker__group">
+							<div className="imp-action-picker__label">{group.country}</div>
+							{group.actions.map((action) => {
+								const color = actionColor(action);
+								return (
+									<button
+										key={action}
+										className="imp-action-picker__btn"
+										style={{ borderLeftColor: color || 'rgba(255,255,255,0.3)' }}
+										onClick={() => onSelect(group.country, action)}
+									>
+										{formatActionLabel(action)}
+									</button>
+								);
+							})}
+						</div>
 					);
 				})}
-			</div>
-		);
-	}
-
-	// Multi-country grouped format: { countries: [{country, units, actions}], otherActions }
-	const { countries = [], otherActions = [] } = actions;
-	const totalActions = countries.reduce((sum, g) => sum + (g.actions ? g.actions.length : 0), 0) + otherActions.length;
-
-	if (totalActions <= 1) return null;
-
-	return (
-		<div
-			className="imp-action-picker"
-			style={{ left: position.x, top: position.y }}
-			onClick={(e) => e.stopPropagation()}
-		>
-			{countries.map((group) => {
-				if (!group.actions || group.actions.length === 0) return null;
-				return (
-					<div key={group.country} className="imp-action-picker__group">
-						<div className="imp-action-picker__label">{group.country}</div>
-						{group.actions.map((action) => {
+				{otherActions.length > 0 && (
+					<div className="imp-action-picker__group">
+						{otherActions.map((action) => {
 							const color = actionColor(action);
 							return (
 								<button
 									key={action}
 									className="imp-action-picker__btn"
 									style={{ borderLeftColor: color || 'rgba(255,255,255,0.3)' }}
-									onClick={() => onSelect(group.country, action)}
+									onClick={() => onSelect(null, action)}
 								>
 									{formatActionLabel(action)}
 								</button>
 							);
 						})}
 					</div>
-				);
-			})}
-			{otherActions.length > 0 && (
-				<div className="imp-action-picker__group">
-					{otherActions.map((action) => {
-						const color = actionColor(action);
-						return (
-							<button
-								key={action}
-								className="imp-action-picker__btn"
-								style={{ borderLeftColor: color || 'rgba(255,255,255,0.3)' }}
-								onClick={() => onSelect(null, action)}
-							>
-								{formatActionLabel(action)}
-							</button>
-						);
-					})}
-				</div>
-			)}
-		</div>
+				)}
+			</React.Fragment>
+		);
+	}
+
+	return (
+		<React.Fragment>
+			{/* Transparent backdrop to dismiss picker when clicking outside */}
+			<div className="imp-action-picker__backdrop" onClick={onDismiss} />
+			<div
+				className="imp-action-picker"
+				style={{ left: position.x, top: position.y }}
+				onClick={(e) => e.stopPropagation()}
+			>
+				{content}
+			</div>
+		</React.Fragment>
 	);
 }
 
