@@ -700,35 +700,28 @@ function ManeuverPlanProvider({ children }) {
 
 	// ===== requestPeace =====
 
-	function requestPeace(phase, index) {
-		// Lock everything at and above this index
-		setLockLine({ phase, index });
+	async function requestPeace(phase, index) {
+		SoundManager.playPlace();
+		setSubmitting(true);
+		try {
+			// Build tuples from current plans — same as submitManeuver
+			let fleetMan = fleetPlansRef.current.map((p) => [p.origin, p.dest || p.origin, p.action || '']);
+			let armyMan = armyPlansRef.current.map((p) => [p.origin, p.dest || p.origin, p.action || '']);
 
-		// Mark rows as locked
-		if (phase === 'fleet') {
-			setFleetPlans((prev) => {
-				let plans = [...prev];
-				for (let i = 0; i <= index; i++) {
-					plans[i] = { ...plans[i], locked: true };
-				}
-				fleetPlansRef.current = plans;
-				return plans;
+			context.setFleetMan(fleetMan);
+			context.setArmyMan(armyMan);
+
+			await submitAPI.submitBatchManeuver({
+				...context,
+				fleetMan,
+				armyMan,
 			});
-		} else {
-			// Lock all fleets and army rows up to index
-			setFleetPlans((prev) => {
-				let plans = prev.map((p) => ({ ...p, locked: true }));
-				fleetPlansRef.current = plans;
-				return plans;
-			});
-			setArmyPlans((prev) => {
-				let plans = [...prev];
-				for (let i = 0; i <= index; i++) {
-					plans[i] = { ...plans[i], locked: true };
-				}
-				armyPlansRef.current = plans;
-				return plans;
-			});
+
+			// Don't clear draft — peace vote may need remaining plans after
+		} catch (e) {
+			console.error('ManeuverPlanProvider requestPeace failed:', e);
+		} finally {
+			setSubmitting(false);
 		}
 	}
 
