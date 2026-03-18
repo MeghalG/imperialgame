@@ -24,7 +24,7 @@ import {
 	CloseOutlined,
 } from '@ant-design/icons';
 import ManeuverPlanContext from './ManeuverPlanContext.js';
-import { formatActionLabel, formatCompletedAction, actionColor, hasPeaceInAction } from './maneuverActionUtils.js';
+import { normalizeAction, formatCompletedAction, actionColor, hasPeaceInAction } from './maneuverActionUtils.js';
 import { getCountryColorPalette } from './countryColors.js';
 import UserContext from './UserContext.js';
 
@@ -117,13 +117,14 @@ function ProgressIndicator({ fleetPlans, armyPlans }) {
 // ---------------------------------------------------------------------------
 
 function AssignedUnitRow({ phase, index, plan, isLocked, isActive, colorPalette, context }) {
-	const { reorderMove, removeMove, setActiveUnit, requestPeace, submitManeuver, submitting } = context;
+	const { reorderMove, removeMove, setActiveUnit, requestPeace, submitting } = context;
 	let plans = phase === 'fleet' ? context.fleetPlans : context.armyPlans;
 	let totalUnits = plans.length;
 	let unitLabel = phase === 'fleet' ? 'Fleet' : 'Army';
 	let unitNum = index + 1;
 
-	let actionCompound = Array.isArray(plan.action) ? plan.action : null;
+	// plan.action is a string (raw code or JSON); normalize to compound array for display
+	let actionCompound = plan.action ? normalizeAction(plan.action) : [];
 	let badgeLabel = buildActionBadgeLabel(actionCompound);
 	let badgeColor = buildActionBadgeColor(actionCompound);
 
