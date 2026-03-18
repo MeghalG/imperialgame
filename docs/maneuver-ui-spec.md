@@ -138,15 +138,69 @@ Per rules spec §2.2:
   - Changing a fleet's destination can expand or shrink army destinations.
   - Removing a fleet move can invalidate army moves that relied on that convoy.
 
-### 3.4 Convoy Visualization
+### 3.4 Convoy Assignment and Visualization
 
 `⚠ GAP: Not yet implemented.`
 
-When an army's destination requires crossing a convoyed sea:
-- The map shows a **dotted transport line** from the army's origin, through the conveying fleet's sea, to the army's destination.
-- The conveying fleet is visually linked to the army (matching color highlight on both units).
-- If the fleet is already carrying an army (1 fleet = 1 army max), destinations requiring that fleet are **greyed out** for other armies.
-- If multiple fleets could carry the army, the system auto-assigns the first available fleet. The player can override by reordering.
+**Core principle:** When multiple fleets can provide convoy for a route, the system auto-assigns one. But the assignment is **soft** — it can be reassigned when a later army needs a different fleet. The system treats fleet-army assignments as a constraint-satisfaction problem, not a first-come-first-served lock.
+
+**Example walkthrough — flexible convoy reassignment:**
+
+```
+Setup: Italy has Fleet A at Western Med, Fleet B at Ionian Sea.
+       Italy has Army 1 at Naples, Army 2 at Rome.
+       Tunis is reachable via either Western Med OR Ionian Sea.
+       Spain is reachable only via Western Med.
+       Greece is reachable only via Ionian Sea.
+
+STEP 1 — Army 1 assigned: Naples → Tunis
+  System needs a fleet to convoy through one sea.
+  Both Fleet A (Western Med) and Fleet B (Ionian) could work.
+  System auto-assigns Fleet A (Western Med) arbitrarily.
+  Map: Dotted transport line Naples → Western Med → Tunis
+       Fleet A highlighted as carrying Army 1.
+
+STEP 2 — Player assigns Army 2: Rome → ???
+  Army 2's destination options must consider fleet availability:
+  - Spain (requires Western Med): Fleet A is currently assigned to Army 1,
+    BUT if the system reassigns Fleet B (Ionian) to Army 1 instead,
+    Fleet A becomes free for Army 2 → Spain.
+    → Spain IS available (system can reshuffle).
+  - Greece (requires Ionian): Fleet B is free → Greece IS available.
+  - Tunis: BOTH fleets are needed (Army 1 already going there via one,
+    Army 2 would need the other) → Tunis IS available.
+
+  The key insight: When computing Army 2's destinations, the system must
+  check if ANY valid fleet assignment exists that satisfies BOTH Army 1
+  and Army 2's convoy needs simultaneously, not just whether the
+  currently-assigned fleet is free.
+
+STEP 2A — Army 2 picks Spain (requires Western Med)
+  System detects: Fleet A is assigned to Army 1 for Tunis, but Fleet B
+  can also carry Army 1 to Tunis via Ionian. REASSIGN:
+    Fleet B → Army 1 (Naples → Ionian → Tunis)
+    Fleet A → Army 2 (Rome → Western Med → Spain)
+  Map updates: Both dotted transport lines redraw with new fleet assignments.
+
+STEP 2B — Army 2 picks Greece (requires Ionian)
+  Fleet B is free (not needed by Army 1). Simple assignment:
+    Fleet A → Army 1 (stays at Western Med → Tunis)
+    Fleet B → Army 2 (Rome → Ionian → Greece)
+  No reassignment needed.
+```
+
+**Constraint-satisfaction algorithm (conceptual):**
+1. For each army with a convoy destination, identify which fleets COULD provide the convoy.
+2. Find any valid assignment of fleets to armies where each fleet carries at most 1 army.
+3. If no valid assignment exists, the destination is not available.
+4. When computing a new army's destinations, check if adding each candidate destination still allows a valid global assignment.
+
+**Override:** The form UI provides a fleet picker for manual convoy assignment (form-only interaction). The map always shows the current auto-assignment.
+
+**Visualization:**
+- Dotted transport line from army origin, through the conveying fleet's sea, to army destination.
+- The conveying fleet is visually linked to the army (matching color highlight).
+- When reassignment happens (dotted lines redraw), a brief animation shows the swap.
 
 ### 3.5 Staying in Place
 
@@ -409,9 +463,465 @@ Map shows:
 
 ---
 
-## 8. Edge Cases
+## 8. Detailed Interaction Walkthroughs
 
-### 8.1 Double-Click on Territory
+These trace exact user scenarios step-by-step, showing what the player sees at each moment.
+
+### 8.1 Unit Selection and Deselection
+
+**Scenario:** Austria has 2 fleets and 3 armies. Player opens the maneuver planner.
+
+```
+INITIAL STATE (no active unit):
+  Map: 5 unit markers at their origins (fleet icons at seas/ports, army icons at land)
+  Plan list: 5 rows, all "(unassigned)", all dimmed
+  No territory highlighting on map
+
+STEP 1 — Player clicks Army 1 marker on the map:
+  Map: Army 1 marker gets highlighted border (Austria color)
+       All reachable land territories light up in Austria color
+       Army 1's origin highlights in gold
+       Other unit markers remain but are not highlighted
+  Plan list: Army 1 row gets highlighted border, scrolls into view if needed
+
+STEP 2 — Player clicks a highlighted territory (Budapest):
+  Map: Movement arrow appears from Army 1's origin → Budapest
+       Territory highlighting clears
+       Army 1 marker moves to Budapest (or shows at both with arrow)
+       If action auto-assigned: Army 1 marker settles at Budapest
+       If action picker needed: picker popup appears at click position
+  Plan list: Army 1 row updates to "Vienna → Budapest [move]"
+
+STEP 3 — Auto-advance: Next unassigned unit activates automatically
+  Map: Army 2 marker gets highlighted border
+       Army 2's reachable territories light up
+  Plan list: Army 2 row highlights
+
+DESELECTION — Player clicks empty map area (not a territory, not a unit):
+  Map: All highlighting clears. No active unit.
+  Plan list: No row highlighted.
+  Player must click a unit or row to resume.
+
+DESELECTION — Player clicks an already-assigned unit:
+  Map: That unit becomes active. Its destinations re-highlight.
+       Player can pick a new destination (reassignment).
+  Plan list: That row highlights. Old destination shown but can change.
+
+RE-ASSIGNMENT — Player clicks a new territory while an assigned unit is active:
+  Old destination arrow disappears.
+  New destination arrow appears.
+  Action recomputed for new destination.
+  All downstream units recompute options (cascade).
+```
+
+### 8.2 Visualizing Many Units
+
+**Scenario:** Russia has 4 fleets and 6 armies.
+
+```
+MAP VISUALIZATION:
+  ┌─────────────────────────────────────────────┐
+  │                                             │
+  │    ⚓1  ⚓2        ← fleet markers with     │
+  │                      index numbers          │
+  │         🏠3  🏠4   ← army markers with      │
+  │    🏠5       🏠6     index numbers          │
+  │         🏠7  🏠8                            │
+  │    ⚓9  ⚓10                                │
+  │                                             │
+  └─────────────────────────────────────────────┘
+
+UNIT MARKER DESIGN:
+  - Each marker shows unit type icon (anchor for fleet, shield for army)
+  - Index number displayed on or next to the marker
+  - Unassigned units: outlined marker, origin position
+  - Assigned units: filled marker, at destination position
+  - Active unit: pulsing border in country color
+  - Multiple units at same territory: markers stack with slight offset
+    (like a card fan — each slightly overlapping, all visible)
+
+STACKING at same territory:
+  When 3 armies share Vienna as origin:
+  ┌──┐
+  │A1├──┐
+  └──┤A2├──┐
+     └──┤A3│
+        └──┘
+  Each is individually clickable. Hover shows tooltip: "Army 3 at Vienna"
+
+PLANNED vs ORIGINAL positions:
+  - Unassigned units show at ORIGIN
+  - Assigned units show at DESTINATION with arrow from origin
+  - This means the map reflects the "planned future state" for assigned
+    units and the "current state" for unassigned units
+```
+
+### 8.3 Visualizing Unit Destruction (War)
+
+**Scenario:** Austrian Army 1 is assigned to war Italy Army at Rome.
+
+```
+WAR MOVE VISUALIZATION:
+  Map shows:
+  ┌────────────────────────────────────┐
+  │                                    │
+  │  Vienna ──────✕ Rome               │
+  │  (A1 origin)    (A1 destination)   │
+  │                  🇮🇹 army here      │
+  │                                    │
+  └────────────────────────────────────┘
+
+  Arrow: Solid line from Vienna to Rome
+  Arrow tip: Red ✕ symbol (not a normal arrowhead)
+  The Austrian army marker does NOT appear at Rome
+    (it is consumed in the war — there is no surviving unit)
+  The Italian army marker at Rome is shown with a faded/crossed-out
+    appearance (it will be destroyed when this plan executes)
+
+  Plan list row:
+  ┌──────────────────────────────────────────────┐
+  │  Army 1: Vienna → Rome ✕                     │
+  │          [war Italy army]  💀     [↑][↓][✕]  │
+  └──────────────────────────────────────────────┘
+  The 💀 skull (or ✕) icon indicates this unit is consumed.
+  The row is styled differently — strikethrough or dimmed text for the
+  unit name, since this unit won't survive.
+
+BLOW-UP VISUALIZATION:
+  Similar to war but the arrow tip shows a factory explosion icon.
+  Three army markers at the destination are shown with 💀/✕ (all consumed).
+  The factory icon at that territory is shown crossed out.
+
+PEACE MOVE VISUALIZATION:
+  Arrow: Solid line with a dove/olive branch icon or green tint
+  The unit marker DOES appear at the destination (it survives)
+  The enemy units remain visible (no destruction)
+  Both the moving unit and enemy units coexist on the map
+```
+
+### 8.4 Cancel Cascade — The War→Move→Cancel Scenario
+
+This is the critical scenario the user identified. Walk through it step by step.
+
+**Setup:** Austrian Army 1 at Vienna, Austrian Army 2 at Budapest. Italian Army at Rome.
+
+```
+STEP 1 — Assign Army 1: Vienna → Rome, action "war Italy army"
+  Map: Arrow from Vienna → Rome with red ✕
+       Italian army at Rome shown faded (will be destroyed)
+       Army 1 does NOT appear at Rome (consumed)
+  Plan list:
+    Army 1: Vienna → Rome [war Italy army] 💀
+    Army 2: Budapest → (unassigned)
+
+STEP 2 — Assign Army 2: Budapest → Rome
+  Provider computes action options for Army 2 at Rome.
+  Virtual state: Army 1's war move already destroyed the Italian army.
+  So at Rome, in the virtual state: no enemy units remain.
+  Rome is Italian home territory with no enemies.
+  Available actions: "peace" + "hostile" (+ "blow up" if eligible)
+  Action picker appears. Player picks "hostile".
+
+  Map: Arrow from Budapest → Rome (solid, orange border for hostile)
+       Army 2 marker appears at Rome
+       Italian army at Rome is STILL shown faded (destroyed by Army 1)
+  Plan list:
+    Army 1: Vienna → Rome [war Italy army] 💀
+    Army 2: Budapest → Rome [hostile]
+
+STEP 3 — Player CANCELS Army 1's move (clicks ✕ on Army 1 row)
+  ┌─────────────────────────────────────────────────────────────┐
+  │ THIS IS THE CASCADE MOMENT                                  │
+  │                                                             │
+  │ Army 1 reverts to unassigned.                               │
+  │ The Italian army at Rome is NO LONGER being destroyed.      │
+  │ Army 2's action options must be recomputed:                 │
+  │   - Rome now has an enemy unit (Italian army, not destroyed)│
+  │   - "hostile" is no longer valid (enemies present)          │
+  │   - Available actions change to: "war Italy army" + "peace" │
+  │   - Army 2's current action "hostile" is INVALID            │
+  └─────────────────────────────────────────────────────────────┘
+
+  CASCADE RESOLUTION:
+    Provider detects Army 2's action "hostile" is no longer in the
+    recomputed action options list.
+
+    OPTION A: Auto-clear the invalid action. Army 2 keeps its destination
+    (Rome) but its action is reset to the new default (first war option).
+    The action picker re-appears so the player can confirm or change.
+
+    OPTION B: Clear the entire move. Army 2 reverts to unassigned.
+    More disruptive but impossible to have an invalid state.
+
+    RECOMMENDED: Option A — keep the destination, reset the action,
+    show the picker. This is less disruptive and lets the player quickly
+    pick "war Italy army" or "peace" without re-clicking Rome on the map.
+
+  AFTER CASCADE:
+  Map: Army 1 marker back at Vienna (unassigned, outlined)
+       Army 2 arrow still points to Rome, but action badge changes
+       Italian army at Rome shown normally again (no longer faded)
+       Action picker appears for Army 2 at Rome
+  Plan list:
+    Army 1: Vienna → (unassigned)
+    Army 2: Budapest → Rome [war Italy army] ← auto-defaulted, picker open
+```
+
+### 8.5 Cancel Cascade — Fleet Removal Breaks Convoy
+
+**Setup:** Austrian Fleet 1 at Adriatic Sea. Austrian Army 1 at Trieste.
+Army 1 plans to cross Adriatic Sea (via Fleet 1 convoy) to reach Albania.
+
+```
+STEP 1 — Assign Fleet 1: Adriatic Sea → Adriatic Sea (stays in place)
+  Fleet 1 provides convoy at Adriatic Sea.
+
+STEP 2 — Assign Army 1: Trieste → Albania (crosses Adriatic Sea via Fleet 1)
+  Army 1's BFS includes Albania because Fleet 1 convoys at Adriatic.
+  Map: Dotted transport line through Adriatic Sea, solid arrow to Albania.
+
+STEP 3 — Player CANCELS Fleet 1's move (clicks ✕ on Fleet 1 row)
+  Fleet 1 reverts to unassigned.
+  Provider recomputes Army 1's destinations.
+  Without Fleet 1 convoying, Adriatic Sea is not passable.
+  Albania is no longer reachable from Trieste.
+  Army 1's destination "Albania" is no longer in destOptions.
+
+  CASCADE: Army 1's entire move is cleared (dest + action).
+  Map: Army 1 marker returns to Trieste. Fleet 1 marker at Adriatic (unassigned).
+       Transport line disappears. Arrow to Albania disappears.
+  Plan list:
+    Fleet 1: Adriatic Sea → (unassigned)
+    Army 1: Trieste → (unassigned) ← was Albania, cascade-cleared
+
+  ⚠ GAP: Currently the cascade silently clears the army move.
+  The spec says a toast/warning should appear:
+  "Army 1's destination cleared — fleet no longer provides transport."
+```
+
+### 8.6 War vs Peace Choice During Movement — Full Flow
+
+**Scenario:** Austrian Army at Vienna moves to Rome (Italian home territory). Italy has an army and a fleet at Rome.
+
+```
+STEP 1 — Player activates Army 1 (clicks marker or row)
+  Map: All reachable territories highlight. Rome is among them.
+
+STEP 2 — Player clicks Rome on the map
+  Provider computes action options at Rome.
+  Rome has enemy units: Italian army + Italian fleet.
+  Available actions:
+    - "war Italy army" (destroy their army, your army consumed)
+    - "war Italy fleet" (destroy their fleet, your army consumed)
+    - "peace" (propose peace, triggers vote)
+  Action picker appears at click position:
+
+  ┌──────────────────────────────────┐
+  │  Choose action at Rome:          │
+  │                                  │
+  │  ■ Declare war on Italy army     │ ← red badge
+  │  ■ Declare war on Italy fleet    │ ← red badge
+  │  ■ Enter peacefully              │ ← green badge
+  └──────────────────────────────────┘
+
+  NOTE: "hostile" is NOT shown. Enemies are present.
+  NOTE: "blow up" might be shown if 3+ armies target Rome and
+        Italy has >1 operational factory.
+
+STEP 3A — Player picks "war Italy army"
+  Picker closes. Army 1 row shows: Vienna → Rome [war Italy army] 💀
+  Map: Arrow with red ✕ tip. Army consumed. Italian army faded.
+  Italian FLEET at Rome still shown normally (not targeted).
+  Auto-advance to next unit.
+
+STEP 3B — Player picks "peace"
+  Picker closes. Army 1 row shows: Vienna → Rome [peace] ☮
+  Row gets orange border + "☮ Request Peace" button.
+  Map: Arrow with green/dove tip. Army marker at Rome (survives).
+  Italian units shown normally (no destruction).
+  Submit button changes to "☮ Peace: Italy".
+
+STEP 3C — Player picks "war Italy fleet"
+  Same as 3A but Italian fleet is faded, army remains.
+
+CHANGING YOUR MIND:
+  After picking an action, the player can:
+  1. Click the row's ✕ button → clears entire move, re-selects unit
+  2. Click the Army 1 marker → re-activates it, can click a new destination
+  3. Click Rome again while Army 1 is active → re-triggers action picker
+     with the same options, player can choose differently
+```
+
+### 8.7 Multi-Unit War at Same Territory
+
+**Scenario:** Austria has 3 armies. Rome has 2 Italian armies and 1 Italian fleet.
+
+```
+STEP 1 — Army 1: Vienna → Rome, picks "war Italy army"
+  One Italian army will be destroyed. Army 1 consumed.
+  Virtual state after: Rome has 1 Italian army + 1 Italian fleet.
+
+STEP 2 — Army 2: Budapest → Rome
+  Action options recomputed against virtual state.
+  Rome still has enemies: 1 Italian army + 1 Italian fleet.
+  Available: "war Italy army", "war Italy fleet", "peace"
+  Player picks "war Italy fleet".
+  Virtual state after: Rome has 1 Italian army. Army 2 consumed.
+
+STEP 3 — Army 3: Trieste → Rome
+  Action options recomputed.
+  Rome still has enemies: 1 Italian army.
+  Available: "war Italy army", "peace"
+  Player picks "war Italy army".
+  Virtual state after: Rome has NO enemies. Army 3 consumed.
+
+  Map shows: 3 arrows converging on Rome, all with red ✕.
+  All 3 Austrian army markers shown as consumed (💀).
+  All Italian units at Rome shown faded.
+  No Austrian units survive at Rome (all 3 sacrificed in war).
+
+WHAT IF: Army 3 picks "peace" instead of war?
+  Virtual state: 1 Italian army remains. Rome is enemy home.
+  Army 3 cannot pick "hostile" (enemy still present).
+  Army 3 survives at Rome. Peace vote triggers for Italy.
+  Submit button: "☮ Peace: Italy"
+
+CANCEL ARMY 1: What if player cancels Army 1's war?
+  Italian army count at Rome reverts: now 2 armies + 1 fleet.
+  Army 2's "war Italy fleet" is still valid (fleet still there).
+  Army 3's target "war Italy army" is still valid (2 Italian armies remain,
+    but Army 2 only kills the fleet, so after Army 2: 2 armies remain,
+    Army 3 kills 1 → 1 army left).
+  Wait — the virtual state cascade must be precise:
+    After Army 2 (war fleet): 2 Italian armies + 0 fleets
+    After Army 3 (war army): 1 Italian army remains
+  Both Army 2 and Army 3's actions are still valid. No cascade needed.
+
+CANCEL ARMY 2: What if player cancels Army 2's "war Italy fleet"?
+  After Army 1 (war army): 1 Italian army + 1 fleet remain.
+  Army 3's target "war Italy army" → is there still an Italian army?
+    After Army 1 kills one: 1 army remains. Army 3 can still war it. Valid.
+  But if Army 3 had picked "hostile" (which would only be valid if no
+  enemies remained after Army 1 + Army 2 cleared them all):
+    Army 2 cancellation breaks this. Army 3's "hostile" becomes invalid.
+    CASCADE: Army 3's action resets, picker reopens.
+```
+
+### 8.8 Selection State Machine
+
+```
+                    ┌──────────────────┐
+        ┌──────────►│    NO ACTIVE     │◄──────────┐
+        │           │      UNIT        │           │
+        │           └───────┬──────────┘           │
+        │                   │                      │
+        │          click unit marker               │
+        │          or click plan row               │
+        │                   │                      │
+        │                   ▼                      │
+        │           ┌──────────────────┐           │
+        │           │   UNIT ACTIVE    │           │
+click   │           │  (destinations   │    click empty
+empty   │           │   highlighted)   │    map area
+map     │           └───┬──────────┬───┘           │
+area    │               │          │               │
+        │    click      │          │  click another │
+        │    territory  │          │  unit marker   │
+        │               ▼          │               │
+        │    ┌──────────────────┐  │               │
+        │    │  DEST ASSIGNED   │  └───────┐       │
+        │    │  (computing      │          │       │
+        │    │   action opts)   │          │       │
+        │    └───┬────────┬─────┘          │       │
+        │        │        │                │       │
+        │   1 action   multiple            │       │
+        │   (auto)     actions             │       │
+        │        │        │                │       │
+        │        │        ▼                │       │
+        │        │  ┌──────────────┐       │       │
+        │        │  │ PICKER OPEN  │       │       │
+        │        │  │ (frozen map) │       │       │
+        │        │  └──┬───────┬───┘       │       │
+        │        │     │       │           │       │
+        │    pick action    dismiss        │       │
+        │        │     │       │           │       │
+        │        ▼     ▼       ▼           │       │
+        │  ┌────────────────────────┐      │       │
+        │  │    MOVE COMPLETE       │──────┘       │
+        │  │   (auto-advance to    │               │
+        │  │    next unassigned)   │───────────────┘
+        │  └───────────────────────┘  (no more unassigned)
+        │            │
+        │       click ✕ on row
+        │            │
+        │            ▼
+        │  ┌────────────────────────┐
+        └──│   MOVE CANCELLED       │
+           │  (cascade recompute,   │
+           │   unit re-activates)   │
+           └────────────────────────┘
+```
+
+### 8.9 Cascade Recomputation — Complete Rules
+
+When ANY plan row changes (assigned, removed, reassigned, reordered, action changed), the following cascade runs:
+
+```
+TRIGGER: Row R in phase P changed
+         │
+         ▼
+    ┌─────────────────────────────────────────────────────────┐
+    │ 1. RECOMPUTE DEST OPTIONS                               │
+    │    For each unit after R in phase P:                     │
+    │      - Call getUnitOptionsFromPlans(plan, phase, index)  │
+    │      - If current dest is NOT in new destOptions:        │
+    │          → CLEAR dest + action (set to unassigned)       │
+    │          → Flag as "cascade-cleared"                     │
+    │                                                         │
+    │ 2. IF P is 'fleet': RECOMPUTE ALL ARMY DEST OPTIONS     │
+    │    Fleet changes affect convoy availability.             │
+    │    For each army:                                        │
+    │      - Recompute destOptions                             │
+    │      - If current dest not reachable: CLEAR it           │
+    │                                                         │
+    │ 3. RECOMPUTE ACTION OPTIONS for all affected units       │
+    │    For each unit that still has a dest:                   │
+    │      - Call getUnitActionOptionsFromPlans(plan, ..., dest)│
+    │      - If current action is NOT in new actionOptions:    │
+    │          → RESET action to default (first war or first)  │
+    │          → Show action picker so player can choose       │
+    │                                                         │
+    │ 4. RECOMPUTE PEACE FLAGS                                │
+    │    For each unit with action 'peace':                    │
+    │      - Recheck if destination has enemies in virtual state│
+    │      - Update peaceVote flag                             │
+    │                                                         │
+    │ 5. RECOMPUTE BLOW-UP ELIGIBILITY                        │
+    │    For each unit with action 'blow up X':                │
+    │      - Recount friendly armies at that destination       │
+    │      - If <3: CLEAR the blow-up action, reset to default │
+    └─────────────────────────────────────────────────────────┘
+
+CASCADE-CLEARED UNITS:
+  When a unit's move is cleared by cascade:
+  - Show a brief inline warning on the row:
+    "Destination no longer reachable" (for dest cascade)
+    "Action no longer valid" (for action cascade)
+  - The warning fades after 3 seconds
+  - The row reverts to unassigned state
+
+ACTION RESET (not full clear):
+  When a unit's dest is still valid but its action isn't:
+  - Keep the destination
+  - Reset action to new default
+  - Show the action picker at the row's position (not map position,
+    since the click didn't happen on the map)
+  - Player must confirm or change the action
+```
+
+---
+
+## 9. Additional Edge Cases
 
 A double-click should not assign the same destination twice. Debounce clicks — ignore a second click within 200ms of the first.
 
@@ -486,7 +996,7 @@ Moving a war row below a hostile row at the same territory should trigger a reco
 
 ---
 
-## 9. Mobile-Specific Behavior
+## 10. Mobile-Specific Behavior
 
 ### 9.1 Bottom Sheet
 
@@ -507,7 +1017,7 @@ All interactive elements (reorder buttons, remove buttons, action badges, territ
 
 ---
 
-## 10. Accessibility
+## 11. Accessibility
 
 ### 10.1 Keyboard Navigation
 
@@ -529,7 +1039,7 @@ All interactive elements (reorder buttons, remove buttons, action badges, territ
 
 ---
 
-## 11. Visual Feedback Summary
+## 12. Visual Feedback Summary
 
 | User Action | Immediate Feedback | Async Feedback |
 |------------|-------------------|----------------|
@@ -543,7 +1053,7 @@ All interactive elements (reorder buttons, remove buttons, action badges, territ
 
 ---
 
-## 12. GAP Summary
+## 13. GAP Summary
 
 | # | Gap | Rules Spec Ref | Priority | Current Behavior |
 |---|-----|---------------|----------|-----------------|
