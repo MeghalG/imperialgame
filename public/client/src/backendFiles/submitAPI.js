@@ -822,28 +822,48 @@ async function _submitManeuverLocal(context) {
  * @returns {Promise<string>} 'done' on success
  */
 async function submitBatchManeuver(context) {
-	await _submitBatchManeuverLocal(context);
+	console.log('[batchManeuver] starting local update...');
+	try {
+		await _submitBatchManeuverLocal(context);
+		console.log('[batchManeuver] local update done, calling CF...');
+	} catch (e) {
+		console.error('[batchManeuver] local update FAILED:', e);
+	}
 
 	// Call CF (authoritative)
-	await callCF(
-		submitManeuverCF,
-		{
-			type: 'batchManeuver',
-			gameID: context.game,
-			playerName: context.name,
-			fleetMan: context.fleetMan,
-			armyMan: context.armyMan,
-		},
-		context.game
-	);
+	try {
+		await callCF(
+			submitManeuverCF,
+			{
+				type: 'batchManeuver',
+				gameID: context.game,
+				playerName: context.name,
+				fleetMan: context.fleetMan,
+				armyMan: context.armyMan,
+			},
+			context.game
+		);
+		console.log('[batchManeuver] CF call done');
+	} catch (e) {
+		console.error('[batchManeuver] CF call FAILED:', e);
+	}
 
 	return 'done';
 }
 
 async function _submitBatchManeuverLocal(context) {
+	console.log('[batchLocal] reading game state...');
 	let gameState = await database.ref('games/' + context.game).once('value');
 	gameState = gameState.val();
 	let cm = gameState.currentManeuver;
+	console.log(
+		'[batchLocal] cm exists:',
+		!!cm,
+		'fleetMan:',
+		(context.fleetMan || []).length,
+		'armyMan:',
+		(context.armyMan || []).length
+	);
 	if (!cm) return 'done';
 
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
@@ -866,6 +886,7 @@ async function _submitBatchManeuverLocal(context) {
 		let dest = tuple[1];
 		let action = tuple[2] || '';
 		let split = action.split(' ');
+		console.log('[batchLocal] fleet', i, ':', origin, '→', dest, 'action:', action);
 
 		// Check if this move triggers a peace vote
 		if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
