@@ -2178,6 +2178,13 @@ async function undo(context) {
 	let offsetVal = offset.val() || 0;
 	gameState.timer.lastMove = Date.now() + offsetVal;
 
+	// Clear maneuver draft from localStorage so stale plans don't reload
+	try {
+		localStorage.removeItem('maneuverDraft_' + context.game);
+	} catch (_e) {
+		// localStorage may not be available
+	}
+
 	// Force TurnApp refresh for all players after undo
 	gameState.sameTurn = false;
 	// Best-effort write for optimistic UI — CF is authoritative

@@ -65,9 +65,13 @@ function playCoin() {
 	osc.stop(ctx.currentTime + 0.12);
 }
 
-/* Brass horn — turn announcement */
+/* Brass horn — turn announcement (debounced to prevent multiple plays from concurrent listeners) */
+let lastHornTime = 0;
 function playTurnHorn() {
 	if (muted) return;
+	let now = Date.now();
+	if (now - lastHornTime < 500) return;
+	lastHornTime = now;
 	const ctx = getContext();
 	if (!ctx) return;
 	const notes = [220, 330, 440];

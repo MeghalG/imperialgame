@@ -80,8 +80,7 @@ function UnifiedUnitLayer({ mapWidth }) {
 			// they're rendered as interactive markers below.
 			if (isManeuverMode && countryName === maneuveringCountry) continue;
 
-			// Dim other countries' units during maneuver
-			let opacity = isManeuverMode ? 0.5 : 1.0;
+			let opacity = 1.0;
 
 			// Fleets
 			for (let k = 0; k < countryUnits[j][0]; k++) {

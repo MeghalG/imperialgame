@@ -4,7 +4,7 @@ import MapInteractionContext from './MapInteractionContext.js';
 import ManeuverPlanContext from './ManeuverPlanContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
-import { readGameState, readSetup } from './backendFiles/stateCache.js';
+import { readGameState, readSetup, clearCache } from './backendFiles/stateCache.js';
 import { getCountryColorPalette } from './countryColors.js';
 import { normalizeAction, denormalizeAction, isPeaceAction, formatCompletedAction } from './maneuverActionUtils.js';
 import SoundManager from './SoundManager.js';
@@ -781,7 +781,7 @@ function ManeuverPlanProvider({ children }) {
 
 	// ===== Data loading =====
 
-	const loadData = useCallback(async () => {
+	const loadData = useCallback(async (retryCount = 0) => {
 		try {
 			let gameState = await readGameState(contextRef.current);
 			if (!gameState) {
@@ -790,7 +790,13 @@ function ManeuverPlanProvider({ children }) {
 			}
 			let cm = gameState.currentManeuver;
 			if (!cm) {
-				console.warn('[ManeuverPlanProvider] loadData: no currentManeuver');
+				// Cache may be stale — invalidate and retry up to 3 times
+				if (retryCount < 3) {
+					clearCache();
+					await new Promise((r) => setTimeout(r, 300));
+					return loadData(retryCount + 1);
+				}
+				console.warn('[ManeuverPlanProvider] loadData: no currentManeuver after retries');
 				return;
 			}
 
