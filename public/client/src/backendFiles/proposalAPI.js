@@ -433,23 +433,50 @@ function getD0(army, territorySetup, country, context) {
  */
 function getAdjacentLands(army, territorySetup, country, context) {
 	let d0 = getD0(army, territorySetup, country, context);
-	let ans = [];
+	let ans = new Set();
 
+	// Include all D0 territories (already filtered to non-sea inside getD0, but
+	// getD0 can include sea passages; filter here to land only)
 	for (let t of d0) {
-		let adj = [...territorySetup[t].adjacencies];
-		adj.push(t);
+		if (!territorySetup[t].sea) ans.add(t);
+	}
 
-		for (let a of adj) {
-			let d0a = getD0(a, territorySetup, country, context);
-			for (let elt of d0a) {
-				if (!territorySetup[elt].sea) {
-					ans.push(elt);
+	// Step 2: One hop outward from each D0 territory.
+	// If the hop lands on a conveyed sea, take one more hop from that sea to reach land.
+	// Do NOT re-expand via getD0 — that would over-expand through home chains.
+	let convoyedSeas = _getConvoyedSeas(context);
+	for (let t of d0) {
+		for (let a of territorySetup[t].adjacencies || []) {
+			if (territorySetup[a].sea) {
+				// Sea adjacency — only passable if conveyed
+				if (convoyedSeas.has(a)) {
+					// One more hop from the conveyed sea to reach land on the other side
+					for (let b of territorySetup[a].adjacencies || []) {
+						if (!territorySetup[b].sea) ans.add(b);
+					}
 				}
+			} else {
+				// Land adjacency — directly reachable
+				ans.add(a);
 			}
 		}
 	}
-	ans = Array.from(new Set(ans));
-	return ans;
+	return Array.from(ans);
+}
+
+/**
+ * Helper: returns Set of sea territories where a friendly fleet provides convoy.
+ * A fleet provides convoy if its destination is that sea and action is move or peace.
+ */
+function _getConvoyedSeas(context) {
+	let seas = new Set();
+	for (let fm of context.fleetMan || []) {
+		let action = fm[2] || '';
+		if (action === '' || action === MANEUVER_ACTIONS.PEACE) {
+			seas.add(fm[1]); // fleet's destination provides convoy
+		}
+	}
+	return seas;
 }
 
 /**
@@ -513,8 +540,12 @@ async function getArmyPeaceOptions(context) {
 	for (let c in gameState.countryInfo) {
 		if (c !== country) {
 			for (let a of gameState.countryInfo[c].armies || []) {
-				let entry = c + ' army';
-				if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
+				// Only count hostile (occupying) armies as enemies.
+				// Coexisting armies (hostile=false) auto-accept peace.
+				if (a.hostile !== false) {
+					let entry = c + ' army';
+					if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
+				}
 			}
 			for (let f of gameState.countryInfo[c].fleets || []) {
 				let entry = c + ' fleet';
@@ -804,14 +835,16 @@ function getVirtualStateFromPlans(countryInfo, plan) {
 			virtualArmies.push({ ...plan.pendingArmies[i] });
 		}
 	}
-	// Post-processing: blow-up consumes 2 additional armies at each blow-up territory
+	// Post-processing: blow-up consumes 2 additional armies at each blow-up territory.
+	// Per spec §4.2: "next 2 in execution order" — iterate forward, not backward.
 	for (let move of plan.armyTuples || []) {
 		let split = (move[2] || '').split(' ');
 		if (split[0] === 'blow') {
 			let destroyed = 0;
-			for (let j = virtualArmies.length - 1; j >= 0 && destroyed < 2; j--) {
+			for (let j = 0; j < virtualArmies.length && destroyed < 2; j++) {
 				if (virtualArmies[j].territory === move[1]) {
 					virtualArmies.splice(j, 1);
+					j--; // adjust index after splice
 					destroyed++;
 				}
 			}

@@ -990,11 +990,22 @@ describe('getArmyPeaceOptions', () => {
 		}
 	});
 
-	test('hostile NOT offered when enemies present (even coexisting)', async () => {
+	test('coexisting enemies do NOT block hostile or offer war', async () => {
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
-		// Italy has an army at Rome (hostile: false / coexisting) — hostile still NOT available
-		// because hostile requires no enemies at all at the destination
+		// Italy has an army at Rome (hostile: false / coexisting) — coexisting units
+		// are NOT counted as enemies, so hostile IS available and war is NOT offered
+		expect(result['Rome']).toContain('hostile');
+		expect(result['Rome']).toContain('peace');
+		expect(result['Rome']).not.toContain('war Italy army');
+	});
+
+	test('hostile units DO block hostile and offer war', async () => {
+		// Set Italian army to hostile
+		mockDbData.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
+		clearCache();
+		const context = { game: 'g1', fleetMan: [], armyMan: [] };
+		const result = await getArmyPeaceOptions(context);
 		expect(result['Rome']).not.toContain('hostile');
 		expect(result['Rome']).toContain('war Italy army');
 		expect(result['Rome']).toContain('peace');
@@ -1025,8 +1036,10 @@ describe('getArmyPeaceOptions', () => {
 		expect(result['Adriatic Sea']).not.toContain('hostile');
 	});
 
-	test('includes war options for territories with enemy units', async () => {
-		// Italy has army at Rome (hostile: false in default, but army peace considers all, not just hostile)
+	test('includes war options for territories with HOSTILE enemy units', async () => {
+		// Set Italian army to hostile — war should be offered
+		mockDbData.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
+		clearCache();
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
 		expect(result['Rome']).toContain('war Italy army');
