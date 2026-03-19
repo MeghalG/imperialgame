@@ -254,6 +254,18 @@ function AssignedUnitRow({ phase, index, plan, isLocked, isActive, colorPalette,
 				)}
 			</div>
 
+			{/* Convoy indicator for army rows — reads from computed convoyAssignments */}
+			{phase === 'army' &&
+				(() => {
+					let ca = (context.convoyAssignments || []).find((a) => a.armyIndex === index);
+					let fleetSeas = ca ? ca.fleetSeas : [];
+					return fleetSeas.length > 0 ? (
+						<div data-testid="convoy-indicator" style={{ marginTop: 4, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+							⛵ via {fleetSeas.join(' → ')}
+						</div>
+					) : null;
+				})()}
+
 			{/* Inline peace button */}
 			{hasPeace && !isLocked && (
 				<div style={{ marginTop: 6 }}>

@@ -2251,6 +2251,95 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 	});
 });
 
+describe('§2.3 computeConvoyAssignments', () => {
+	const { computeConvoyAssignments } = require('./proposalAPI.js');
+
+	test('single fleet, single army needing convoy', () => {
+		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let armyTuples = [['Trieste', 'Rome', '']];
+		let { assignments, usedFleetSeas } = computeConvoyAssignments(
+			fleetTuples,
+			armyTuples,
+			mockTerritorySetup,
+			'Austria'
+		);
+		expect(assignments).toHaveLength(1);
+		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(usedFleetSeas.has('Adriatic Sea')).toBe(true);
+	});
+
+	test('single fleet, two armies needing convoy — second gets nothing', () => {
+		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let armyTuples = [
+			['Trieste', 'Rome', ''],
+			['Trieste', 'Rome', ''],
+		];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[1].fleetSeas).toEqual([]);
+	});
+
+	test('army reachable by land returns empty fleetSeas', () => {
+		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let armyTuples = [['Vienna', 'Budapest', '']];
+		let { assignments, usedFleetSeas } = computeConvoyAssignments(
+			fleetTuples,
+			armyTuples,
+			mockTerritorySetup,
+			'Austria'
+		);
+		expect(assignments[0].fleetSeas).toEqual([]);
+		expect(usedFleetSeas.size).toBe(0);
+	});
+
+	test('two fleets, two armies — each gets different fleet', () => {
+		let fleetTuples = [
+			['Trieste', 'Adriatic Sea', ''],
+			['Marseille', 'West Med', ''],
+		];
+		let armyTuples = [
+			['Trieste', 'Rome', ''],
+			['Marseille', 'Rome', ''],
+		];
+		let { assignments, usedFleetSeas } = computeConvoyAssignments(
+			fleetTuples,
+			armyTuples,
+			mockTerritorySetup,
+			'Austria'
+		);
+		expect(assignments[0].fleetSeas).toHaveLength(1);
+		expect(assignments[1].fleetSeas).toHaveLength(1);
+		expect(usedFleetSeas.size).toBe(2);
+	});
+
+	test('fleet with war action does not provide convoy', () => {
+		let fleetTuples = [['Trieste', 'Adriatic Sea', 'war Italy fleet']];
+		let armyTuples = [['Trieste', 'Rome', '']];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual([]);
+	});
+
+	test('army staying in place returns empty fleetSeas', () => {
+		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let armyTuples = [['Vienna', 'Vienna', '']];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual([]);
+	});
+
+	test('army with war action returns empty fleetSeas', () => {
+		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let armyTuples = [['Trieste', 'Rome', 'war Italy army']];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual([]);
+	});
+
+	test('null inputs return empty results', () => {
+		let { assignments, usedFleetSeas } = computeConvoyAssignments(null, null, null, 'Austria');
+		expect(assignments).toEqual([]);
+		expect(usedFleetSeas.size).toBe(0);
+	});
+});
+
 describe('§4 Virtual State — getVirtualStateFromPlans', () => {
 	beforeEach(() => {
 		mockDbData = buildMockDbData();

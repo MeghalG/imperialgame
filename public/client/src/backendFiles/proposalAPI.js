@@ -937,35 +937,13 @@ async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
 		if (!targetArmy) return [];
 
 		// Fleet transport limit: each fleet can transport at most 1 army (spec §2.3).
-		// For each prior army move, determine if it used fleet transport (crossed a sea).
-		// If so, exclude that fleet from the BFS for this army.
-		let usedFleetSeas = new Set();
-		for (let i = 0; i < unitIndex; i++) {
-			let armyTuple = plan.armyTuples[i];
-			if (!armyTuple || !armyTuple[1]) continue;
-			let armySplit = (armyTuple[2] || '').split(' ');
-			if (armySplit[0] === MANEUVER_ACTIONS.WAR_PREFIX || armySplit[0] === 'blow') continue;
-
-			let armyOrigin = armyTuple[0];
-			let armyDest = armyTuple[1];
-			// Check if reachable by land only (no fleet transport)
-			let landOnlyReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: [] });
-			if (!landOnlyReach.includes(armyDest)) {
-				// Army needed fleet transport — find which fleet it used
-				for (let fm of virtualFleetMan) {
-					if (!fm[1] || usedFleetSeas.has(fm[1])) continue;
-					let action = fm[2] || '';
-					if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) continue;
-					// Test: can army reach dest using only this fleet + unused fleets?
-					let testFleetMan = virtualFleetMan.filter((f) => f[1] === fm[1] || !usedFleetSeas.has(f[1]));
-					let testReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: testFleetMan });
-					if (testReach.includes(armyDest)) {
-						usedFleetSeas.add(fm[1]);
-						break;
-					}
-				}
-			}
-		}
+		// Use computeConvoyAssignments for prior armies to find which fleets are claimed.
+		let { usedFleetSeas } = computeConvoyAssignments(
+			plan.fleetTuples,
+			plan.armyTuples.slice(0, unitIndex),
+			territorySetup,
+			country
+		);
 
 		// Exclude used fleets from the virtual fleet maneuver array
 		let availableFleetMan = virtualFleetMan.filter((fm) => !usedFleetSeas.has(fm[1]));
@@ -1105,6 +1083,74 @@ async function getUnitActionOptionsFromPlans(context, plan, phase, unitIndex, de
 	}
 }
 
+/**
+ * Compute convoy assignments for all army moves, enforcing the 1:1 fleet-to-army
+ * convoy limit (spec §2.3). Each fleet at sea can transport at most one army.
+ *
+ * For each army (in plan order), determines whether it needs fleet convoy to reach
+ * its destination. If so, finds which fleet provides it and marks that fleet as used.
+ *
+ * @param {Array<ManeuverTuple>} fleetTuples - Fleet moves as [origin, dest, action]
+ * @param {Array<ManeuverTuple>} armyTuples - Army moves as [origin, dest, action]
+ * @param {Object} territorySetup - Territory configuration from game setup
+ * @param {string} country - The country performing the maneuver
+ * @returns {{ assignments: Array<{armyIndex: number, fleetSeas: string[]}>, usedFleetSeas: Set<string> }}
+ */
+function computeConvoyAssignments(fleetTuples, armyTuples, territorySetup, country) {
+	if (!territorySetup || !fleetTuples || !armyTuples) {
+		return { assignments: [], usedFleetSeas: new Set() };
+	}
+
+	let usedFleetSeas = new Set();
+	let assignments = [];
+	let virtualFleetMan = fleetTuples.map((t) => [t[0], t[1], t[2]]);
+
+	for (let i = 0; i < armyTuples.length; i++) {
+		let tuple = armyTuples[i];
+		if (!tuple || !tuple[1] || tuple[1] === tuple[0]) {
+			assignments.push({ armyIndex: i, fleetSeas: [] });
+			continue;
+		}
+
+		// Armies destroyed by war/blow don't need convoy
+		let actionSplit = (tuple[2] || '').split(' ');
+		if (actionSplit[0] === MANEUVER_ACTIONS.WAR_PREFIX || actionSplit[0] === 'blow') {
+			assignments.push({ armyIndex: i, fleetSeas: [] });
+			continue;
+		}
+
+		let armyOrigin = tuple[0];
+		let armyDest = tuple[1];
+
+		// Check if reachable by land only (no fleet transport)
+		let landOnlyReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: [] });
+		if (landOnlyReach.includes(armyDest)) {
+			assignments.push({ armyIndex: i, fleetSeas: [] });
+			continue;
+		}
+
+		// Army needs fleet transport — find which fleet(s) it uses
+		let foundFleetSea = null;
+		for (let fm of virtualFleetMan) {
+			if (!fm[1] || usedFleetSeas.has(fm[1])) continue;
+			let action = fm[2] || '';
+			if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) continue;
+			// Test: can army reach dest using only this fleet + unused fleets?
+			let testFleetMan = virtualFleetMan.filter((f) => f[1] === fm[1] || !usedFleetSeas.has(f[1]));
+			let testReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: testFleetMan });
+			if (testReach.includes(armyDest)) {
+				foundFleetSea = fm[1];
+				usedFleetSeas.add(fm[1]);
+				break;
+			}
+		}
+
+		assignments.push({ armyIndex: i, fleetSeas: foundFleetSea ? [foundFleetSea] : [] });
+	}
+
+	return { assignments, usedFleetSeas };
+}
+
 export {
 	getPreviousProposalMessage,
 	getWheelOptions,
@@ -1126,4 +1172,5 @@ export {
 	getVirtualStateFromPlans,
 	getUnitOptionsFromPlans,
 	getUnitActionOptionsFromPlans,
+	computeConvoyAssignments,
 };

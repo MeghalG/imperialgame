@@ -52,8 +52,9 @@ const ManeuverPlanContext = React.createContext({
 	fleetPlans: [],
 
 	/**
-	 * @type {Array<{origin, dest, action, destOptions, actionOptions, peaceVote, locked}>}
-	 * Army movement plans. Same shape as fleetPlans.
+	 * @type {Array<{origin, dest, action, destOptions, actionOptions, peaceVote, locked, convoyFleets}>}
+	 * Army movement plans. Same shape as fleetPlans plus:
+	 * - convoyFleets: string[] — sea territories where fleets provide convoy for this army (empty = land-only)
 	 */
 	armyPlans: [],
 
@@ -161,7 +162,21 @@ const ManeuverPlanContext = React.createContext({
 	 */
 	getNextPeaceAction: () => null,
 
+	/**
+	 * Manually override which fleet provides convoy for an army.
+	 * @param {number} index — army row index
+	 * @param {string} fleetSea — sea territory name of the fleet to use
+	 */
+	setConvoyFleet: () => {},
+
 	// ===== Computed / Helpers =====
+
+	/**
+	 * @type {Array<{armyIndex: number, fleetSeas: string[]}>}
+	 * Computed convoy assignments — which fleet(s) each army uses for sea transport.
+	 * Empty fleetSeas = land-only move. Derived from current fleet/army plans.
+	 */
+	convoyAssignments: [],
 
 	/**
 	 * @type {boolean}

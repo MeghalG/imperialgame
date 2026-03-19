@@ -43,6 +43,7 @@ jest.mock('./backendFiles/proposalAPI.js', () => ({
 	getUnitActionOptionsFromPlans: jest.fn(() => Promise.resolve([])),
 	getCurrentUnitOptions: jest.fn(() => Promise.resolve([])),
 	getCurrentUnitActionOptions: jest.fn(() => Promise.resolve([])),
+	computeConvoyAssignments: jest.fn(() => ({ assignments: [], usedFleetSeas: new Set() })),
 }));
 
 import ManeuverPlannerApp from './ManeuverPlannerApp.js';

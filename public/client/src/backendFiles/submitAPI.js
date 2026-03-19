@@ -1,6 +1,7 @@
 import { database, callFunction } from './firebase.js';
 import * as helper from './helper.js';
 import { setCachedState, readSetup } from './stateCache.js';
+import { computeConvoyAssignments, getAdjacentLands } from './proposalAPI.js';
 import {
 	MODES,
 	WHEEL_ACTIONS,
@@ -812,6 +813,30 @@ async function _submitBatchManeuverLocal(context) {
 	// Phase transition to army
 	cm.phase = 'army';
 	cm.unitIndex = 0;
+
+	// Validate 1:1 fleet convoy limit (spec §2.3).
+	// Each fleet at sea can transport at most one army.
+	{
+		let convoyResult = computeConvoyAssignments(fleetMoves, armyMoves, territorySetup, cm.country);
+		for (let a of convoyResult.assignments) {
+			let tuple = armyMoves[a.armyIndex];
+			if (!tuple || !tuple[1] || tuple[1] === tuple[0]) continue;
+			let actionSplit = (tuple[2] || '').split(' ');
+			if (actionSplit[0] === MANEUVER_ACTIONS.WAR_PREFIX || actionSplit[0] === 'blow') continue;
+			// Army needs convoy but wasn't assigned a fleet
+			if (a.fleetSeas.length === 0) {
+				let landReach = getAdjacentLands(tuple[0], territorySetup, cm.country, { fleetMan: [] });
+				if (!landReach.includes(tuple[1])) {
+					console.error(
+						'[batchLocal] Convoy violation: army',
+						a.armyIndex,
+						'needs convoy but no fleet available. Resetting to stay.'
+					);
+					armyMoves[a.armyIndex] = [tuple[0], tuple[0], ''];
+				}
+			}
+		}
+	}
 
 	// --- Process army moves ---
 	for (let i = 0; i < armyMoves.length; i++) {

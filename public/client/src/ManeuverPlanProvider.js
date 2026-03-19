@@ -162,6 +162,13 @@ function ManeuverPlanProvider({ children }) {
 		};
 	}
 
+	/**
+	 * Recompute convoyFleets for all army plans based on current fleet/army state.
+	 * Called after any plan change that could affect convoy assignments.
+	 */
+	// Convoy assignment computation is now handled by a useEffect below
+	// (reacts to fleetPlans/armyPlans state changes to avoid race conditions)
+
 	function wouldTriggerPeaceVote(plan) {
 		if (!plan.dest || plan.dest === plan.origin) return false;
 		if (!isPeaceAction(plan.action) && !hasJsonPeaceAction(plan.action)) return false;
@@ -355,7 +362,9 @@ function ManeuverPlanProvider({ children }) {
 				for (let i = 0; i < plans.length; i++) {
 					if (plans[i].dest && plans[i].destOptions && plans[i].destOptions.length > 0) {
 						if (!plans[i].destOptions.includes(plans[i].dest)) {
-							plans[i] = { ...plans[i], dest: '', action: '', actionOptions: [], peaceVote: false };
+							let cleared = { ...plans[i], dest: '', action: '', actionOptions: [], peaceVote: false };
+							if (ph === 'army') cleared.convoyFleets = [];
+							plans[i] = cleared;
 							changed = true;
 						}
 					}
@@ -412,7 +421,7 @@ function ManeuverPlanProvider({ children }) {
 			}
 		}
 
-		// Step 5: Recompute peace flags
+		// Step 5: Recompute peace flags (convoy assignments handled by useEffect)
 		detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
 	}
 
@@ -448,7 +457,9 @@ function ManeuverPlanProvider({ children }) {
 		setter((prev) => {
 			let plans = [...prev];
 			if (plans[index]) {
-				plans[index] = { ...plans[index], dest: '', action: '', actionOptions: [], peaceVote: false };
+				let cleared = { ...plans[index], dest: '', action: '', actionOptions: [], peaceVote: false };
+				if (phase === 'army') cleared.convoyFleets = [];
+				plans[index] = cleared;
 				ref.current = plans;
 			}
 			return plans;
@@ -575,6 +586,26 @@ function ManeuverPlanProvider({ children }) {
 				setActiveUnit(next);
 			}
 		}
+	}
+
+	/**
+	 * setConvoyFleet — manually override which fleet provides convoy for an army.
+	 * @param {number} index — army row index
+	 * @param {string} fleetSea — sea territory name of the fleet to use
+	 */
+	function setConvoyFleet(index, fleetSea) {
+		setArmyPlans((prev) => {
+			let plans = [...prev];
+			if (plans[index]) {
+				plans[index] = { ...plans[index], convoyFleets: [fleetSea] };
+			}
+			armyPlansRef.current = plans;
+			return plans;
+		});
+		// Cascade: other armies may need reassignment
+		setTimeout(async () => {
+			await recomputeAllOptions('army', 0);
+		}, 0);
 	}
 
 	// ===== Peace detection =====
@@ -800,6 +831,7 @@ function ManeuverPlanProvider({ children }) {
 				actionOptions: [],
 				peaceVote: false,
 				locked: false,
+				convoyFleets: [],
 			}));
 
 			// Pre-populate from remainingFleetPlans/remainingArmyPlans if resuming
@@ -942,6 +974,19 @@ function ManeuverPlanProvider({ children }) {
 						}
 					}
 				}
+			}
+
+			// Compute convoy assignments for armies with destinations
+			let fleetTuples = initFleetPlans.map((p) => [p.origin, p.dest || '', p.action || '']);
+			let armyTuples = initArmyPlans.map((p) => [p.origin, p.dest || '', p.action || '']);
+			let { assignments: convoyAssignments } = proposalAPI.computeConvoyAssignments(
+				fleetTuples,
+				armyTuples,
+				tSetup,
+				cm.country
+			);
+			for (let a of convoyAssignments) {
+				initArmyPlans[a.armyIndex] = { ...initArmyPlans[a.armyIndex], convoyFleets: a.fleetSeas };
 			}
 
 			// Update state with fully computed plans
@@ -1094,28 +1139,11 @@ function ManeuverPlanProvider({ children }) {
 				});
 			}
 		});
-		armyPlans.forEach((p) => {
+		armyPlans.forEach((p, i) => {
 			if (p.dest && p.dest !== p.origin) {
-				// For army moves, find fleet-controlled sea waypoints between origin and dest
-				let waypoints = [];
-				let ts = territorySetupRef.current;
-				if (ts && ts[p.origin] && ts[p.dest]) {
-					let originAdj = ts[p.origin].adjacencies || [];
-					let destAdj = ts[p.dest].adjacencies || [];
-					// Find fleet sea territories adjacent to either origin or dest
-					for (let fp of fleetPlans) {
-						if (!fp.dest || !ts[fp.dest] || !ts[fp.dest].sea) continue;
-						let action = fp.action || '';
-						let split = action.split(' ');
-						if (split[0] !== '' && split[0] !== 'peace') continue;
-						// Check if this fleet's sea is adjacent to origin's landmass or dest's landmass
-						let nearOrigin = originAdj.includes(fp.dest);
-						let nearDest = destAdj.includes(fp.dest);
-						if (nearOrigin || nearDest) {
-							waypoints.push(fp.dest);
-						}
-					}
-				}
+				// Use computed convoy assignments for waypoints
+				let assignment = convoyAssignments.find((a) => a.armyIndex === i);
+				let waypoints = assignment ? assignment.fleetSeas.slice() : [];
 				moves.push({
 					origin: p.origin,
 					dest: p.dest,
@@ -1134,6 +1162,16 @@ function ManeuverPlanProvider({ children }) {
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [loaded, fleetPlans, armyPlans, country]);
+
+	// Compute convoy assignments as derived data (not stored in state to avoid update loops)
+	const convoyAssignments = useMemo(() => {
+		if (!loaded || !territorySetup || !country) return [];
+		let fleetTuples = fleetPlans.map((p) => [p.origin, p.dest || '', p.action || '']);
+		let armyTuples = armyPlans.map((p) => [p.origin, p.dest || '', p.action || '']);
+		let { assignments } = proposalAPI.computeConvoyAssignments(fleetTuples, armyTuples, territorySetup, country);
+		return assignments;
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loaded, fleetPlans, armyPlans, country, territorySetup]);
 
 	// Push unit markers to the map layer
 	useEffect(() => {
@@ -1224,11 +1262,13 @@ function ManeuverPlanProvider({ children }) {
 			onPerCountryActionChange,
 			onActionPickerSelect,
 			dismissActionPicker,
+			setConvoyFleet,
 
 			// Action picker
 			actionPickerState,
 
 			// Computed / Helpers
+			convoyAssignments,
 			canSubmit: canSubmitValue,
 			nextPeace,
 			allPlanned,
@@ -1252,6 +1292,7 @@ function ManeuverPlanProvider({ children }) {
 			territorySetup,
 			canSubmitValue,
 			actionPickerState,
+			convoyAssignments,
 		]
 	);
 

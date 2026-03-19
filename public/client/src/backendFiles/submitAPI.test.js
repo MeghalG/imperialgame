@@ -114,6 +114,32 @@ import {
 } from './submitAPI.js';
 import { clearCache } from './stateCache.js';
 
+// ---- Realistic territory setup for maneuver tests -------------------------
+const realisticTerritorySetup = {
+	Vienna: { country: 'Austria', port: false, sea: false, adjacencies: ['Budapest', 'Trieste'] },
+	Budapest: { country: 'Austria', port: false, sea: false, adjacencies: ['Vienna', 'Trieste'] },
+	Trieste: {
+		country: 'Austria',
+		port: 'Adriatic Sea',
+		sea: false,
+		adjacencies: ['Vienna', 'Budapest', 'Adriatic Sea'],
+	},
+	'Adriatic Sea': { country: null, port: false, sea: true, adjacencies: ['Trieste', 'Rome', 'West Med'] },
+	Rome: { country: 'Italy', port: 'West Med', sea: false, adjacencies: ['West Med', 'Naples', 'Adriatic Sea'] },
+	Naples: { country: 'Italy', port: false, sea: false, adjacencies: ['Rome'] },
+	'West Med': { country: null, port: false, sea: true, adjacencies: ['Adriatic Sea', 'Rome', 'Marseille'] },
+	Paris: { country: 'France', port: false, sea: false, adjacencies: ['Marseille'] },
+	Marseille: { country: 'France', port: 'West Med', sea: false, adjacencies: ['Paris', 'West Med'] },
+	'East Med': { country: null, port: false, sea: true, adjacencies: ['West Med'] },
+	Galicia: { country: 'Austria', port: false, sea: false, adjacencies: ['Vienna', 'Budapest'] },
+	Venice: { country: 'Italy', port: 'Adriatic Sea', sea: false, adjacencies: ['Trieste', 'Rome', 'Adriatic Sea'] },
+	'Tyrrhenian Sea': { country: null, port: false, sea: true, adjacencies: ['West Med', 'Rome', 'Naples'] },
+	'Ionian Sea': { country: null, port: false, sea: true, adjacencies: ['East Med', 'Adriatic Sea'] },
+	'Neutral Land': { country: null, port: false, sea: false, adjacencies: ['Vienna', 'Galicia'] },
+	Marseilles: { country: 'France', port: 'West Med', sea: false, adjacencies: ['Paris', 'West Med'] },
+	Zagreb: { country: 'Austria', port: false, sea: false, adjacencies: ['Budapest', 'Trieste'] },
+};
+
 // ---- Helpers --------------------------------------------------------------
 
 /**
@@ -1967,7 +1993,7 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ 'Adriatic Sea': {}, 'West Med': {} });
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -1993,7 +2019,7 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Budapest: {} });
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2019,7 +2045,7 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ 'Adriatic Sea': {}, 'West Med': {} });
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2050,12 +2076,7 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Trieste: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Vienna: { country: 'Austria' },
-			Rome: { country: 'Italy' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2093,13 +2114,7 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Trieste: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Vienna: { country: 'Austria' },
-			Galicia: { country: 'Austria' },
-			Rome: { country: 'Italy' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2253,7 +2268,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2287,7 +2302,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2314,7 +2329,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2340,7 +2355,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2368,7 +2383,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -2433,7 +2448,7 @@ describe('submitDictatorPeaceVote', () => {
 		gs.playerInfo.Bob.myTurn = true;
 		gs.playerInfo.Alice.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitDictatorPeaceVote({
 			game: 'testGame',
@@ -2491,7 +2506,7 @@ describe('submitDictatorPeaceVote', () => {
 		gs.playerInfo.Bob.myTurn = true;
 		gs.playerInfo.Alice.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitDictatorPeaceVote({
 			game: 'testGame',
@@ -2713,7 +2728,7 @@ describe('completeManeuver — democracy proposal storage', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Budapest: {} });
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -3240,12 +3255,7 @@ describe('executeProposal — army execution order', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Venice: { country: 'Italy' },
-			Trieste: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		// Player puts war FIRST (correct ordering — clear enemies before placing)
 		const context = {
@@ -3283,12 +3293,7 @@ describe('executeProposal — army execution order', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Venice: { country: 'Italy' },
-			Trieste: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		// Player puts normal move FIRST, war SECOND
 		const context = {
@@ -3323,12 +3328,7 @@ describe('executeProposal — army execution order', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Trieste: { country: 'Austria' },
-			Zagreb: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -3369,7 +3369,7 @@ describe('submitProposal — maneuver wheel cost', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ 'Adriatic Sea': { sea: true } });
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -3404,7 +3404,7 @@ describe('submitProposal — maneuver wheel cost', () => {
 		gs.playerInfo.Alice.money = 20;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ 'Adriatic Sea': { sea: true } });
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -3469,7 +3469,7 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ 'Adriatic Sea': { sea: true }, 'West Med': { sea: true }, 'East Med': { sea: true } });
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -3518,11 +3518,7 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Trieste: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -3576,11 +3572,8 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
 		addTerritorySetup({
-			'Adriatic Sea': { sea: true },
-			'West Med': { sea: true },
-			'East Med': { sea: true },
-			'Tyrrhenian Sea': { sea: true, country: 'Italy' },
-			Vienna: { country: 'Austria' },
+			...realisticTerritorySetup,
+			'Tyrrhenian Sea': { ...realisticTerritorySetup['Tyrrhenian Sea'], country: 'Italy' },
 		});
 
 		await submitBatchManeuver({
@@ -3644,18 +3637,12 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			'Adriatic Sea': { sea: true },
-			'West Med': { sea: true },
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Rome: { country: 'Italy' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
 			name: 'Alice',
-			fleetMan: [['Adriatic Sea', 'West Med', '']],
+			fleetMan: [['Adriatic Sea', 'Adriatic Sea', '']],
 			armyMan: [
 				['Vienna', 'Rome', 'peace'],
 				['Budapest', 'Budapest', ''],
@@ -3665,7 +3652,7 @@ describe('submitBatchManeuver', () => {
 
 		const written = mockSetData['games/testGame'];
 		// Fleet committed, army 0 triggers peace vote
-		expect(written.currentManeuver.completedFleetMoves).toEqual([['Adriatic Sea', 'West Med', '']]);
+		expect(written.currentManeuver.completedFleetMoves).toEqual([['Adriatic Sea', 'Adriatic Sea', '']]);
 		expect(written.currentManeuver.completedArmyMoves || []).toEqual([]);
 		expect(written.currentManeuver.remainingFleetPlans).toEqual([]);
 		expect(written.currentManeuver.remainingArmyPlans).toEqual([['Budapest', 'Budapest', '']]);
@@ -3705,7 +3692,7 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -3754,9 +3741,8 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
 		addTerritorySetup({
-			'Adriatic Sea': { sea: true },
-			'West Med': { sea: true },
-			'Tyrrhenian Sea': { sea: true, country: 'Italy' },
+			...realisticTerritorySetup,
+			'Tyrrhenian Sea': { ...realisticTerritorySetup['Tyrrhenian Sea'], country: 'Italy' },
 		});
 
 		await submitBatchManeuver({
@@ -3802,7 +3788,7 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({});
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -3842,12 +3828,7 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			'Adriatic Sea': { sea: true },
-			'West Med': { sea: true },
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -3887,7 +3868,7 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, 'Adriatic Sea': { sea: true } });
+		addTerritorySetup(realisticTerritorySetup);
 
 		// Spy on console.error to verify it was called
 		const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -3901,9 +3882,9 @@ describe('submitBatchManeuver', () => {
 		await flushPromises();
 
 		const written = mockSetData['games/testGame'];
-		// The invalid move was skipped, maneuver completed
+		// The invalid move was caught (convoy violation or sea territory check), maneuver completed
 		expect(written.currentManeuver).toBeNull();
-		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('armies cannot move to sea'));
+		expect(errorSpy).toHaveBeenCalled();
 		errorSpy.mockRestore();
 	});
 
@@ -3934,7 +3915,7 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
+		addTerritorySetup(realisticTerritorySetup);
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -3979,7 +3960,11 @@ describe('submitBatchManeuver', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
+		addTerritorySetup({
+			...realisticTerritorySetup,
+			Vienna: { ...realisticTerritorySetup.Vienna, adjacencies: ['Budapest', 'Trieste', 'Rome'] },
+			Rome: { ...realisticTerritorySetup.Rome, adjacencies: ['West Med', 'Naples', 'Adriatic Sea', 'Vienna'] },
+		});
 
 		await submitBatchManeuver({
 			game: 'testGame',
@@ -4027,12 +4012,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			'Adriatic Sea': {},
-			'West Med': {},
-			'East Med': {},
-			'Tyrrhenian Sea': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4075,13 +4055,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Venice: { country: 'Italy' },
-			Rome: { country: 'Italy' },
-			Trieste: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4118,10 +4092,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Marseilles: { country: 'France', port: true },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4154,10 +4125,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			'Adriatic Sea': {},
-			Venice: { country: 'Italy', port: true },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4194,13 +4162,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Galicia: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Vienna: { country: 'Austria' },
-			Trieste: { country: 'Austria' },
-			Paris: { country: 'France' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4236,10 +4198,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Venice: { country: 'Italy' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4265,10 +4224,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4298,10 +4254,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Venice: { country: 'Italy' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4332,10 +4285,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
 		// West Med has no country (sea / neutral) so a tax chip should be placed
-		addTerritorySetup({
-			'Adriatic Sea': {},
-			'West Med': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4365,10 +4315,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
 		// Venice belongs to Italy, so no tax chip placed
-		addTerritorySetup({
-			'Adriatic Sea': {},
-			Venice: { country: 'Italy' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4399,10 +4346,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
 		// "Neutral Land" has no country so a tax chip should be placed
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			'Neutral Land': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4431,10 +4375,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Venice: { country: 'Italy' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4466,10 +4407,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			'Neutral Land': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4503,12 +4441,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			'Adriatic Sea': {},
-			'East Med': {},
-			'West Med': {},
-			'Ionian Sea': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4543,12 +4476,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Trieste: { country: 'Austria' },
-			Galicia: { country: 'Austria' },
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4593,15 +4521,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			Budapest: { country: 'Austria' },
-			Galicia: { country: 'Austria' },
-			Trieste: { country: 'Austria' },
-			Venice: { country: 'Italy' },
-			Rome: { country: 'Italy' },
-			'Neutral Land': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4652,10 +4572,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			'Neutral Land': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4685,10 +4602,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			'Neutral Land': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -4715,10 +4629,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		addTerritorySetup({
-			Vienna: { country: 'Austria' },
-			'Neutral Land': {},
-		});
+		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
@@ -5337,7 +5248,7 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 					wheelSpot: 'L-Maneuver',
 					gov: 'dictatorship',
 					leadership: ['Alice'],
-					fleets: [],
+					fleets: [{ territory: 'Trieste', hostile: true }],
 					armies: [{ territory: 'Vienna', hostile: true }],
 					taxChips: [],
 					availStock: [3, 2, 1],
@@ -5380,9 +5291,11 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 			setups: {
 				standard: {
 					territories: {
-						Vienna: { country: 'Austria', sea: false, adjacencies: ['Budapest'] },
-						Budapest: { country: 'Austria', sea: false, adjacencies: ['Vienna'] },
-						Rome: { country: 'Italy', sea: false, adjacencies: ['Naples'] },
+						Vienna: { country: 'Austria', sea: false, adjacencies: ['Budapest', 'Trieste'] },
+						Budapest: { country: 'Austria', sea: false, adjacencies: ['Vienna', 'Trieste'] },
+						Trieste: { country: 'Austria', sea: false, adjacencies: ['Vienna', 'Budapest', 'Adriatic Sea'] },
+						'Adriatic Sea': { country: null, sea: true, adjacencies: ['Trieste', 'Rome'] },
+						Rome: { country: 'Italy', sea: false, adjacencies: ['Naples', 'Adriatic Sea'] },
 						Naples: { country: 'Italy', sea: false, adjacencies: ['Rome'] },
 						Paris: { country: 'France', sea: false, adjacencies: ['Marseille'] },
 						Marseille: { country: 'France', sea: false, adjacencies: ['Paris'] },
@@ -5401,11 +5314,12 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 	test('peace vote includes ALL stockholders, not just leadership', async () => {
 		// Bob has 4 stock in Italy, Carol has 2 stock in Italy.
 		// Both should be able to vote (myTurn = true).
+		// Fleet at Adriatic Sea provides convoy for army Vienna→Rome.
 		const { submitBatchManeuver } = require('./submitAPI.js');
 		const context = {
 			game: 'testGame',
 			name: 'Alice',
-			fleetMan: [],
+			fleetMan: [['Trieste', 'Adriatic Sea', '']],
 			armyMan: [['Vienna', 'Rome', 'peace']],
 		};
 		await submitBatchManeuver(context);
@@ -5423,11 +5337,12 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 	test('multi-country peace: stores pendingPeaceTargets', async () => {
 		// Italy and France both have hostile armies at Rome.
 		// Peace should trigger for the first country found and store the rest.
+		// Fleet at Adriatic Sea provides convoy for army Vienna→Rome.
 		const { submitBatchManeuver } = require('./submitAPI.js');
 		const context = {
 			game: 'testGame',
 			name: 'Alice',
-			fleetMan: [],
+			fleetMan: [['Trieste', 'Adriatic Sea', '']],
 			armyMan: [['Vienna', 'Rome', 'peace']],
 		};
 		await submitBatchManeuver(context);

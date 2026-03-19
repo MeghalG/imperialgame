@@ -91,6 +91,64 @@ test.describe('Maneuver Planner — Convoy System', () => {
 		expect(arrows).toBeGreaterThanOrEqual(1);
 	});
 
+	test('army convoy move shows convoy indicator in plan list', async ({ page }) => {
+		await joinGame(page, gameID, 'Alice');
+		await waitForPlannerReady(page);
+
+		// Fleet → Ionian Sea (provides convoy)
+		await assignMove(page, 'fleet at Trieste', 'Ionian Sea');
+
+		// Army → Naples via convoy — wait for convoy destination to appear
+		await activateUnit(page, 'army at Vienna');
+		await page.waitForFunction(() => !!document.querySelector('[data-territory="Naples"].imp-boundary--selectable'), {
+			timeout: RESPOND_TIMEOUT,
+		});
+
+		// Click Naples on the map
+		await page.evaluate(() => {
+			let el = document.querySelector('[data-territory="Naples"].imp-boundary--selectable');
+			if (el) {
+				let r = el.getBoundingClientRect();
+				el.dispatchEvent(
+					new MouseEvent('click', {
+						bubbles: true,
+						cancelable: true,
+						clientX: r.left + r.width / 2,
+						clientY: r.top + r.height / 2,
+					})
+				);
+			}
+		});
+
+		// Wait for action picker to appear, then click first option
+		await page.waitForSelector('.imp-action-picker', { timeout: RESPOND_TIMEOUT });
+		await page.click('.imp-action-picker__btn');
+
+		// Wait for the army row to show the convoy indicator (⛵)
+		await page.waitForFunction(
+			() => {
+				let el = document.querySelector('[data-testid="convoy-indicator"]');
+				return !!el;
+			},
+			{ timeout: RESPOND_TIMEOUT }
+		);
+	});
+
+	test('land-only army move does NOT show convoy label', async ({ page }) => {
+		await joinGame(page, gameID, 'Alice');
+		await waitForPlannerReady(page);
+
+		// Fleet → Ionian Sea (provides convoy, but army doesn't need it)
+		await assignMove(page, 'fleet at Trieste', 'Ionian Sea');
+
+		// Army → Budapest (adjacent by land, no convoy needed)
+		await assignMove(page, 'army at Vienna', 'Budapest');
+
+		// Plan list should NOT show convoy indicator for land move
+		const noConvoy = await page.evaluate(() => !document.querySelector('[data-testid="convoy-indicator"]'));
+		expect(noConvoy).toBe(true);
+	});
+
 	test('without fleet at sea, army cannot reach convoy destinations', async ({ page }) => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
