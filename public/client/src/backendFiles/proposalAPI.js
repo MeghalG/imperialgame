@@ -937,16 +937,41 @@ async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
 		if (!targetArmy) return [];
 
 		// Fleet transport limit: each fleet can transport at most 1 army (spec §2.3).
-		// Use computeConvoyAssignments for prior armies to find which fleets are claimed.
-		let { usedFleetSeas } = computeConvoyAssignments(
-			plan.fleetTuples,
-			plan.armyTuples.slice(0, unitIndex),
-			territorySetup,
-			country
-		);
+		// Combinatorial check: a fleet sea is available to this army if and only if
+		// all OTHER assigned armies can still be convoyed using the remaining fleets.
+		// For each candidate fleet, remove it and check if computeConvoyAssignments
+		// can satisfy all other armies with the reduced fleet set.
+		let otherArmyTuples = plan.armyTuples.filter((_, i) => i !== unitIndex);
+		let otherAssignedTuples = otherArmyTuples.filter((t) => t && t[1] && t[1] !== t[0]);
 
-		// Exclude used fleets from the virtual fleet maneuver array
-		let availableFleetMan = virtualFleetMan.filter((fm) => !usedFleetSeas.has(fm[1]));
+		let availableFleetMan;
+		if (otherAssignedTuples.length === 0) {
+			// No other assigned armies — all fleets are available
+			availableFleetMan = virtualFleetMan;
+		} else {
+			// For each convoy-capable fleet, check if removing it still satisfies all others
+			availableFleetMan = virtualFleetMan.filter((fm) => {
+				if (!fm[1]) return true; // no destination — keep (not convoy-relevant)
+				let action = fm[2] || '';
+				if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) return true;
+
+				// Remove this fleet from the set and check if all other armies still work
+				let reducedFleets = plan.fleetTuples.filter((f) => f[1] !== fm[1]);
+				let { assignments } = computeConvoyAssignments(reducedFleets, otherAssignedTuples, territorySetup, country);
+				// Check that every other army that needs convoy still got one
+				for (let i = 0; i < otherAssignedTuples.length; i++) {
+					let tuple = otherAssignedTuples[i];
+					let actionSplit = (tuple[2] || '').split(' ');
+					if (actionSplit[0] === MANEUVER_ACTIONS.WAR_PREFIX || actionSplit[0] === 'blow') continue;
+					let landOnly = getAdjacentLands(tuple[0], territorySetup, country, { fleetMan: [] });
+					if (landOnly.includes(tuple[1])) continue;
+					// This army needs convoy — check if it got one
+					let a = assignments[i];
+					if (!a || a.fleetSeas.length === 0) return false; // can't satisfy — fleet is exclusive
+				}
+				return true; // all other armies still convoyed without this fleet
+			});
+		}
 
 		let virtualContext = { fleetMan: availableFleetMan };
 		return getAdjacentLands(targetArmy.territory, territorySetup, country, virtualContext);

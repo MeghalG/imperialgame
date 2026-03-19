@@ -9,7 +9,6 @@ const {
 	assignNthMove,
 	getHighlightedTerritories,
 	getConvoyLabels,
-	clickRemoveOnRow,
 	RESPOND_TIMEOUT,
 } = require('./helpers/selectors');
 
@@ -117,11 +116,8 @@ test.describe('Convoy Assignment — Italy 2 fleets + 3 armies', () => {
 		await assignNthMove(page, 'army at Rome', 0, 'Spain');
 		await assignNthMove(page, 'army at Rome', 1, 'Tunis');
 
-		// Click remove on army 0 (row index 2 = third row, after 2 fleet rows)
-		await clickRemoveOnRow(page, 2);
-
-		// Activate army 0 again — ALL convoy destinations should be available
-		// because removing army 0 freed WM, and army 1 (Tunis) can use either sea
+		// Click army 0 again to re-plan it — ALL convoy destinations should be available
+		// because the convoy limit only counts OTHER armies, not the one being re-planned
 		await activateNthUnit(page, 'army at Rome', 0);
 		let highlights = await getHighlightedTerritories(page);
 		expect(highlights).toContain('Spain');
@@ -143,8 +139,7 @@ test.describe('Convoy Assignment — Italy 2 fleets + 3 armies', () => {
 		expect(labels).toContainEqual(expect.stringContaining('Western Med'));
 		expect(labels).toContainEqual(expect.stringContaining('Ionian Sea'));
 
-		// Remove army 0, then reassign it to Greece (needs IS)
-		await clickRemoveOnRow(page, 2);
+		// Click army 0 again and reassign it to Greece (needs IS)
 		await assignNthMove(page, 'army at Rome', 0, 'Greece');
 
 		// Now: army 0 → Greece (IS), army 1 → Tunis (WM — bumped from IS to WM)

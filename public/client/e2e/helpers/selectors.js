@@ -103,9 +103,25 @@ async function assignNthMove(page, unitTitle, nthIndex, territory) {
 		{ timeout: RESPOND_TIMEOUT }
 	);
 	await clickTerritory(page, territory);
+	// Detect completion: checkmark count increases (new assignment), action picker appears,
+	// or the territory name appears in the plan list (reassignment — count unchanged).
 	let result = await Promise.race([
 		waitForAssignmentCount(page, prevCount).then(() => 'assigned'),
 		page.waitForSelector('.imp-action-picker', { timeout: RESPOND_TIMEOUT }).then(() => 'picker'),
+		page
+			.waitForFunction(
+				(dest) => {
+					let rows = document.querySelectorAll('strong');
+					for (let s of rows) {
+						let row = s.closest('div[style]');
+						if (row && row.textContent.includes(dest)) return true;
+					}
+					return false;
+				},
+				territory,
+				{ timeout: RESPOND_TIMEOUT }
+			)
+			.then(() => 'assigned'),
 	]);
 	return result;
 }

@@ -1210,6 +1210,8 @@ function ManeuverPlanProvider({ children }) {
 			mapInteraction.setOnUnitMarkerClickedCb(() => (phase, index) => {
 				SoundManager.playSelect();
 				setActiveUnit({ phase, index });
+				// Recompute dest options for the activated unit (convoy limits may have changed)
+				computeOptionsForUnit(phase, index);
 			});
 		}
 
