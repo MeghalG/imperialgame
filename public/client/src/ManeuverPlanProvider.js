@@ -4,7 +4,9 @@ import MapInteractionContext from './MapInteractionContext.js';
 import ManeuverPlanContext from './ManeuverPlanContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
-import { readGameState, readSetup, clearCache } from './backendFiles/stateCache.js';
+import { readGameState, readSetup, clearCache, invalidateIfStale } from './backendFiles/stateCache.js';
+import { database } from './backendFiles/firebase.js';
+import { MODES } from './gameConstants.js';
 import { getCountryColorPalette } from './countryColors.js';
 import { normalizeAction, denormalizeAction, isPeaceAction, formatCompletedAction } from './maneuverActionUtils.js';
 import SoundManager from './SoundManager.js';
@@ -1013,10 +1015,46 @@ function ManeuverPlanProvider({ children }) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Load on mount — clear cache first to ensure fresh state from Firebase
+	// Load on mount
 	useEffect(() => {
-		clearCache();
 		loadData();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	// Watch for turnID changes — reload if still in maneuver mode, reset if not
+	useEffect(() => {
+		if (!contextRef.current.game) return;
+		let turnRef = database.ref('games/' + contextRef.current.game + '/turnID');
+		let isFirst = true;
+		turnRef.on('value', async (snap) => {
+			if (isFirst) {
+				isFirst = false;
+				return; // skip initial fire (loadData already handles mount)
+			}
+			invalidateIfStale(contextRef.current.game, snap.val());
+			// Check if we're still in maneuver mode
+			let gs = await readGameState(contextRef.current);
+			if (gs && gs.mode === MODES.CONTINUE_MAN && gs.currentManeuver) {
+				// Still in maneuver — reload (e.g. after peace vote resolves)
+				loadData();
+			} else {
+				// No longer in maneuver — reset all state so map clears
+				setLoaded(false);
+				setFleetPlans([]);
+				setArmyPlans([]);
+				setActiveUnit(null);
+				setActionPickerState(null);
+				setPendingPeace(null);
+				mapInteractionRef.current.clearInteraction();
+				if (mapInteractionRef.current.setPlannedMoves) {
+					mapInteractionRef.current.setPlannedMoves([]);
+				}
+				if (mapInteractionRef.current.setUnitMarkers) {
+					mapInteractionRef.current.setUnitMarkers([]);
+				}
+			}
+		});
+		return () => turnRef.off();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
@@ -1025,6 +1063,8 @@ function ManeuverPlanProvider({ children }) {
 	// Push active unit's destination options to the map hotspot layer
 	useEffect(() => {
 		if (!loaded || pendingPeace) {
+			// Not active — clear any previous interaction
+			mapInteractionRef.current.clearInteraction();
 			return;
 		}
 
@@ -1068,6 +1108,10 @@ function ManeuverPlanProvider({ children }) {
 			},
 			highlights
 		);
+
+		return () => {
+			mapInteractionRef.current.clearInteraction();
+		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [activeUnit, loaded, pendingPeace, country, fleetPlans, armyPlans]);
 
@@ -1197,6 +1241,7 @@ function ManeuverPlanProvider({ children }) {
 				isActive: activeUnit && activeUnit.phase === 'fleet' && activeUnit.index === i,
 				isPlanned: !!p.dest,
 				color: countryColor,
+				countryName: country,
 			});
 		});
 		armyPlans.forEach((p, i) => {
@@ -1208,6 +1253,7 @@ function ManeuverPlanProvider({ children }) {
 				isActive: activeUnit && activeUnit.phase === 'army' && activeUnit.index === i,
 				isPlanned: !!p.dest,
 				color: countryColor,
+				countryName: country,
 			});
 		});
 
