@@ -2249,6 +2249,37 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 1);
 		expect(result).toContain('Budapest');
 	});
+	test('two fleets same sea: second army still gets convoy destinations', async () => {
+		// 2 fleets at Ionian Sea, 2 armies at Trieste — army 0 already assigned to Rome
+		mockDbData.games.g1.countryInfo.Austria.fleets = [
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+		];
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Trieste', hostile: true },
+		];
+		clearCache();
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [
+				{ territory: 'Ionian Sea', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
+			],
+			pendingArmies: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Trieste', hostile: true },
+			],
+			fleetTuples: [
+				['Ionian Sea', 'Ionian Sea', ''],
+				['Ionian Sea', 'Ionian Sea', ''],
+			],
+			armyTuples: [['Trieste', 'Rome', '']], // army 0 uses one fleet
+		};
+		// Army 1: second fleet at same sea should still provide convoy → Rome reachable
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 1);
+		expect(result).toContain('Rome');
+	});
 });
 
 describe('§2.3 computeConvoyAssignments', () => {
