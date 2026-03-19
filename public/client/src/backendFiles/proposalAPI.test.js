@@ -2348,6 +2348,42 @@ describe('§2.3 computeConvoyAssignments', () => {
 		expect(assignments[1].fleetSeas).toEqual(['Adriatic Sea']);
 	});
 
+	test('assigned fleet provides convoy, unassigned fleet does not', () => {
+		// Fleet 1: assigned to Adriatic Sea. Fleet 2: unassigned (dest empty, no convoy)
+		let fleetTuples = [
+			['Trieste', 'Adriatic Sea', ''], // assigned — provides convoy
+			['Trieste', '', ''], // unassigned — no dest, can't provide convoy
+		];
+		let armyTuples = [['Trieste', 'Rome', '']];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+	});
+
+	test('army uses the only assigned fleet when other is unassigned', () => {
+		// Only the West Med fleet has a destination; Adriatic fleet is unassigned
+		let fleetTuples = [
+			['Trieste', '', ''], // unassigned
+			['Trieste', 'Adriatic Sea', ''], // assigned
+		];
+		let armyTuples = [['Trieste', 'Rome', '']];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+	});
+
+	test('two armies same sea — both assigned fleets get used', () => {
+		let fleetTuples = [
+			['Trieste', 'Adriatic Sea', ''],
+			['Trieste', 'Adriatic Sea', ''],
+		];
+		let armyTuples = [
+			['Trieste', 'Rome', ''],
+			['Trieste', 'Rome', ''],
+		];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[1].fleetSeas).toEqual(['Adriatic Sea']);
+	});
+
 	test('null inputs return empty results', () => {
 		let { assignments, usedFleetSeas } = computeConvoyAssignments(null, null, null, 'Austria');
 		expect(assignments).toEqual([]);
