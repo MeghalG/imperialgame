@@ -716,23 +716,24 @@ async function _submitBatchManeuverLocal(context) {
 		if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
 			let destCountry = territorySetup[dest] && territorySetup[dest].country;
 			if (destCountry && destCountry !== cm.country) {
-				// Check for enemy units at destination (excluding already-destroyed ones)
-				let hasEnemyUnits = false;
+				// Check for HOSTILE enemy units at destination (excluding already-destroyed ones).
+				// Coexisting units (hostile: false) auto-accept peace — no vote needed.
+				let hasHostileEnemyUnits = false;
 				for (let c in gameState.countryInfo) {
 					if (c !== cm.country) {
 						for (let f of gameState.countryInfo[c].fleets || []) {
 							if (f.territory === dest && !destroyedUnits.has(c + ' fleet ' + dest)) {
-								hasEnemyUnits = true;
+								hasHostileEnemyUnits = true; // Fleets are always hostile
 							}
 						}
 						for (let a of gameState.countryInfo[c].armies || []) {
-							if (a.territory === dest && !destroyedUnits.has(c + ' army ' + dest)) {
-								hasEnemyUnits = true;
+							if (a.territory === dest && a.hostile !== false && !destroyedUnits.has(c + ' army ' + dest)) {
+								hasHostileEnemyUnits = true;
 							}
 						}
 					}
 				}
-				if (hasEnemyUnits) {
+				if (hasHostileEnemyUnits) {
 					// Store remaining plans for later
 					cm.remainingFleetPlans = fleetMoves.slice(i + 1);
 					cm.remainingArmyPlans = armyMoves;
@@ -826,22 +827,23 @@ async function _submitBatchManeuverLocal(context) {
 		if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
 			let destCountry = territorySetup[dest] && territorySetup[dest].country;
 			if (destCountry && destCountry !== cm.country) {
-				let hasEnemyUnits = false;
+				// Check for HOSTILE enemy units only — coexisting auto-accept peace
+				let hasHostileEnemyUnits = false;
 				for (let c in gameState.countryInfo) {
 					if (c !== cm.country) {
 						for (let f of gameState.countryInfo[c].fleets || []) {
 							if (f.territory === dest && !destroyedUnits.has(c + ' fleet ' + dest)) {
-								hasEnemyUnits = true;
+								hasHostileEnemyUnits = true;
 							}
 						}
 						for (let a of gameState.countryInfo[c].armies || []) {
-							if (a.territory === dest && !destroyedUnits.has(c + ' army ' + dest)) {
-								hasEnemyUnits = true;
+							if (a.territory === dest && a.hostile !== false && !destroyedUnits.has(c + ' army ' + dest)) {
+								hasHostileEnemyUnits = true;
 							}
 						}
 					}
 				}
-				if (hasEnemyUnits) {
+				if (hasHostileEnemyUnits) {
 					cm.remainingFleetPlans = [];
 					cm.remainingArmyPlans = armyMoves.slice(i + 1);
 

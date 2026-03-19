@@ -3621,7 +3621,7 @@ describe('submitBatchManeuver', () => {
 		];
 		gs.countryInfo.Italy.gov = 'democracy';
 		gs.countryInfo.Italy.leadership = ['Bob', 'Alice'];
-		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: false }];
+		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }]; // hostile army triggers peace vote
 		gs.playerInfo.Bob.stock = [{ country: 'Italy', stock: 3 }];
 		gs.playerInfo.Alice.stock = [{ country: 'Italy', stock: 2 }];
 		gs.currentManeuver = {
@@ -3905,6 +3905,94 @@ describe('submitBatchManeuver', () => {
 		expect(written.currentManeuver).toBeNull();
 		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('armies cannot move to sea'));
 		errorSpy.mockRestore();
+	});
+
+	test('peace to territory with only coexisting enemies does NOT trigger peace vote', async () => {
+		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		// Italy has a COEXISTING army at Rome (hostile: false)
+		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: false }];
+		gs.countryInfo.Italy.gov = 'dictatorship';
+		gs.countryInfo.Italy.leadership = ['Bob'];
+		gs.currentManeuver = {
+			country: 'Austria',
+			player: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			phase: 'army',
+			unitIndex: 0,
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			completedFleetMoves: [],
+			completedArmyMoves: [],
+			returnMode: 'execute',
+			proposalSlot: 0,
+			pendingPeace: null,
+		};
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
+
+		await submitBatchManeuver({
+			game: 'testGame',
+			name: 'Alice',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Rome', 'peace']],
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// Should NOT have triggered a peace vote — coexisting units auto-accept
+		expect(written.mode).not.toBe('peace-vote');
+		expect(written.peaceVote).toBeUndefined();
+		// Maneuver should have completed (only 1 army, no peace interruption)
+		expect(written.currentManeuver).toBeNull();
+	});
+
+	test('peace to territory with hostile enemy DOES trigger peace vote', async () => {
+		const gs = createMockGameState({ mode: 'continue-man', countryUp: 'Austria' });
+		gs.countryInfo.Austria.gov = 'dictatorship';
+		gs.countryInfo.Austria.leadership = ['Alice'];
+		gs.countryInfo.Austria.fleets = [];
+		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
+		// Italy has a HOSTILE army at Rome
+		gs.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
+		gs.countryInfo.Italy.gov = 'dictatorship';
+		gs.countryInfo.Italy.leadership = ['Bob'];
+		gs.currentManeuver = {
+			country: 'Austria',
+			player: 'Alice',
+			wheelSpot: 'L-Maneuver',
+			phase: 'army',
+			unitIndex: 0,
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			completedFleetMoves: [],
+			completedArmyMoves: [],
+			returnMode: 'execute',
+			proposalSlot: 0,
+			pendingPeace: null,
+		};
+		gs.playerInfo.Alice.myTurn = true;
+		gs.playerInfo.Bob.myTurn = false;
+		setupMockDb(gs);
+		addTerritorySetup({ Vienna: { country: 'Austria' }, Rome: { country: 'Italy' } });
+
+		await submitBatchManeuver({
+			game: 'testGame',
+			name: 'Alice',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Rome', 'peace']],
+		});
+		await flushPromises();
+
+		const written = mockSetData['games/testGame'];
+		// SHOULD trigger peace vote — hostile enemy present
+		expect(written.currentManeuver.pendingPeace).not.toBeNull();
+		expect(written.currentManeuver.pendingPeace.targetCountry).toBe('Italy');
 	});
 });
 

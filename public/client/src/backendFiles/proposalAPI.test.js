@@ -1890,6 +1890,40 @@ describe('getUnitActionOptionsFromPlans — hostile rule', () => {
 		expect(result).not.toContain('hostile');
 	});
 
+	test('hostile NOT offered at last operational factory', async () => {
+		let data = buildMockDbData();
+		data.games.g1.countryInfo.Italy.factories = ['Rome']; // Only 1 factory
+		data.games.g1.countryInfo.Italy.armies = [];
+		mockDbData = data;
+		let plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Rome');
+		expect(result).toContain('peace');
+		expect(result).not.toContain('hostile');
+	});
+
+	test('hostile IS offered when target has multiple operational factories', async () => {
+		let data = buildMockDbData();
+		data.games.g1.countryInfo.Italy.factories = ['Rome', 'Naples'];
+		data.games.g1.countryInfo.Italy.armies = [];
+		mockDbData = data;
+		let plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			fleetTuples: [],
+			armyTuples: [],
+		};
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 0, 'Rome');
+		expect(result).toContain('peace');
+		expect(result).toContain('hostile');
+	});
+
 	test('hostile IS offered when no enemies at foreign destination', async () => {
 		let data = buildMockDbData();
 		// Rome has no enemy units
