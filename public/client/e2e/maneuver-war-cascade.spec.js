@@ -140,6 +140,161 @@ test.describe('Maneuver Planner — Fleet Removal Cascade (§8.5)', () => {
 	});
 });
 
+test.describe('Maneuver Planner — Stale War/Peace After Reorder (§8.4 regression)', () => {
+	test.beforeAll(async () => {
+		await seedSetupData();
+	});
+
+	let gameID3;
+
+	test.afterEach(async () => {
+		if (gameID3) await cleanupGame(gameID3);
+	});
+
+	test('out-of-order input: lower unit picks war, higher unit moves in → war shifts up, lower gets default', async ({
+		page,
+	}) => {
+		// Setup: 2 Austrian armies, 1 Italian army at Budapest
+		gameID3 = await seedManeuverGame({
+			player: 'Alice',
+			country: 'Austria',
+			fleets: [],
+			armies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Trieste', hostile: true },
+			],
+			enemyUnits: {
+				Italy: { armies: [{ territory: 'Budapest', hostile: true }] },
+			},
+		});
+		await joinGame(page, gameID3, 'Alice');
+		await waitForPlannerReady(page);
+
+		// Army 0 (Vienna) auto-activates. Assign it to stay at Vienna first.
+		await clickTerritory(page, 'Vienna');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 1, {
+			timeout: RESPOND_TIMEOUT,
+		});
+
+		// Army 1 (Trieste) → Budapest, declare war
+		await activateUnit(page, 'army at Trieste');
+		await clickTerritory(page, 'Budapest');
+		await pickAction(page, 'Declare war on Italy army');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 2, {
+			timeout: RESPOND_TIMEOUT,
+		});
+
+		// Now: Army 0 also moves to Budapest (reassign by clicking unit then territory)
+		await activateUnit(page, 'army at Vienna');
+		await clickTerritory(page, 'Budapest');
+		// Army 0 is first in order, moves first → should get war action
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 2, {
+			timeout: RESPOND_TIMEOUT,
+		});
+		await waitForCascade(page);
+
+		// Verify: Army 0 (index 0, moves first) should have war.
+		// Army 1 (index 1, moves second) should NOT have war (enemy already destroyed).
+		let rows = await getPlanListRows(page);
+		let row0 = rows[0];
+		let row1 = rows[1];
+
+		// Row 0 should have a war badge
+		expect(row0.actionBadge.toLowerCase()).toContain('war');
+
+		// Row 1 should NOT have war — enemy was already destroyed by row 0
+		expect(row1.actionBadge.toLowerCase()).not.toContain('war');
+	});
+
+	test('peace invalid after prior war destroys only enemy', async ({ page }) => {
+		// Setup: 2 Austrian fleets, 1 Italian fleet at Ionian Sea
+		gameID3 = await seedManeuverGame({
+			player: 'Alice',
+			country: 'Austria',
+			fleets: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Venice', hostile: true },
+			],
+			armies: [],
+			enemyUnits: {
+				Italy: { fleets: [{ territory: 'Ionian Sea', hostile: true }] },
+			},
+		});
+		await joinGame(page, gameID3, 'Alice');
+		await waitForPlannerReady(page);
+
+		// Fleet 0 auto-activates → Ionian Sea, pick war
+		await clickTerritory(page, 'Ionian Sea');
+		await pickAction(page, 'Declare war on Italy fleet');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 1, {
+			timeout: RESPOND_TIMEOUT,
+		});
+
+		// Fleet 1 → Ionian Sea. Enemy is already destroyed by fleet 0's war.
+		await activateUnit(page, 'fleet at Venice');
+		await clickTerritory(page, 'Ionian Sea');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 2, {
+			timeout: RESPOND_TIMEOUT,
+		});
+		await waitForCascade(page);
+
+		// Fleet 1 should NOT have peace or war — just a plain move
+		let rows = await getPlanListRows(page);
+		let row1 = rows[1];
+		expect(row1.isAssigned).toBe(true);
+		if (row1.actionBadge) {
+			expect(row1.actionBadge.toLowerCase()).not.toContain('peace');
+			expect(row1.actionBadge.toLowerCase()).not.toContain('war');
+		}
+	});
+
+	test('reorder moves: war shifts to new first mover, stale action cleared from second', async ({ page }) => {
+		// Setup: 2 Austrian armies, 1 Italian army at Budapest
+		gameID3 = await seedManeuverGame({
+			player: 'Alice',
+			country: 'Austria',
+			fleets: [],
+			armies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Trieste', hostile: true },
+			],
+			enemyUnits: {
+				Italy: { armies: [{ territory: 'Budapest', hostile: true }] },
+			},
+		});
+		await joinGame(page, gameID3, 'Alice');
+		await waitForPlannerReady(page);
+
+		// Army 0 (Vienna) → Budapest, war
+		await clickTerritory(page, 'Budapest');
+		await pickAction(page, 'Declare war on Italy army');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 1, {
+			timeout: RESPOND_TIMEOUT,
+		});
+
+		// Army 1 (Trieste) → Budapest (enemy destroyed by army 0)
+		await activateUnit(page, 'army at Trieste');
+		await clickTerritory(page, 'Budapest');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 2, {
+			timeout: RESPOND_TIMEOUT,
+		});
+
+		// Reorder: move Army 1 up (to index 0)
+		// Click the up arrow on the second row
+		let upButtons = await page.$$('.imp-plan-row .anticon-arrow-up, .imp-plan-row [aria-label="Move up"]');
+		if (upButtons.length >= 2) {
+			await upButtons[1].click();
+		}
+		await waitForCascade(page);
+
+		// After reorder: the new row 0 (was Trieste army) moves first → should get war
+		// The new row 1 (was Vienna army) moves second → enemy already destroyed → no war
+		let rows = await getPlanListRows(page);
+		expect(rows[0].actionBadge.toLowerCase()).toContain('war');
+		expect(rows[1].actionBadge.toLowerCase()).not.toContain('war');
+	});
+});
+
 test.describe('Maneuver Planner — Action Change Cascade', () => {
 	test.beforeAll(async () => {
 		await seedSetupData();

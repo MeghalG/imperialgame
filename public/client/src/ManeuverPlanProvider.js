@@ -389,13 +389,37 @@ function ManeuverPlanProvider({ children }) {
 						i,
 						plans[i].dest
 					);
-					let flatOptions = Array.isArray(newActionOptions) ? newActionOptions : [];
+
+					// Flatten action options for validation — handles both array and
+					// multi-country object formats from getUnitActionOptionsFromPlans
+					let flatOptions;
+					if (Array.isArray(newActionOptions)) {
+						flatOptions = newActionOptions;
+					} else if (newActionOptions && newActionOptions.countries) {
+						flatOptions = newActionOptions.countries.flatMap((c) => c.actions || []);
+						if (newActionOptions.otherActions) {
+							flatOptions.push(...newActionOptions.otherActions);
+						}
+					} else {
+						flatOptions = [];
+					}
+
 					let currentAction = plans[i].action || '';
 
-					// Check if current action is still valid
-					let isValid = flatOptions.length === 0 || flatOptions.includes(currentAction);
+					// Check if current action is still valid.
+					// Empty flatOptions means no action is needed (plain move) —
+					// so any existing action (war/peace/hostile) is INVALID.
+					let isValid;
+					if (flatOptions.length === 0) {
+						// No enemies, no foreign territory — plain move. Clear any stale action.
+						isValid = currentAction === '';
+					} else {
+						isValid = flatOptions.includes(currentAction);
+					}
+
 					if (!isValid) {
-						// Reset to sensible default: first war if available, otherwise first option
+						// Reset to sensible default: first war if available, otherwise first option,
+						// or '' if no options (plain move)
 						let defaultAction = flatOptions.find((a) => a.startsWith('war ')) || flatOptions[0] || '';
 						let setter = ph === 'fleet' ? setFleetPlans : setArmyPlans;
 						let ref = ph === 'fleet' ? fleetPlansRef : armyPlansRef;

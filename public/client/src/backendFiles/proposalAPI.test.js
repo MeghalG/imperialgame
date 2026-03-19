@@ -1979,6 +1979,85 @@ describe('getUnitActionOptionsFromPlans — hostile rule', () => {
 });
 
 // =============================================================================
+// Bug regression: stale war/peace after virtual state changes (cascade bugs)
+// =============================================================================
+
+describe('getUnitActionOptionsFromPlans — stale action cascade', () => {
+	beforeEach(() => {
+		mockDbData = buildMockDbData();
+	});
+	afterEach(() => clearCache());
+
+	test('army after war: no enemies remain → returns [] (plain move)', async () => {
+		// Setup: Italy has one fleet at Ionian Sea
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
+		// Austria has two armies moving to Naples (via Ionian convoy)
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Budapest', hostile: true },
+			],
+			fleetTuples: [],
+			// Army 0 moves to Ionian Sea territory... actually armies go to land.
+			// Let's use a simpler case: two armies moving to Rome where Italy has an army.
+			armyTuples: [['Vienna', 'Rome', 'war Italy army']],
+		};
+		mockDbData.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
+		// Army 1 moves to Rome — Italian army already destroyed by army 0
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 1, 'Rome');
+		// No enemies remain → foreign territory → peace/hostile but NOT war
+		expect(result).not.toContain('war Italy army');
+		// Should be peace + hostile (foreign territory, no enemies)
+		expect(result).toContain('peace');
+		expect(result).toContain('hostile');
+	});
+
+	test('peace invalid when only enemy destroyed by prior war', async () => {
+		// Italy has one fleet at Ionian Sea
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Venice', hostile: true },
+			],
+			pendingArmies: [],
+			fleetTuples: [['Trieste', 'Ionian Sea', 'war Italy fleet']], // fleet 0 destroys it
+			armyTuples: [],
+		};
+		// Fleet 1 also moves to Ionian Sea — enemy already gone
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1, 'Ionian Sea');
+		// No enemies remain → plain sea move → empty array
+		expect(result).toEqual([]);
+		// Specifically: peace should NOT be available
+		expect(result).not.toContain('peace');
+	});
+
+	test('reorder: higher unit gets war, lower unit gets plain move after enemy destroyed', async () => {
+		// Italy has one army at Rome
+		mockDbData.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
+		// After reorder: army 0 (was army 1) now moves first with war
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [
+				{ territory: 'Budapest', hostile: true },
+				{ territory: 'Vienna', hostile: true },
+			],
+			fleetTuples: [],
+			armyTuples: [['Budapest', 'Rome', 'war Italy army']], // army 0 destroys enemy
+		};
+		// Army 1 moves to Rome — enemy destroyed by army 0
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'army', 1, 'Rome');
+		// No enemy left but foreign territory → peace/hostile, NOT war
+		expect(result).not.toContain('war Italy army');
+		expect(result).toContain('peace');
+	});
+});
+
+// =============================================================================
 // Comprehensive Maneuver System Tests (spec §2-§5)
 // =============================================================================
 
