@@ -1470,12 +1470,7 @@ async function executeProposal(gameState, context) {
 					if (!gameState.countryInfo[country].taxChips) {
 						gameState.countryInfo[country].taxChips = [];
 					}
-					// Place tax chip on neutral LAND territory only (not seas)
-					if (
-						!gameState.countryInfo[country].taxChips.includes(fleet[1]) &&
-						!territorySetup[fleet[1]].country &&
-						!territorySetup[fleet[1]].sea
-					) {
+					if (!gameState.countryInfo[country].taxChips.includes(fleet[1]) && !territorySetup[fleet[1]].country) {
 						gameState.countryInfo[country].taxChips.push(fleet[1]);
 					}
 				}
