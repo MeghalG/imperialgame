@@ -712,12 +712,11 @@ async function _submitBatchManeuverLocal(context) {
 		let split = action.split(' ');
 		console.log('[batchLocal] fleet', i, ':', origin, '→', dest, 'action:', action);
 
-		// Check if this move triggers a peace vote
+		// Check if this move triggers a peace vote (spec §5.1-5.2)
 		if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
-			// Find the first enemy country with hostile units at destination.
-			// Peace votes can trigger on ANY territory (home, neutral, or sea),
-			// not just foreign home territory.
-			let peaceTargetCountry = null;
+			// Find ALL enemy countries with hostile units at destination.
+			// Each gets a separate peace vote (spec §5.2).
+			let peaceTargetCountries = [];
 			for (let c in gameState.countryInfo) {
 				if (c !== cm.country) {
 					let hasHostile = false;
@@ -731,16 +730,16 @@ async function _submitBatchManeuverLocal(context) {
 							hasHostile = true;
 						}
 					}
-					if (hasHostile) {
-						peaceTargetCountry = c;
-						break; // First enemy country with hostile units triggers the vote
-					}
+					if (hasHostile) peaceTargetCountries.push(c);
 				}
 			}
+			let peaceTargetCountry = peaceTargetCountries[0] || null;
 			if (peaceTargetCountry) {
-				// Store remaining plans for later
+				// Store remaining plans and remaining peace targets for later
 				cm.remainingFleetPlans = fleetMoves.slice(i + 1);
 				cm.remainingArmyPlans = armyMoves;
+				// Store remaining peace targets (after the first) for sequential voting
+				cm.pendingPeaceTargets = peaceTargetCountries.slice(1);
 
 				// Trigger peace vote
 				let targetGov = gameState.countryInfo[peaceTargetCountry].gov;
@@ -828,10 +827,10 @@ async function _submitBatchManeuverLocal(context) {
 			continue;
 		}
 
-		// Check if this move triggers a peace vote
+		// Check if this move triggers a peace vote (spec §5.1-5.2)
 		if (split[0] === MANEUVER_ACTIONS.PEACE && dest !== origin) {
-			// Find the first enemy country with hostile units at destination
-			let peaceTargetCountry = null;
+			// Find ALL enemy countries with hostile units at destination
+			let peaceTargetCountries = [];
 			for (let c in gameState.countryInfo) {
 				if (c !== cm.country) {
 					let hasHostile = false;
@@ -845,15 +844,14 @@ async function _submitBatchManeuverLocal(context) {
 							hasHostile = true;
 						}
 					}
-					if (hasHostile) {
-						peaceTargetCountry = c;
-						break;
-					}
+					if (hasHostile) peaceTargetCountries.push(c);
 				}
 			}
+			let peaceTargetCountry = peaceTargetCountries[0] || null;
 			if (peaceTargetCountry) {
 				cm.remainingFleetPlans = [];
 				cm.remainingArmyPlans = armyMoves.slice(i + 1);
+				cm.pendingPeaceTargets = peaceTargetCountries.slice(1);
 
 				let targetGov = gameState.countryInfo[peaceTargetCountry].gov;
 				if (targetGov === GOV_TYPES.DICTATORSHIP) {
@@ -1002,7 +1000,63 @@ async function _submitDictatorPeaceVoteLocal(context) {
 		);
 	}
 
-	// Add the resolved tuple
+	// Check for remaining peace targets at the same destination (spec §5.2).
+	// If more enemy countries need peace votes, trigger the next one
+	// WITHOUT advancing unitIndex or adding the tuple yet.
+	if ((cm.pendingPeaceTargets || []).length > 0) {
+		let nextTarget = cm.pendingPeaceTargets.shift();
+		let nextGov = gameState.countryInfo[nextTarget].gov;
+		if (nextGov === GOV_TYPES.DICTATORSHIP) {
+			let dictator = gameState.countryInfo[nextTarget].leadership[0];
+			cm.pendingPeace = {
+				origin: peace.origin,
+				destination: peace.destination,
+				targetCountry: nextTarget,
+				unitType: peace.unitType,
+				tuple: tuple, // pass the current (possibly rewritten) tuple
+			};
+			for (let key in gameState.playerInfo) {
+				gameState.playerInfo[key].myTurn = false;
+			}
+			gameState.playerInfo[dictator].myTurn = true;
+		} else {
+			let totalStock = 0;
+			let voters = [];
+			for (let player in gameState.playerInfo) {
+				for (let s of gameState.playerInfo[player].stock || []) {
+					if (s.country === nextTarget) {
+						totalStock += s.stock;
+						if (!voters.includes(player)) voters.push(player);
+					}
+				}
+			}
+			gameState.peaceVote = {
+				movingCountry: cm.country,
+				targetCountry: nextTarget,
+				unitType: peace.unitType,
+				origin: peace.origin,
+				destination: peace.destination,
+				acceptVotes: 0,
+				rejectVotes: 0,
+				voters: [],
+				totalStock: totalStock,
+				tuple: tuple,
+			};
+			gameState.mode = MODES.PEACE_VOTE;
+			for (let key in gameState.playerInfo) {
+				gameState.playerInfo[key].myTurn = false;
+			}
+			for (let player of voters) {
+				gameState.playerInfo[player].myTurn = true;
+			}
+		}
+		gameState.sameTurn = false;
+		gameState.undo = context.name;
+		await finalizeSubmit(gameState, context.game, context);
+		return 'done';
+	}
+
+	// All peace votes resolved — add the final tuple and advance
 	if (cm.phase === 'fleet') {
 		if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
 		cm.completedFleetMoves.push(tuple);
@@ -1011,6 +1065,7 @@ async function _submitDictatorPeaceVoteLocal(context) {
 		cm.completedArmyMoves.push(tuple);
 	}
 	cm.pendingPeace = null;
+	cm.pendingPeaceTargets = null;
 	cm.unitIndex++;
 
 	// Check phase transition
@@ -1103,6 +1158,66 @@ async function _submitPeaceVoteLocal(context) {
 	if (pv.acceptVotes > threshold) {
 		// Accepted
 		let tuple = [pv.origin, pv.destination, MANEUVER_ACTIONS.PEACE];
+		gameState.history.push(
+			pv.targetCountry + ' stockholders accept the peace offer from ' + pv.movingCountry + ' at ' + pv.destination + '.'
+		);
+		gameState.peaceVote = null;
+
+		// Check for remaining peace targets (spec §5.2)
+		if ((cm.pendingPeaceTargets || []).length > 0) {
+			let nextTarget = cm.pendingPeaceTargets.shift();
+			let nextGov = gameState.countryInfo[nextTarget].gov;
+			if (nextGov === GOV_TYPES.DICTATORSHIP) {
+				let dictator = gameState.countryInfo[nextTarget].leadership[0];
+				gameState.mode = MODES.CONTINUE_MAN;
+				cm.pendingPeace = {
+					origin: pv.origin,
+					destination: pv.destination,
+					targetCountry: nextTarget,
+					unitType: pv.unitType,
+					tuple: tuple,
+				};
+				for (let key in gameState.playerInfo) {
+					gameState.playerInfo[key].myTurn = false;
+				}
+				gameState.playerInfo[dictator].myTurn = true;
+			} else {
+				let totalStock2 = 0;
+				let voters2 = [];
+				for (let player in gameState.playerInfo) {
+					for (let s of gameState.playerInfo[player].stock || []) {
+						if (s.country === nextTarget) {
+							totalStock2 += s.stock;
+							if (!voters2.includes(player)) voters2.push(player);
+						}
+					}
+				}
+				gameState.peaceVote = {
+					movingCountry: pv.movingCountry,
+					targetCountry: nextTarget,
+					unitType: pv.unitType,
+					origin: pv.origin,
+					destination: pv.destination,
+					acceptVotes: 0,
+					rejectVotes: 0,
+					voters: [],
+					totalStock: totalStock2,
+					tuple: tuple,
+				};
+				for (let key in gameState.playerInfo) {
+					gameState.playerInfo[key].myTurn = false;
+				}
+				for (let player of voters2) {
+					gameState.playerInfo[player].myTurn = true;
+				}
+			}
+			gameState.sameTurn = false;
+			gameState.undo = context.name;
+			await finalizeSubmit(gameState, context.game, context);
+			return 'done';
+		}
+
+		// All peace targets resolved — commit tuple and advance
 		if (cm.phase === 'fleet') {
 			if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
 			cm.completedFleetMoves.push(tuple);
@@ -1110,10 +1225,7 @@ async function _submitPeaceVoteLocal(context) {
 			if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
 			cm.completedArmyMoves.push(tuple);
 		}
-		gameState.history.push(
-			pv.targetCountry + ' stockholders accept the peace offer from ' + pv.movingCountry + ' at ' + pv.destination + '.'
-		);
-		gameState.peaceVote = null;
+		cm.pendingPeaceTargets = null;
 		cm.unitIndex++;
 
 		// Check phase transition
@@ -1164,18 +1276,36 @@ async function _submitPeaceVoteLocal(context) {
 			tuple = [pv.origin, pv.destination, MANEUVER_ACTIONS.HOSTILE];
 		}
 
-		if (cm.phase === 'fleet') {
-			if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
-			cm.completedFleetMoves.push(tuple);
-		} else {
-			if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
-			cm.completedArmyMoves.push(tuple);
-		}
 		gameState.history.push(
 			pv.targetCountry + ' stockholders reject the peace offer from ' + pv.movingCountry + ' at ' + pv.destination + '.'
 		);
 		gameState.peaceVote = null;
-		cm.unitIndex++;
+
+		// Check for remaining peace targets — even after rejection, remaining countries still get votes
+		if ((cm.pendingPeaceTargets || []).length > 0) {
+			// Commit the war tuple from this rejection first
+			if (cm.phase === 'fleet') {
+				if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
+				cm.completedFleetMoves.push(tuple);
+			} else {
+				if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
+				cm.completedArmyMoves.push(tuple);
+			}
+			// But DON'T advance unitIndex — the unit still needs to resolve remaining targets
+			// Actually: after rejection, the unit is destroyed (war). No more peace votes.
+			// Clear remaining targets and advance.
+			cm.pendingPeaceTargets = null;
+			cm.unitIndex++;
+		} else {
+			if (cm.phase === 'fleet') {
+				if (!cm.completedFleetMoves) cm.completedFleetMoves = [];
+				cm.completedFleetMoves.push(tuple);
+			} else {
+				if (!cm.completedArmyMoves) cm.completedArmyMoves = [];
+				cm.completedArmyMoves.push(tuple);
+			}
+			cm.unitIndex++;
+		}
 
 		// Check phase transition
 		if (cm.phase === 'fleet' && cm.unitIndex >= (cm.pendingFleets || []).length) {

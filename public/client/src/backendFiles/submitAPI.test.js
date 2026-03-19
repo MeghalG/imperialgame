@@ -5264,3 +5264,127 @@ describe('Swiss Banking — doneBuying sets up swiss for initial bid rounds', ()
 		expect(written.mode).toBe('proposal');
 	});
 });
+
+// =============================================================================
+// Phase 2 Tests — Peace Vote System (spec §5)
+// =============================================================================
+
+describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
+	let baseGameState;
+
+	beforeEach(() => {
+		mockSetData = {};
+
+		baseGameState = {
+			countryUp: 'Austria',
+			mode: 'continue-man',
+			setup: 'setups/standard',
+			history: [],
+			round: 1,
+			turnID: 1,
+			sameTurn: false,
+			timer: { timed: false },
+			currentManeuver: {
+				country: 'Austria',
+				player: 'Alice',
+				wheelSpot: 'L-Maneuver',
+				phase: 'army',
+				unitIndex: 0,
+				pendingFleets: [],
+				pendingArmies: [{ territory: 'Vienna', hostile: true }],
+				completedFleetMoves: [],
+				completedArmyMoves: [],
+				returnMode: 'execute',
+				proposalSlot: 0,
+			},
+			playerInfo: {
+				Alice: { money: 10, myTurn: true, order: 1, scoreModifier: 0, stock: [{ country: 'Austria', stock: 4 }], swiss: false, investor: false, email: '' },
+				Bob: { money: 5, myTurn: false, order: 2, scoreModifier: 0, stock: [{ country: 'Italy', stock: 4 }], swiss: false, investor: false, email: '' },
+				Carol: { money: 5, myTurn: false, order: 3, scoreModifier: 0, stock: [{ country: 'Italy', stock: 2 }], swiss: false, investor: false, email: '' },
+			},
+			countryInfo: {
+				Austria: {
+					money: 5, points: 0, factories: ['Vienna', 'Budapest'], wheelSpot: 'L-Maneuver',
+					gov: 'dictatorship', leadership: ['Alice'], fleets: [], armies: [{ territory: 'Vienna', hostile: true }],
+					taxChips: [], availStock: [3, 2, 1], offLimits: false, lastTax: 0,
+				},
+				Italy: {
+					money: 5, points: 0, factories: ['Rome', 'Naples'], wheelSpot: 'center',
+					gov: 'democracy', leadership: ['Bob', 'Carol'], fleets: [],
+					armies: [{ territory: 'Rome', hostile: true }],
+					taxChips: [], availStock: [3, 2, 1], offLimits: false, lastTax: 0,
+				},
+				France: {
+					money: 5, points: 0, factories: ['Paris', 'Marseille'], wheelSpot: 'center',
+					gov: 'dictatorship', leadership: ['Alice'], fleets: [],
+					armies: [{ territory: 'Rome', hostile: true }],
+					taxChips: [], availStock: [4, 3, 2, 1], offLimits: false, lastTax: 0,
+				},
+			},
+		};
+
+		mockDbData = {
+			games: { testGame: baseGameState },
+			setups: {
+				standard: {
+					territories: {
+						Vienna: { country: 'Austria', sea: false, adjacencies: ['Budapest'] },
+						Budapest: { country: 'Austria', sea: false, adjacencies: ['Vienna'] },
+						Rome: { country: 'Italy', sea: false, adjacencies: ['Naples'] },
+						Naples: { country: 'Italy', sea: false, adjacencies: ['Rome'] },
+						Paris: { country: 'France', sea: false, adjacencies: ['Marseille'] },
+						Marseille: { country: 'France', sea: false, adjacencies: ['Paris'] },
+					},
+					countries: {
+						Austria: { armyLimit: 5, fleetLimit: 3 },
+						Italy: { armyLimit: 5, fleetLimit: 3 },
+						France: { armyLimit: 5, fleetLimit: 3 },
+					},
+					wheel: ['Factory', 'L-Produce', 'L-Maneuver', 'Taxation', 'Factory', 'R-Produce', 'R-Maneuver', 'Investor'],
+				},
+			},
+		};
+	});
+
+	test('peace vote includes ALL stockholders, not just leadership', async () => {
+		// Bob has 4 stock in Italy, Carol has 2 stock in Italy.
+		// Both should be able to vote (myTurn = true).
+		const { submitBatchManeuver } = require('./submitAPI.js');
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Rome', 'peace']],
+		};
+		await submitBatchManeuver(context);
+
+		const written = mockSetData['games/testGame'];
+		// Should enter peace-vote mode
+		expect(written.mode).toBe('peace-vote');
+		// Both Bob and Carol should have myTurn = true (both hold Italy stock)
+		expect(written.playerInfo.Bob.myTurn).toBe(true);
+		expect(written.playerInfo.Carol.myTurn).toBe(true);
+		// Total stock should be 4 + 2 = 6
+		expect(written.peaceVote.totalStock).toBe(6);
+	});
+
+	test('multi-country peace: stores pendingPeaceTargets', async () => {
+		// Italy and France both have hostile armies at Rome.
+		// Peace should trigger for the first country found and store the rest.
+		const { submitBatchManeuver } = require('./submitAPI.js');
+		const context = {
+			game: 'testGame',
+			name: 'Alice',
+			fleetMan: [],
+			armyMan: [['Vienna', 'Rome', 'peace']],
+		};
+		await submitBatchManeuver(context);
+
+		const written = mockSetData['games/testGame'];
+		// First country triggers a peace vote
+		expect(written.peaceVote || written.currentManeuver.pendingPeace).toBeTruthy();
+		// Remaining targets should be stored
+		expect(written.currentManeuver.pendingPeaceTargets).toBeDefined();
+		expect(written.currentManeuver.pendingPeaceTargets.length).toBe(1);
+	});
+});
