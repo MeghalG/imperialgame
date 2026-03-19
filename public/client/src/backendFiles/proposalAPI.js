@@ -1201,9 +1201,19 @@ function computeConvoyAssignments(fleetTuples, armyTuples, territorySetup, count
 		return { assignments: [], usedFleetSeas: new Set() };
 	}
 
-	let usedFleetSeas = new Set();
-	let assignments = [];
+	// Count convoy-capable fleets per sea (fleets are indistinguishable within a sea)
 	let virtualFleetMan = fleetTuples.map((t) => [t[0], t[1], t[2]]);
+	let fleetCountBySea = new Map(); // sea → { total, used }
+	for (let fm of virtualFleetMan) {
+		if (!fm[1]) continue;
+		let action = fm[2] || '';
+		if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) continue;
+		let entry = fleetCountBySea.get(fm[1]) || { total: 0, used: 0 };
+		entry.total++;
+		fleetCountBySea.set(fm[1], entry);
+	}
+
+	let assignments = [];
 
 	for (let i = 0; i < armyTuples.length; i++) {
 		let tuple = armyTuples[i];
@@ -1212,31 +1222,26 @@ function computeConvoyAssignments(fleetTuples, armyTuples, territorySetup, count
 			continue;
 		}
 
-		// Armies destroyed by war/blow don't need convoy
-		let actionSplit = (tuple[2] || '').split(' ');
-		if (actionSplit[0] === MANEUVER_ACTIONS.WAR_PREFIX || actionSplit[0] === 'blow') {
-			assignments.push({ armyIndex: i, fleetSeas: [] });
-			continue;
-		}
-
 		let armyOrigin = tuple[0];
 		let armyDest = tuple[1];
 
-		// Check if reachable by land only (no fleet transport)
+		// Check if reachable by land only (no fleet transport) — applies to all actions
 		let landOnlyReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: [] });
 		if (landOnlyReach.includes(armyDest)) {
 			assignments.push({ armyIndex: i, fleetSeas: [] });
 			continue;
 		}
 
-		// Army needs fleet transport — find which fleet(s) actually enable the path
-		let availableFleets = virtualFleetMan.filter((fm) => {
-			if (!fm[1] || usedFleetSeas.has(fm[1])) return false;
-			let action = fm[2] || '';
-			return action === MANEUVER_ACTIONS.PEACE || action === MANEUVER_ACTIONS.MOVE;
-		});
+		// Army needs fleet transport (even for war/blow — the army still crosses water).
+		// Build available fleets: include one virtual entry per sea that has remaining capacity.
+		let availableFleets = [];
+		for (let [sea, counts] of fleetCountBySea) {
+			if (counts.used < counts.total) {
+				availableFleets.push(['_', sea, '']); // virtual entry for reachability check
+			}
+		}
 
-		// Try each fleet ALONE first (single-fleet convoy — the common case)
+		// Try each available sea ALONE first (single-fleet convoy — the common case)
 		let foundSeas = null;
 		for (let fm of availableFleets) {
 			let testReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: [fm] });
@@ -1256,10 +1261,21 @@ function computeConvoyAssignments(fleetTuples, armyTuples, territorySetup, count
 		}
 
 		if (foundSeas && foundSeas.length > 0) {
-			for (let sea of foundSeas) usedFleetSeas.add(sea);
+			for (let sea of foundSeas) {
+				let entry = fleetCountBySea.get(sea);
+				if (entry) entry.used++;
+			}
 			assignments.push({ armyIndex: i, fleetSeas: foundSeas });
 		} else {
 			assignments.push({ armyIndex: i, fleetSeas: [] });
+		}
+	}
+
+	// Build usedFleetSeas: seas where ALL fleets are consumed (no remaining capacity)
+	let usedFleetSeas = new Set();
+	for (let [sea, counts] of fleetCountBySea) {
+		if (counts.used >= counts.total) {
+			usedFleetSeas.add(sea);
 		}
 	}
 

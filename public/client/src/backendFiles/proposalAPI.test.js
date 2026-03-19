@@ -2326,11 +2326,26 @@ describe('§2.3 computeConvoyAssignments', () => {
 		expect(assignments[0].fleetSeas).toEqual([]);
 	});
 
-	test('army with war action returns empty fleetSeas', () => {
+	test('army with war action still gets convoy if crossing water', () => {
 		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
 		let armyTuples = [['Trieste', 'Rome', 'war Italy army']];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
-		expect(assignments[0].fleetSeas).toEqual([]);
+		// War armies still need fleet transport to cross sea — convoy should be assigned
+		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+	});
+
+	test('two fleets in same sea can transport two armies', () => {
+		let fleetTuples = [
+			['Trieste', 'Adriatic Sea', ''],
+			['Trieste', 'Adriatic Sea', ''],
+		];
+		let armyTuples = [
+			['Trieste', 'Rome', ''],
+			['Trieste', 'Rome', ''],
+		];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[1].fleetSeas).toEqual(['Adriatic Sea']);
 	});
 
 	test('null inputs return empty results', () => {
