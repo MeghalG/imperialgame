@@ -1977,3 +1977,324 @@ describe('getUnitActionOptionsFromPlans — hostile rule', () => {
 		expect(result).not.toContain('war Italy army');
 	});
 });
+
+// =============================================================================
+// Comprehensive Maneuver System Tests (spec §2-§5)
+// =============================================================================
+
+describe('§2.1 Fleet Movement Rules', () => {
+	beforeEach(() => {
+		mockDbData = buildMockDbData();
+	});
+	afterEach(() => clearCache());
+
+	test('fleet at port: can move to port sea or stay', () => {
+		const result = getAdjacentSeas('Trieste', mockTerritorySetup);
+		expect(result).toContain('Trieste');
+		expect(result).toContain('Adriatic Sea');
+		expect(result).toHaveLength(2);
+	});
+
+	test('fleet at sea: can move to adjacent seas or stay', () => {
+		const result = getAdjacentSeas('Adriatic Sea', mockTerritorySetup);
+		expect(result).toContain('Adriatic Sea');
+		expect(result).toContain('West Med');
+		expect(result).not.toContain('Trieste');
+		expect(result).not.toContain('Rome');
+	});
+
+	test('fleet cannot return to port from sea', () => {
+		const result = getAdjacentSeas('Adriatic Sea', mockTerritorySetup);
+		expect(result).not.toContain('Trieste');
+	});
+
+	test('getFleetOptions returns options for all fleets', async () => {
+		const context = { game: 'g1', fleetMan: [] };
+		const result = await getFleetOptions(context);
+		expect(result).toHaveLength(1);
+		expect(result[0][0]).toBe('Trieste');
+		expect(result[0][1]).toContain('Adriatic Sea');
+		expect(result[0][1]).toContain('Trieste');
+	});
+});
+
+describe('§2.2 Army Movement (BFS)', () => {
+	beforeEach(() => {
+		mockDbData = buildMockDbData();
+	});
+	afterEach(() => clearCache());
+
+	test('getD0: expands through home-to-home connections', () => {
+		const d0 = getD0('Vienna', mockTerritorySetup, 'Austria', { fleetMan: [] });
+		expect(d0).toContain('Vienna');
+		expect(d0).toContain('Budapest');
+		expect(d0).toContain('Trieste');
+	});
+
+	test('getD0: does NOT expand through foreign home territories', () => {
+		const d0 = getD0('Vienna', mockTerritorySetup, 'Austria', { fleetMan: [] });
+		expect(d0).not.toContain('Rome');
+		expect(d0).not.toContain('Paris');
+	});
+
+	test('getD0: expands through conveyed seas', () => {
+		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
+		expect(d0).toContain('Adriatic Sea');
+	});
+
+	test('getD0: fleet with war action does NOT provide convoy', () => {
+		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'war Italy fleet']] };
+		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
+		expect(d0).not.toContain('Adriatic Sea');
+	});
+
+	test('getD0: fleet with peace action DOES provide convoy', () => {
+		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'peace']] };
+		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
+		expect(d0).toContain('Adriatic Sea');
+	});
+
+	test('getAdjacentLands: with convoy, reaches land across sea', () => {
+		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const result = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
+		expect(result).toContain('Rome');
+		expect(result).toContain('Trieste');
+	});
+
+	test('getAdjacentLands: without convoy, cannot reach land across sea', () => {
+		const context = { fleetMan: [] };
+		const result = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
+		expect(result).not.toContain('Rome');
+	});
+
+	test('getAdjacentLands: does NOT over-expand (no recursive getD0)', () => {
+		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const result = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
+		expect(result).toContain('Rome');
+		// Naples is adjacent to Rome but TWO hops from D0 — should NOT be reachable
+		expect(result).not.toContain('Naples');
+	});
+
+	test('army cannot reach sea territories', () => {
+		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const result = getAdjacentLands('Trieste', mockTerritorySetup, 'Austria', context);
+		expect(result).not.toContain('Adriatic Sea');
+		expect(result).not.toContain('West Med');
+	});
+});
+
+describe('§3 Action Codes — getArmyPeaceOptions', () => {
+	beforeEach(() => {
+		mockDbData = buildMockDbData();
+	});
+	afterEach(() => clearCache());
+
+	test('§3.1 no actions on own territory without enemies', async () => {
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Vienna'] || []).not.toContain('peace');
+		expect(result['Vienna'] || []).not.toContain('hostile');
+	});
+
+	test('§3.2 peace on enemy territory with hostile units', async () => {
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).toContain('peace');
+	});
+
+	test('§3.2 peace on empty enemy home territory', async () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		clearCache();
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).toContain('peace');
+	});
+
+	test('§3.3 hostile NOT available when hostile enemies present', async () => {
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).not.toContain('hostile');
+	});
+
+	test('§3.3 hostile IS available when only coexisting enemies', async () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		mockDbData.games.g1.countryInfo.France.armies = [{ territory: 'Rome', hostile: false }];
+		clearCache();
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).toContain('hostile');
+	});
+
+	test('§3.3 hostile on empty enemy territory', async () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		clearCache();
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).toContain('hostile');
+	});
+
+	test('§3.3 hostile NOT at last operational factory', async () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		mockDbData.games.g1.countryInfo.Italy.factories = ['Rome'];
+		clearCache();
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).not.toContain('hostile');
+	});
+
+	test('§3.4 war offered against hostile enemies', async () => {
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).toContain('war Italy army');
+	});
+
+	test('§3.4 war offered against coexisting enemies', async () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		mockDbData.games.g1.countryInfo.France.armies = [{ territory: 'Rome', hostile: false }];
+		clearCache();
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Rome']).toContain('war France army');
+	});
+
+	test('§3.4 war NOT offered against own units', async () => {
+		const result = await getArmyPeaceOptions({ game: 'g1', fleetMan: [], armyMan: [] });
+		expect(result['Vienna'] || []).not.toContain('war Austria army');
+	});
+});
+
+describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
+	beforeEach(() => {
+		mockDbData = buildMockDbData();
+	});
+	afterEach(() => clearCache());
+
+	test('fleet at destination provides convoy', async () => {
+		mockDbData.games.g1.countryInfo.Austria.armies = [{ territory: 'Trieste', hostile: true }];
+		clearCache();
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Trieste', hostile: true }],
+			pendingArmies: [{ territory: 'Trieste', hostile: true }],
+			fleetTuples: [['Trieste', 'Adriatic Sea', '']],
+			armyTuples: [],
+		};
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
+		expect(result).toContain('Rome');
+	});
+
+	test('fleet with war does NOT provide convoy', async () => {
+		mockDbData.games.g1.countryInfo.Austria.armies = [{ territory: 'Trieste', hostile: true }];
+		clearCache();
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Trieste', hostile: true }],
+			pendingArmies: [{ territory: 'Trieste', hostile: true }],
+			fleetTuples: [['Trieste', 'Adriatic Sea', 'war Italy fleet']],
+			armyTuples: [],
+		};
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
+		expect(result).not.toContain('Rome');
+	});
+
+	test('fleet staying provides convoy', async () => {
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Austria.armies = [{ territory: 'Trieste', hostile: true }];
+		clearCache();
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingArmies: [{ territory: 'Trieste', hostile: true }],
+			fleetTuples: [['Adriatic Sea', 'Adriatic Sea', '']],
+			armyTuples: [],
+		};
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
+		expect(result).toContain('Rome');
+	});
+});
+
+describe('§4 Virtual State — getVirtualStateFromPlans', () => {
+	beforeEach(() => {
+		mockDbData = buildMockDbData();
+	});
+	afterEach(() => clearCache());
+
+	test('war removes enemy and attacking unit', () => {
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			fleetTuples: [],
+			armyTuples: [['Vienna', 'Rome', 'war Italy army']],
+		};
+		const result = getVirtualStateFromPlans(mockDbData.games.g1.countryInfo, plan);
+		expect(result.Austria.armies).toEqual([]);
+		expect(result.Italy.armies).toEqual([]);
+	});
+
+	test('peace on foreign home → hostile=false', () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			fleetTuples: [],
+			armyTuples: [['Vienna', 'Rome', 'peace']],
+		};
+		const result = getVirtualStateFromPlans(mockDbData.games.g1.countryInfo, plan);
+		expect(result.Austria.armies).toEqual([{ territory: 'Rome', hostile: false }]);
+	});
+
+	test('hostile on foreign home → hostile=true', () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [{ territory: 'Vienna', hostile: true }],
+			fleetTuples: [],
+			armyTuples: [['Vienna', 'Rome', 'hostile']],
+		};
+		const result = getVirtualStateFromPlans(mockDbData.games.g1.countryInfo, plan);
+		expect(result.Austria.armies).toEqual([{ territory: 'Rome', hostile: true }]);
+	});
+
+	test('blow-up consumes 3 armies (forward order)', () => {
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		mockDbData.games.g1.countryInfo.Italy.factories = ['Rome', 'Naples'];
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+			{ territory: 'Trieste', hostile: true },
+		];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Budapest', hostile: true },
+				{ territory: 'Trieste', hostile: true },
+			],
+			fleetTuples: [],
+			armyTuples: [
+				['Vienna', 'Rome', 'blow up Italy'],
+				['Budapest', 'Rome', ''],
+				['Trieste', 'Rome', ''],
+			],
+		};
+		const result = getVirtualStateFromPlans(mockDbData.games.g1.countryInfo, plan);
+		expect(result.Austria.armies).toEqual([]);
+		expect(result.Italy.factories).not.toContain('Rome');
+	});
+
+	test('unplanned armies stay at original position', () => {
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Vienna', hostile: true },
+			{ territory: 'Budapest', hostile: true },
+		];
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [],
+			pendingArmies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Budapest', hostile: true },
+			],
+			fleetTuples: [],
+			armyTuples: [['Vienna', 'Rome', '']],
+		};
+		const result = getVirtualStateFromPlans(mockDbData.games.g1.countryInfo, plan);
+		expect(result.Austria.armies).toContainEqual({ territory: 'Rome', hostile: true });
+		expect(result.Austria.armies).toContainEqual({ territory: 'Budapest', hostile: true });
+	});
+});
