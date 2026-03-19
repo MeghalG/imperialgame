@@ -11,7 +11,7 @@ import { invalidateIfStale } from './backendFiles/stateCache.js';
 import { Popover } from 'antd';
 import { getCountryColorPalette } from './countryColors.js';
 import TerritoryHotspotLayer from './TerritoryHotspotLayer.js';
-import UnitMarkerLayer from './UnitMarkerLayer.js';
+import UnifiedUnitLayer from './UnifiedUnitLayer.js';
 import SvgRondel from './SvgRondel.js';
 import MovementArrowLayer from './MovementArrowLayer.js';
 import ManeuverSubmitFAB from './ManeuverSubmitFAB.js';
@@ -116,9 +116,7 @@ function MapApp() {
 		let table = [];
 		let factoryFont = mapWidth * 0.028;
 		let taxFont = mapWidth * 0.017;
-		let unitFont = mapWidth * 0.015;
 		let boxSize = mapWidth * 0.055;
-		let unitBoxW = mapWidth * 0.11;
 		// sea factories
 		for (let i = 0; i < seaFactories.length; i++) {
 			for (let j = 0; j < seaFactories[i].length; j++) {
@@ -185,56 +183,7 @@ function MapApp() {
 				);
 			}
 		}
-		// units
-		for (let i = 0; i < units.length; i++) {
-			let t = [];
-			for (let j = 0; j < units[i][1].length; j++) {
-				for (let k = 0; k < units[i][1][j][0]; k++) {
-					t.push(
-						<i
-							key={'fl-' + j + '-' + k}
-							style={{ color: countryColors[countries[j]] }}
-							className="fas fa-play fa-rotate-90"
-						></i>
-					);
-				}
-				for (let k = 0; k < units[i][1][j][1]; k++) {
-					t.push(
-						<i
-							key={'ha-' + j + '-' + k}
-							style={{ color: countryColors[countries[j]] }}
-							className="fas fa-circle fa"
-						></i>
-					);
-				}
-				for (let k = 0; k < units[i][1][j][2]; k++) {
-					t.push(
-						<i
-							key={'pa-' + j + '-' + k}
-							style={{ color: countryColors[countries[j]] }}
-							className="fas fa-plus-circle fa"
-						></i>
-					);
-				}
-			}
-			table.push(
-				<div
-					key={'unit-' + i}
-					className="imp-map-unit"
-					style={{
-						position: 'absolute',
-						left: units[i][0][0],
-						top: units[i][0][1],
-						width: unitBoxW,
-						height: boxSize,
-						fontSize: unitFont,
-						pointerEvents: 'none',
-					}}
-				>
-					{t}
-				</div>
-			);
-		}
+		// Units are now rendered by UnifiedUnitLayer (both normal and maneuver modes).
 		return <div style={{ textShadow: '-0.5px 0 #000, 0 0.5px #255, 0.5px 0 #000, 0 -0.5px #000' }}> {table} </div>;
 	}
 
@@ -333,7 +282,7 @@ function MapApp() {
 				<SvgRondel rondelData={rondel} colorblindMode={context.colorblindMode} />
 				{buildComponents()}
 				<TerritoryHotspotLayer />
-				<UnitMarkerLayer mapWidth={mapWidth} />
+				<UnifiedUnitLayer mapWidth={mapWidth} />
 				<MovementArrowLayer />
 				<TransportRouteLayer />
 				<ManeuverSubmitFAB />
