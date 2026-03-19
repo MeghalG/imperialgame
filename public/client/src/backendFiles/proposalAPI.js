@@ -955,8 +955,15 @@ async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
 				let action = fm[2] || '';
 				if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) return true;
 
-				// Remove this fleet from the set and check if all other armies still work
-				let reducedFleets = plan.fleetTuples.filter((f) => f[1] !== fm[1]);
+				// Remove ONE fleet at this sea (not all — there may be duplicates)
+				let removed = false;
+				let reducedFleets = plan.fleetTuples.filter((f) => {
+					if (!removed && f[1] === fm[1]) {
+						removed = true;
+						return false;
+					}
+					return true;
+				});
 				let { assignments } = computeConvoyAssignments(reducedFleets, otherAssignedTuples, territorySetup, country);
 				// Check that every other army that needs convoy still got one
 				for (let i = 0; i < otherAssignedTuples.length; i++) {
