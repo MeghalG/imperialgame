@@ -17,6 +17,7 @@ import { MODES, GOV_TYPES } from '../gameConstants.js';
  */
 async function getTitle(context) {
 	let gameState = await readGameState(context);
+	if (!gameState) return '';
 	let mode = gameState.mode;
 	let country = gameState.countryUp;
 	let players = [];
@@ -128,6 +129,7 @@ async function getTurnTitle(context) {
  */
 async function getMode(context) {
 	let gameState = await readGameState(context);
+	if (!gameState) return 'non-turn';
 	let mode = gameState.mode;
 	if (mode === MODES.GAME_OVER) return mode;
 	let turn = (gameState.playerInfo[context.name] || {}).myTurn;
@@ -204,6 +206,7 @@ async function getMyTurn(context) {
  */
 async function getTurnState(context) {
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.playerInfo) return { turnTitle: '', mode: 'non-turn', canUndo: false, turnID: 0 };
 
 	// turnTitle
 	let name = context.name;

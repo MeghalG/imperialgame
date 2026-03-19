@@ -15,6 +15,7 @@ import { readGameState, readSetup } from './stateCache.js';
  */
 async function getCountries(context) {
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.setup) return [];
 	let countries = await readSetup(gameState.setup + '/countries');
 	let t = [null, null, null, null, null, null];
 	for (let key in countries) {

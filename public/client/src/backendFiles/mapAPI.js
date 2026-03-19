@@ -19,6 +19,7 @@ async function getUnits(context) {
 	let un = [];
 	let countries = await helper.getCountries(context);
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return [];
 	let countryInfo = gameState.countryInfo;
 	let territorySetup = await readSetup(gameState.setup + '/territories');
 
@@ -75,6 +76,7 @@ async function getUnits(context) {
 async function getSeaFactories(context) {
 	let fc = [];
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return [];
 	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
 	let territorySetup = await readSetup(gameState.setup + '/territories');
@@ -110,6 +112,7 @@ async function getSeaFactories(context) {
 async function getLandFactories(context) {
 	let fc = [];
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return [];
 	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
 	let territorySetup = await readSetup(gameState.setup + '/territories');
@@ -148,6 +151,7 @@ async function getLandFactories(context) {
 async function getTaxChips(context) {
 	let tx = [];
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return [];
 	let countryInfo = gameState.countryInfo;
 	let countries = await helper.getCountries(context);
 	let territorySetup = await readSetup(gameState.setup + '/territories');
@@ -184,6 +188,7 @@ async function getTaxChips(context) {
 async function getPoints(context) {
 	let p = {};
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return {};
 	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
@@ -208,6 +213,7 @@ async function getPoints(context) {
 async function getMoney(context) {
 	let m = {};
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return {};
 	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
@@ -229,6 +235,7 @@ async function getMoney(context) {
 async function getAvailStock(context) {
 	let m = {};
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return {};
 	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
@@ -251,6 +258,7 @@ async function getAvailStock(context) {
 async function getLastTax(context) {
 	let m = {};
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return {};
 	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
@@ -273,6 +281,7 @@ async function getLastTax(context) {
 async function getCurrentTax(context) {
 	let tx = {};
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.countryInfo) return {};
 	let countryInfo = gameState.countryInfo;
 
 	for (let key in countryInfo) {
