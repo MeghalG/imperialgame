@@ -61,6 +61,56 @@ async function clickUnitMarker(page, unitTitle) {
 }
 
 /**
+ * Click a specific unit marker by index when multiple share the same title.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} unitTitle - e.g. "army at Rome"
+ * @param {number} nthIndex - 0-based index among markers with this title
+ */
+async function clickNthUnitMarker(page, unitTitle, nthIndex) {
+	let locator = page.locator(`.imp-unit-marker[title="${unitTitle}"]`);
+	await locator.nth(nthIndex).click();
+}
+
+/**
+ * Activate a specific unit by index: click its marker and wait for territory highlights.
+ * Use when multiple units share the same title (e.g. 3 armies at Rome).
+ * @param {import('@playwright/test').Page} page
+ * @param {string} unitTitle
+ * @param {number} nthIndex - 0-based index among markers with this title
+ */
+async function activateNthUnit(page, unitTitle, nthIndex) {
+	await clickNthUnitMarker(page, unitTitle, nthIndex);
+	await page.waitForSelector('.imp-boundary--selectable, .imp-hotspot--selectable', { timeout: RESPOND_TIMEOUT });
+}
+
+/**
+ * Assign a specific nth unit to a destination.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} unitTitle
+ * @param {number} nthIndex - 0-based index among markers with this title
+ * @param {string} territory - destination territory name
+ * @returns {Promise<'assigned'|'picker'>}
+ */
+async function assignNthMove(page, unitTitle, nthIndex, territory) {
+	let prevCount = await countAssigned(page);
+	await activateNthUnit(page, unitTitle, nthIndex);
+	// Wait for the specific territory to become selectable (convoy destinations load async)
+	await page.waitForFunction(
+		(name) =>
+			!!document.querySelector(`.imp-boundary--selectable[data-territory="${name}"]`) ||
+			!!document.querySelector(`.imp-hotspot--selectable[data-territory="${name}"]`),
+		territory,
+		{ timeout: RESPOND_TIMEOUT }
+	);
+	await clickTerritory(page, territory);
+	let result = await Promise.race([
+		waitForAssignmentCount(page, prevCount).then(() => 'assigned'),
+		page.waitForSelector('.imp-action-picker', { timeout: RESPOND_TIMEOUT }).then(() => 'picker'),
+	]);
+	return result;
+}
+
+/**
  * Activate a unit: click its marker and wait for territory highlights to appear.
  * Combines the common 2-step pattern into a single helper.
  * @param {import('@playwright/test').Page} page
@@ -145,6 +195,16 @@ async function clickTerritory(page, territoryName) {
 			document.querySelector(`.imp-boundary--selectable[data-territory="${name}"]`) ||
 			document.querySelector(`.imp-hotspot--selectable[data-territory="${name}"]`);
 		if (!el) return false;
+		// Use React's onClick directly if available via React fiber
+		let reactProp = Object.keys(el).find((k) => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
+		if (reactProp) {
+			let eventProp = Object.keys(el).find((k) => k.startsWith('__reactEvents') || k.startsWith('__reactProps'));
+			if (eventProp && el[eventProp] && el[eventProp].onClick) {
+				el[eventProp].onClick({ stopPropagation: () => {}, preventDefault: () => {} });
+				return true;
+			}
+		}
+		// Fallback: dispatch native click event
 		let rect = el.getBoundingClientRect();
 		let event = new MouseEvent('click', {
 			bubbles: true,
@@ -229,14 +289,33 @@ async function getPlanListRows(page) {
 			if (!row) continue;
 			let text = row.textContent.trim();
 			let badge = row.querySelector('.ant-tag');
+			let convoyEl = row.querySelector('[data-testid="convoy-indicator"]');
 			results.push({
 				text: text,
 				isAssigned: !text.includes('unassigned'),
 				isLocked: parseFloat(row.style.opacity) < 0.35,
 				actionBadge: badge ? badge.textContent.trim() : '',
+				convoyLabel: convoyEl ? convoyEl.textContent.trim() : '',
 			});
 		}
 		return results;
+	});
+}
+
+/**
+ * Get just the convoy labels from the plan list, in order.
+ * Returns array of strings like "⛵ via Western Med" for army rows with convoys.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string[]>}
+ */
+async function getConvoyLabels(page) {
+	return page.evaluate(() => {
+		let labels = [];
+		let els = document.querySelectorAll('[data-testid="convoy-indicator"]');
+		for (let el of els) {
+			labels.push(el.textContent.trim());
+		}
+		return labels;
 	});
 }
 
@@ -346,8 +425,11 @@ module.exports = {
 	waitForPlannerReady,
 	getUnitMarkers,
 	clickUnitMarker,
+	clickNthUnitMarker,
 	activateUnit,
+	activateNthUnit,
 	assignMove,
+	assignNthMove,
 	countAssigned,
 	getHighlightedTerritories,
 	clickTerritory,
@@ -358,6 +440,7 @@ module.exports = {
 	pickAction,
 	dismissActionPicker,
 	getPlanListRows,
+	getConvoyLabels,
 	clickRemoveOnRow,
 	clickReorderUp,
 	clickReorderDown,

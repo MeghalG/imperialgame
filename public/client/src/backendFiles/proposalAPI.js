@@ -1084,6 +1084,81 @@ async function getUnitActionOptionsFromPlans(context, plan, phase, unitIndex, de
 }
 
 /**
+ * BFS from armyOrigin to armyDest through the D0 movement graph,
+ * tracking which conveyed seas are actually traversed.
+ * Returns the minimum set of sea territory names used, or empty array if no path.
+ *
+ * Replicates getD0 expansion rules:
+ * - Home land → home land: free traversal
+ * - Any D0 territory → conveyed sea: allowed (sea added to path)
+ * - Conveyed sea → conveyed sea: allowed (chaining)
+ * - Sea → home land: NOT allowed in D0 (but handled by one-hop expansion)
+ * Then one-hop expansion from D0 reaches the destination.
+ */
+function _findConvoySeas(armyOrigin, armyDest, territorySetup, country, availableSeaSet) {
+	// Phase 1: Expand D0 with path tracking (territory → seas traversed to reach it)
+	let d0Paths = new Map();
+	d0Paths.set(armyOrigin, []);
+	let queue = [armyOrigin];
+
+	while (queue.length > 0) {
+		let current = queue.shift();
+		let currentPath = d0Paths.get(current);
+		let currentIsSea = !!territorySetup[current]?.sea;
+
+		for (let adj of territorySetup[current]?.adjacencies || []) {
+			if (d0Paths.has(adj) || !territorySetup[adj]) continue;
+
+			if (territorySetup[adj].sea && availableSeaSet.has(adj)) {
+				// D0 expands into conveyed seas from any D0 territory
+				d0Paths.set(adj, [...currentPath, adj]);
+				queue.push(adj);
+			} else if (
+				!territorySetup[adj].sea &&
+				!currentIsSea &&
+				territorySetup[adj].country === country &&
+				territorySetup[current].country === country
+			) {
+				// Home land → home land (both must be owned by country, current must be land)
+				d0Paths.set(adj, currentPath);
+				queue.push(adj);
+			}
+			// Note: sea → home land is NOT valid in D0 (matches getD0 behavior)
+		}
+	}
+
+	// Phase 2: One-hop expansion from D0 to find destination
+	let bestPath = null;
+
+	for (let [t, tPath] of d0Paths) {
+		for (let adj of territorySetup[t]?.adjacencies || []) {
+			if (!territorySetup[adj]) continue;
+
+			if (!territorySetup[adj].sea) {
+				// Direct land adjacency from a D0 territory
+				if (adj === armyDest) {
+					if (!bestPath || tPath.length < bestPath.length) {
+						bestPath = tPath;
+					}
+				}
+			} else if (availableSeaSet.has(adj)) {
+				// Conveyed sea — check if destination is on the other side
+				for (let b of territorySetup[adj]?.adjacencies || []) {
+					if (b === armyDest && !territorySetup[b]?.sea) {
+						let adjPath = d0Paths.has(adj) ? d0Paths.get(adj) : [...tPath, adj];
+						if (!bestPath || adjPath.length < bestPath.length) {
+							bestPath = adjPath;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return bestPath || [];
+}
+
+/**
  * Compute convoy assignments for all army moves, enforcing the 1:1 fleet-to-army
  * convoy limit (spec §2.3). Each fleet at sea can transport at most one army.
  *
@@ -1129,23 +1204,38 @@ function computeConvoyAssignments(fleetTuples, armyTuples, territorySetup, count
 			continue;
 		}
 
-		// Army needs fleet transport — find which fleet(s) it uses
-		let foundFleetSea = null;
-		for (let fm of virtualFleetMan) {
-			if (!fm[1] || usedFleetSeas.has(fm[1])) continue;
+		// Army needs fleet transport — find which fleet(s) actually enable the path
+		let availableFleets = virtualFleetMan.filter((fm) => {
+			if (!fm[1] || usedFleetSeas.has(fm[1])) return false;
 			let action = fm[2] || '';
-			if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) continue;
-			// Test: can army reach dest using only this fleet + unused fleets?
-			let testFleetMan = virtualFleetMan.filter((f) => f[1] === fm[1] || !usedFleetSeas.has(f[1]));
-			let testReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: testFleetMan });
+			return action === MANEUVER_ACTIONS.PEACE || action === MANEUVER_ACTIONS.MOVE;
+		});
+
+		// Try each fleet ALONE first (single-fleet convoy — the common case)
+		let foundSeas = null;
+		for (let fm of availableFleets) {
+			let testReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: [fm] });
 			if (testReach.includes(armyDest)) {
-				foundFleetSea = fm[1];
-				usedFleetSeas.add(fm[1]);
+				foundSeas = [fm[1]];
 				break;
 			}
 		}
 
-		assignments.push({ armyIndex: i, fleetSeas: foundFleetSea ? [foundFleetSea] : [] });
+		// If no single fleet works, find the minimum set via BFS path reconstruction
+		if (!foundSeas) {
+			let allReach = getAdjacentLands(armyOrigin, territorySetup, country, { fleetMan: availableFleets });
+			if (allReach.includes(armyDest)) {
+				let availableSeaSet = new Set(availableFleets.map((f) => f[1]));
+				foundSeas = _findConvoySeas(armyOrigin, armyDest, territorySetup, country, availableSeaSet);
+			}
+		}
+
+		if (foundSeas && foundSeas.length > 0) {
+			for (let sea of foundSeas) usedFleetSeas.add(sea);
+			assignments.push({ armyIndex: i, fleetSeas: foundSeas });
+		} else {
+			assignments.push({ armyIndex: i, fleetSeas: [] });
+		}
 	}
 
 	return { assignments, usedFleetSeas };
