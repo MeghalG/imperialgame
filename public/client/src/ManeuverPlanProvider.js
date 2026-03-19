@@ -324,17 +324,110 @@ function ManeuverPlanProvider({ children }) {
 
 	// ===== Actions exposed via context =====
 
+	// ===== Shared cascade recomputation =====
+	//
+	// Called after any plan change (assign, remove, reorder, action change).
+	// Recomputes dest options, action options, and peace flags for all
+	// affected units. Handles cascade-clearing of invalid moves.
+	//
+	//  TRIGGER: Row R in phase P changed
+	//    1. Recompute dest options for all units after R in phase P
+	//    2. If P is 'fleet': recompute ALL army dest options (convoy may change)
+	//    3. Cascade-clear: any unit whose dest is no longer reachable
+	//    4. Recompute action options for all units with a dest
+	//       - If current action is invalid: reset to sensible default
+	//    5. Recompute peace vote flags
+	//
+	async function recomputeAllOptions(changedPhase, startIndex) {
+		// Step 1: Recompute dest options for units in the changed phase
+		let currentPlans = changedPhase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
+		for (let i = startIndex; i < currentPlans.length; i++) {
+			await computeOptionsForUnit(changedPhase, i);
+		}
+
+		// Step 2: If fleet changed, recompute ALL army dest options
+		if (changedPhase === 'fleet') {
+			for (let i = 0; i < armyPlansRef.current.length; i++) {
+				await computeOptionsForUnit('army', i);
+			}
+		}
+
+		// Step 3: Cascade-clear invalid destinations (both phases)
+		for (let ph of ['fleet', 'army']) {
+			let setter = ph === 'fleet' ? setFleetPlans : setArmyPlans;
+			let ref = ph === 'fleet' ? fleetPlansRef : armyPlansRef;
+			setter((prev) => {
+				let changed = false;
+				let plans = [...prev];
+				for (let i = 0; i < plans.length; i++) {
+					if (plans[i].dest && plans[i].destOptions && plans[i].destOptions.length > 0) {
+						if (!plans[i].destOptions.includes(plans[i].dest)) {
+							plans[i] = { ...plans[i], dest: '', action: '', actionOptions: [], peaceVote: false };
+							changed = true;
+						}
+					}
+				}
+				if (changed) ref.current = plans;
+				return changed ? plans : prev;
+			});
+		}
+
+		// Step 4: Recompute action options for all units that still have a dest.
+		// If current action is no longer valid, reset to a sensible default.
+		for (let ph of ['fleet', 'army']) {
+			let plans = ph === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
+			for (let i = 0; i < plans.length; i++) {
+				if (plans[i].dest) {
+					let newActionOptions = await proposalAPI.getUnitActionOptionsFromPlans(
+						contextRef.current,
+						buildPlan(),
+						ph,
+						i,
+						plans[i].dest
+					);
+					let flatOptions = Array.isArray(newActionOptions) ? newActionOptions : [];
+					let currentAction = plans[i].action || '';
+
+					// Check if current action is still valid
+					let isValid = flatOptions.length === 0 || flatOptions.includes(currentAction);
+					if (!isValid) {
+						// Reset to sensible default: first war if available, otherwise first option
+						let defaultAction = flatOptions.find((a) => a.startsWith('war ')) || flatOptions[0] || '';
+						let setter = ph === 'fleet' ? setFleetPlans : setArmyPlans;
+						let ref = ph === 'fleet' ? fleetPlansRef : armyPlansRef;
+						setter((prev) => {
+							let updated = [...prev];
+							updated[i] = { ...updated[i], action: defaultAction, actionOptions: newActionOptions };
+							ref.current = updated;
+							return updated;
+						});
+					} else {
+						// Action is still valid — just update the options list
+						let setter = ph === 'fleet' ? setFleetPlans : setArmyPlans;
+						let ref = ph === 'fleet' ? fleetPlansRef : armyPlansRef;
+						setter((prev) => {
+							let updated = [...prev];
+							if (updated[i].actionOptions !== newActionOptions) {
+								updated[i] = { ...updated[i], actionOptions: newActionOptions };
+								ref.current = updated;
+								return updated;
+							}
+							return prev;
+						});
+					}
+				}
+			}
+		}
+
+		// Step 5: Recompute peace flags
+		detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
+	}
+
 	/**
 	 * assignMove — handles destination selection and auto-computes action options.
-	 * Called when user picks a destination from the map or dropdown.
-	 * @param {string} phase - 'fleet' or 'army'
-	 * @param {number} index - unit index
-	 * @param {string} dest - destination territory name
-	 * @param {{x: number, y: number}|null} clickPosition - screen position for action picker
 	 */
 	async function assignMove(phase, index, dest, clickPosition) {
 		SoundManager.playDestination();
-		// Dismiss any open action picker
 		setActionPickerState(null);
 
 		let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
@@ -346,80 +439,30 @@ function ManeuverPlanProvider({ children }) {
 			return plans;
 		});
 
-		let autoAssigned = await computeActionOptionsForUnit(phase, index, dest, clickPosition);
+		// Compute action options for the assigned unit (may show picker)
+		await computeActionOptionsForUnit(phase, index, dest, clickPosition);
 
-		// Refresh dest options for subsequent units since virtual state changed
-		let currentPlans = phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
-		for (let i = index + 1; i < currentPlans.length; i++) {
-			await computeOptionsForUnit(phase, i);
-		}
-		// If a fleet changed, also refresh all army options
-		if (phase === 'fleet') {
-			for (let i = 0; i < armyPlansRef.current.length; i++) {
-				await computeOptionsForUnit('army', i);
-			}
-		}
-
-		// Auto-advance to next unplanned unit only if action was auto-assigned
-		if (autoAssigned) {
-			let next = findNextUnplannedUnit(phase, index);
-			if (next) {
-				setActiveUnit(next);
-			}
-		}
+		// Cascade: recompute everything downstream
+		await recomputeAllOptions(phase, index + 1);
 	}
 
 	/**
 	 * removeMove — clears a unit's dest/action, making it unassigned.
 	 */
 	function removeMove(phase, index) {
-		if (phase === 'fleet') {
-			setFleetPlans((prev) => {
-				let plans = [...prev];
-				if (plans[index]) {
-					plans[index] = { ...plans[index], dest: '', action: '', actionOptions: [], peaceVote: false };
-					fleetPlansRef.current = plans;
-				}
-				return plans;
-			});
-		} else {
-			setArmyPlans((prev) => {
-				let plans = [...prev];
-				if (plans[index]) {
-					plans[index] = { ...plans[index], dest: '', action: '', actionOptions: [], peaceVote: false };
-					armyPlansRef.current = plans;
-				}
-				return plans;
-			});
-		}
-		// Refresh downstream options and cascade-cancel invalid moves
+		let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
+		let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
+		setter((prev) => {
+			let plans = [...prev];
+			if (plans[index]) {
+				plans[index] = { ...plans[index], dest: '', action: '', actionOptions: [], peaceVote: false };
+				ref.current = plans;
+			}
+			return plans;
+		});
+		// Cascade: recompute everything (setTimeout to let state update settle)
 		setTimeout(async () => {
-			let currentPlans = phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
-			for (let i = index + 1; i < currentPlans.length; i++) {
-				await computeOptionsForUnit(phase, i);
-			}
-			if (phase === 'fleet') {
-				// Refresh all army options — fleet removal may invalidate army transports
-				for (let i = 0; i < armyPlansRef.current.length; i++) {
-					await computeOptionsForUnit('army', i);
-				}
-				// Cascade-cancel: clear army moves whose dest is no longer reachable
-				setArmyPlans((prev) => {
-					let changed = false;
-					let plans = [...prev];
-					for (let i = 0; i < plans.length; i++) {
-						if (plans[i].dest && plans[i].destOptions && plans[i].destOptions.length > 0) {
-							if (!plans[i].destOptions.includes(plans[i].dest)) {
-								plans[i] = { ...plans[i], dest: '', action: '', actionOptions: [], peaceVote: false };
-								changed = true;
-							}
-						}
-					}
-					if (changed) armyPlansRef.current = plans;
-					return changed ? plans : prev;
-				});
-			}
-			detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
+			await recomputeAllOptions(phase, index);
 		}, 0);
 	}
 
@@ -442,39 +485,26 @@ function ManeuverPlanProvider({ children }) {
 			armyPlansRef.current = plans;
 		}
 
-		// Recompute options for affected units
-		let startFrom = Math.min(fromIndex, toIndex);
-		for (let i = startFrom; i < plans.length; i++) {
-			await computeOptionsForUnit(phase, i);
-			let current = phase === 'fleet' ? fleetPlansRef.current : armyPlansRef.current;
-			if (current[i] && current[i].dest) {
-				await computeActionOptionsForUnit(phase, i, current[i].dest);
-			}
-		}
-		detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
+		// Cascade: recompute from the earliest affected index
+		await recomputeAllOptions(phase, Math.min(fromIndex, toIndex));
 	}
 
 	/**
 	 * onActionChange — updates the action for a plan row (used by UI action pickers).
 	 */
 	function onActionChange(phase, index, value) {
-		if (phase === 'fleet') {
-			setFleetPlans((prev) => {
-				let plans = [...prev];
-				plans[index] = { ...plans[index], action: value };
-				fleetPlansRef.current = plans;
-				return plans;
-			});
-		} else {
-			setArmyPlans((prev) => {
-				let plans = [...prev];
-				plans[index] = { ...plans[index], action: value };
-				armyPlansRef.current = plans;
-				return plans;
-			});
-		}
-		setTimeout(() => {
-			detectPeaceVotesOn(fleetPlansRef.current, armyPlansRef.current);
+		let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
+		let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
+		setter((prev) => {
+			let plans = [...prev];
+			plans[index] = { ...plans[index], action: value };
+			ref.current = plans;
+			return plans;
+		});
+		// Changing an action (e.g. war → peace) affects downstream units'
+		// virtual state, so cascade recompute from the next unit.
+		setTimeout(async () => {
+			await recomputeAllOptions(phase, index + 1);
 		}, 0);
 	}
 

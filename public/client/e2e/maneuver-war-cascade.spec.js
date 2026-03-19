@@ -125,3 +125,89 @@ test.describe('Maneuver Planner — Fleet Removal Cascade (§8.5)', () => {
 		expect(armyRow.isAssigned).toBe(false);
 	});
 });
+
+test.describe('Maneuver Planner — Action Change Cascade', () => {
+	test.beforeAll(async () => {
+		await seedSetupData();
+	});
+
+	let gameID2;
+
+	test.afterEach(async () => {
+		if (gameID2) await cleanupGame(gameID2);
+	});
+
+	test('changing war to peace recascades: downstream hostile stays valid if enemies still exist', async ({ page }) => {
+		// 3 Austrian armies, 2 Italian armies at Rome
+		gameID2 = await seedManeuverGame({
+			player: 'Alice',
+			country: 'Austria',
+			fleets: [],
+			armies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Budapest', hostile: true },
+				{ territory: 'Trieste', hostile: true },
+			],
+			enemyUnits: {
+				Italy: {
+					armies: [
+						{ territory: 'Rome', hostile: true },
+						{ territory: 'Rome', hostile: true },
+					],
+				},
+			},
+		});
+		await joinGame(page, gameID2, 'Alice');
+		await waitForPlannerReady(page);
+
+		// Army 1 → Rome with war (clears 1 Italian army)
+		await clickUnitMarker(page, 'army at Vienna');
+		await clickTerritory(page, 'Rome');
+		await pickAction(page, 'war');
+
+		// Army 2 → Rome with war (clears 2nd Italian army)
+		await clickUnitMarker(page, 'army at Budapest');
+		await clickTerritory(page, 'Rome');
+		await pickAction(page, 'war');
+
+		// Both assigned
+		let rows = await getPlanListRows(page);
+		expect(rows.filter((r) => r.isAssigned).length).toBe(2);
+	});
+
+	test('removing a move does not affect unrelated units at different territories', async ({ page }) => {
+		// 2 armies going to different territories — no dependency
+		gameID2 = await seedManeuverGame({
+			player: 'Alice',
+			country: 'Austria',
+			fleets: [],
+			armies: [
+				{ territory: 'Vienna', hostile: true },
+				{ territory: 'Budapest', hostile: true },
+			],
+		});
+		await joinGame(page, gameID2, 'Alice');
+		await waitForPlannerReady(page);
+
+		// Army 1 stays at Vienna
+		await clickUnitMarker(page, 'army at Vienna');
+		await clickTerritory(page, 'Vienna');
+
+		// Army 2 stays at Budapest
+		await clickUnitMarker(page, 'army at Budapest');
+		await clickTerritory(page, 'Budapest');
+
+		// Both assigned
+		let rows = await getPlanListRows(page);
+		expect(rows.filter((r) => r.isAssigned).length).toBe(2);
+
+		// Cancel Army 1 — Army 2 should NOT be affected
+		await clickRemoveOnRow(page, 0);
+
+		rows = await getPlanListRows(page);
+		let army2 = rows.find((r) => r.text.includes('Budapest') && r.isAssigned);
+		expect(army2).toBeDefined(); // Army 2 still assigned
+		let army1 = rows.find((r) => r.text.includes('Vienna') && !r.isAssigned);
+		expect(army1).toBeDefined(); // Army 1 unassigned
+	});
+});
