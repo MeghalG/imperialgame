@@ -18,7 +18,19 @@ Completed 2026-03-18. Convoy 1:1 limit cleaned up, multi-country sequential peac
 ## ~~P2: Deprecate Step-by-Step Maneuver Path~~ ✅ DONE
 Completed 2026-03-18. Commit: `08903e55`. -1997 lines, 666 tests pass.
 
-## P2: Phase 3 — Visualization Gaps
+## ~~P2: Phase 3 — Visualization Gaps~~ ✅ DONE
+Completed 2026-03-18. UnifiedUnitLayer replaces dual rendering, destruction X markers on war arrows, convoy viz already existed.
+
+## P1: E2E Test Infrastructure — Fix App Null Safety
+**What:** Fix null-safety in Firebase read paths (turnAPI.getTitle, helper.getCountries, mapAPI, stateAPI) so the app doesn't crash when game state is partially loaded. Required for E2E tests to work.
+**Why:** 12/14 E2E tests fail because the seeded game state triggers null reference errors in components that read before data is fully available. ManeuverPlanProvider's loadData succeeds but other components crash, leaving the app in a broken interaction state.
+**Context:** The errors are `Cannot read properties of null (reading 'mode')`, `null (reading 'setup')`, `null (reading 'playerInfo')`, `null (reading 'countryInfo')`. Each read function needs a null guard returning a safe default.
+**Effort:** S
+**Priority:** P1 (blocks all E2E testing)
+**Depends on:** Nothing
+**Added:** 2026-03-18
+
+## ~~P2 (old): Phase 3 — Visualization Gaps~~
 **What:** Fix 3 gaps: (1) unified unit layer (new UnifiedUnitLayer component), (2) destruction visualization on arrows, (3) convoy route visualization.
 **Why:** Two overlapping unit layers confuse players. War/peace/hostile moves all look the same on the map. Convoy routes invisible.
 **Context:**
