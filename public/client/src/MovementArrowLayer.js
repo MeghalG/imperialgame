@@ -132,6 +132,8 @@ function MovementArrowLayer() {
 		// Dashed when not locked (draft state); solid when locked or no locked field
 		let dashArray = move.locked === false ? '8 4' : undefined;
 
+		let isDestructive = move.action && (move.action.startsWith('war ') || move.action.startsWith('blow'));
+
 		paths.push(
 			<path
 				key={'arrow-' + i}
@@ -146,6 +148,33 @@ function MovementArrowLayer() {
 				opacity={0.9}
 			/>
 		);
+
+		// War/blow-up: add an X at the endpoint to indicate unit destruction
+		if (isDestructive) {
+			let xSize = 0.4;
+			paths.push(
+				<g key={'destruction-' + i} opacity={0.9}>
+					<line
+						x1={x2 - xSize}
+						y1={y2 - xSize}
+						x2={x2 + xSize}
+						y2={y2 + xSize}
+						stroke={color}
+						strokeWidth={0.3}
+						strokeLinecap="round"
+					/>
+					<line
+						x1={x2 + xSize}
+						y1={y2 - xSize}
+						x2={x2 - xSize}
+						y2={y2 + xSize}
+						stroke={color}
+						strokeWidth={0.3}
+						strokeLinecap="round"
+					/>
+				</g>
+			);
+		}
 	}
 
 	return (
