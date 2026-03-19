@@ -124,7 +124,7 @@ function DisplayMode(props) {
 		case 'vote':
 			return <VoteApp />;
 		case 'continue-man':
-			return <ManeuverPlannerApp />;
+			return <ManeuverPlannerApp key={props.turnID} />;
 		case 'peace-vote':
 			return <PeaceVoteApp />;
 		default:

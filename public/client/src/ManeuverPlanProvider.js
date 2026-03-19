@@ -1013,8 +1013,9 @@ function ManeuverPlanProvider({ children }) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Load on mount
+	// Load on mount — clear cache first to ensure fresh state from Firebase
 	useEffect(() => {
+		clearCache();
 		loadData();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
