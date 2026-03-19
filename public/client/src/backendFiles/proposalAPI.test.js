@@ -2203,6 +2203,52 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
 		expect(result).toContain('Rome');
 	});
+
+	test('convoy 1:1 limit: second army cannot use same fleet', async () => {
+		// 1 fleet at Adriatic Sea, 2 armies at Trieste
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Trieste', hostile: true },
+		];
+		clearCache();
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingArmies: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Trieste', hostile: true },
+			],
+			fleetTuples: [['Adriatic Sea', 'Adriatic Sea', '']], // fleet stays, provides convoy
+			armyTuples: [['Trieste', 'Rome', '']], // army 0 uses the fleet
+		};
+		// Army 1: fleet already used by army 0 — should NOT reach Rome
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 1);
+		expect(result).not.toContain('Rome');
+	});
+
+	test('convoy 1:1: army reachable by land is not affected', async () => {
+		// Army at Vienna going to Budapest — no fleet needed
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Austria.armies = [
+			{ territory: 'Trieste', hostile: true },
+			{ territory: 'Vienna', hostile: true },
+		];
+		clearCache();
+		const plan = {
+			country: 'Austria',
+			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingArmies: [
+				{ territory: 'Trieste', hostile: true },
+				{ territory: 'Vienna', hostile: true },
+			],
+			fleetTuples: [['Adriatic Sea', 'Adriatic Sea', '']],
+			armyTuples: [['Trieste', 'Rome', '']], // army 0 uses the fleet
+		};
+		// Army 1 at Vienna → Budapest by land — should work regardless of fleet usage
+		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 1);
+		expect(result).toContain('Budapest');
+	});
 });
 
 describe('§4 Virtual State — getVirtualStateFromPlans', () => {
