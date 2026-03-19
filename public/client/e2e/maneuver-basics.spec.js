@@ -59,13 +59,21 @@ test.describe('Maneuver Planner — Basics', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
+		// Wait for loadData to complete — markers should appear
+		await page.waitForSelector('.imp-unit-marker', { timeout: 10000 });
+
 		// Click Army 1 at Vienna
 		await clickUnitMarker(page, 'army at Vienna');
 
-		// Map should show highlighted territories (Army's reachable destinations)
+		// Wait for the marker to become active
+		await page.waitForSelector('.imp-unit-marker--active', { timeout: 5000 });
+
+		// Wait for selectable hotspots to appear
+		await page.waitForSelector('.imp-hotspot--selectable', { timeout: 10000 });
+
+		// Map should show highlighted territories
 		const highlights = await getHighlightedTerritories(page);
 		expect(highlights.length).toBeGreaterThan(0);
-		// Vienna itself should be highlighted (can stay in place)
 		expect(highlights).toContain('Vienna');
 	});
 

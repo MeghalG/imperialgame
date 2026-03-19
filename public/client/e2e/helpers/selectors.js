@@ -68,8 +68,11 @@ async function clickUnitMarker(page, unitTitle) {
  */
 async function getHighlightedTerritories(page) {
 	return page.evaluate(() => {
-		let hotspots = document.querySelectorAll('.imp-hotspot--selectable, [class*="selectable"]');
-		return Array.from(hotspots).map((el) => el.getAttribute('data-territory') || el.textContent.trim());
+		// Query only imp-hotspot elements (not SVG boundary elements which also have "selectable" class)
+		let hotspots = document.querySelectorAll('.imp-hotspot--selectable');
+		return Array.from(hotspots)
+			.map((el) => el.getAttribute('data-territory') || '')
+			.filter((name) => name.length > 0);
 	});
 }
 
