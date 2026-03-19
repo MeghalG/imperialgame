@@ -5,39 +5,38 @@
  * so tests read like user stories, not DOM queries.
  */
 
+// Default timeout for DOM-based waits.
+// Maneuver UI should respond to user input within 2 seconds.
+const RESPOND_TIMEOUT = 2000;
+// Longer timeout for initial page load (dev server compile + Firebase connect).
+const LOAD_TIMEOUT = 15000;
+
 /**
  * Navigate to a game and log in as a player.
- * Assumes the app is running at baseURL and the game exists in Firebase.
- *
  * @param {import('@playwright/test').Page} page
  * @param {string} gameID
  * @param {string} playerName
  */
 async function joinGame(page, gameID, playerName) {
-	// Navigate directly to the game using URL parameters.
-	// App.js reads ?game=xxx&name=Alice from the URL on mount.
 	await page.goto(`/?game=${encodeURIComponent(gameID)}&name=${encodeURIComponent(playerName)}`);
-	// Wait for the game map to load
-	// Wait for the SVG map to render — may take a while on first load
-	// while the dev server compiles and Firebase emulator connects
 	await page.waitForSelector('svg', { timeout: 30000 });
 }
 
 /**
- * Wait for the maneuver planner to be ready.
+ * Wait for the maneuver planner to be ready (plan list rendered).
  * @param {import('@playwright/test').Page} page
  */
 async function waitForPlannerReady(page) {
-	// Wait for the maneuver plan list to render (shows "FLEET MOVES" or "ARMY MOVES")
-	await page.waitForSelector('text="FLEET MOVES"', { timeout: 15000 }).catch(() =>
-		page.waitForSelector('text="ARMY MOVES"', { timeout: 5000 })
-	);
+	await page
+		.waitForSelector('text="FLEET MOVES"', { timeout: LOAD_TIMEOUT })
+		.catch(() => page.waitForSelector('text="ARMY MOVES"', { timeout: LOAD_TIMEOUT }));
+	// Wait for unit markers to appear (loadData complete)
+	await page.waitForSelector('.imp-unit-marker', { timeout: LOAD_TIMEOUT });
 }
 
 /**
  * Get all unit markers currently visible on the map.
  * @param {import('@playwright/test').Page} page
- * @returns {Promise<Array<{phase: string, index: number, isActive: boolean, isPlanned: boolean}>>}
  */
 async function getUnitMarkers(page) {
 	return page.evaluate(() => {
@@ -55,34 +54,108 @@ async function getUnitMarkers(page) {
 /**
  * Click a unit marker on the map by its title (e.g. "army at Vienna").
  * @param {import('@playwright/test').Page} page
- * @param {string} unitTitle - The title attribute of the marker (e.g. "army at Vienna")
+ * @param {string} unitTitle
  */
 async function clickUnitMarker(page, unitTitle) {
 	await page.click(`.imp-unit-marker[title="${unitTitle}"]`);
 }
 
 /**
+ * Activate a unit: click its marker and wait for territory highlights to appear.
+ * Combines the common 2-step pattern into a single helper.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} unitTitle - e.g. "army at Vienna", "fleet at Trieste"
+ */
+async function activateUnit(page, unitTitle) {
+	await clickUnitMarker(page, unitTitle);
+	await page.waitForSelector('.imp-boundary--selectable, .imp-hotspot--selectable', { timeout: RESPOND_TIMEOUT });
+}
+
+/**
+ * Assign a unit to a destination: activate, click territory, wait for result.
+ * If only one action option exists, auto-assigns and waits for checkmark.
+ * If multiple options exist (action picker appears), waits for picker instead.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} unitTitle - e.g. "army at Vienna"
+ * @param {string} territory - destination territory name
+ * @returns {Promise<'assigned'|'picker'>} Whether the move auto-assigned or a picker appeared
+ */
+async function assignMove(page, unitTitle, territory) {
+	let prevCount = await countAssigned(page);
+	await activateUnit(page, unitTitle);
+	await clickTerritory(page, territory);
+	// Race: either checkmark appears (auto-assign) or action picker appears (multi-option)
+	let result = await Promise.race([
+		waitForAssignmentCount(page, prevCount).then(() => 'assigned'),
+		page.waitForSelector('.imp-action-picker', { timeout: RESPOND_TIMEOUT }).then(() => 'picker'),
+	]);
+	return result;
+}
+
+/**
+ * Wait until the number of assigned rows exceeds the given count.
+ * @param {import('@playwright/test').Page} page
+ * @param {number} previousCount
+ */
+async function waitForAssignmentCount(page, previousCount) {
+	await page.waitForFunction(
+		(prev) => {
+			let checks = document.querySelectorAll('.anticon-check-circle');
+			return checks.length > prev;
+		},
+		previousCount,
+		{ timeout: RESPOND_TIMEOUT }
+	);
+}
+
+/**
+ * Count currently assigned rows (rows with checkmark icon).
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<number>}
+ */
+async function countAssigned(page) {
+	return page.evaluate(() => document.querySelectorAll('.anticon-check-circle').length);
+}
+
+/**
  * Get all highlighted (selectable) territories on the map.
  * @param {import('@playwright/test').Page} page
- * @returns {Promise<string[]>} Array of territory names
+ * @returns {Promise<string[]>}
  */
 async function getHighlightedTerritories(page) {
 	return page.evaluate(() => {
-		// Query only imp-hotspot elements (not SVG boundary elements which also have "selectable" class)
-		let hotspots = document.querySelectorAll('.imp-hotspot--selectable');
-		return Array.from(hotspots)
+		let els = document.querySelectorAll(
+			'.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]'
+		);
+		return Array.from(els)
 			.map((el) => el.getAttribute('data-territory') || '')
 			.filter((name) => name.length > 0);
 	});
 }
 
 /**
- * Click a territory hotspot on the map.
+ * Click a territory on the map.
+ * Uses evaluate + dispatchEvent to bypass z-order issues with SVG polygons.
  * @param {import('@playwright/test').Page} page
  * @param {string} territoryName
  */
 async function clickTerritory(page, territoryName) {
-	await page.click(`[data-territory="${territoryName}"], .imp-hotspot:has-text("${territoryName}")`);
+	let clicked = await page.evaluate((name) => {
+		let el =
+			document.querySelector(`.imp-boundary--selectable[data-territory="${name}"]`) ||
+			document.querySelector(`.imp-hotspot--selectable[data-territory="${name}"]`);
+		if (!el) return false;
+		let rect = el.getBoundingClientRect();
+		let event = new MouseEvent('click', {
+			bubbles: true,
+			cancelable: true,
+			clientX: rect.left + rect.width / 2,
+			clientY: rect.top + rect.height / 2,
+		});
+		el.dispatchEvent(event);
+		return true;
+	}, territoryName);
+	if (!clicked) throw new Error('Territory not found or not selectable: ' + territoryName);
 }
 
 /**
@@ -91,19 +164,33 @@ async function clickTerritory(page, territoryName) {
  * @returns {Promise<boolean>}
  */
 async function isActionPickerVisible(page) {
-	return page.isVisible('[class*="ActionPicker"], [class*="action-picker"]');
+	return page.isVisible('.imp-action-picker');
+}
+
+/**
+ * Wait for the action picker to appear.
+ * @param {import('@playwright/test').Page} page
+ */
+async function waitForActionPicker(page) {
+	await page.waitForSelector('.imp-action-picker', { timeout: RESPOND_TIMEOUT });
+}
+
+/**
+ * Wait for the action picker to disappear.
+ * @param {import('@playwright/test').Page} page
+ */
+async function waitForActionPickerDismissed(page) {
+	await page.waitForSelector('.imp-action-picker', { state: 'hidden', timeout: RESPOND_TIMEOUT });
 }
 
 /**
  * Get the action options shown in the action picker.
  * @param {import('@playwright/test').Page} page
- * @returns {Promise<string[]>} Array of action labels
+ * @returns {Promise<string[]>}
  */
 async function getActionPickerOptions(page) {
 	return page.evaluate(() => {
-		let picker = document.querySelector('[class*="ActionPicker"], [class*="action-picker"]');
-		if (!picker) return [];
-		let buttons = picker.querySelectorAll('button, [role="option"]');
+		let buttons = document.querySelectorAll('.imp-action-picker__btn');
 		return Array.from(buttons).map((b) => b.textContent.trim());
 	});
 }
@@ -111,11 +198,19 @@ async function getActionPickerOptions(page) {
 /**
  * Click an action in the action picker by its label text.
  * @param {import('@playwright/test').Page} page
- * @param {string} actionText - Partial text match (e.g. "war on Italy army")
+ * @param {string} actionText - Partial text match
  */
 async function pickAction(page, actionText) {
-	let picker = page.locator('[class*="ActionPicker"], [class*="action-picker"]');
-	await picker.locator(`button:has-text("${actionText}"), [role="option"]:has-text("${actionText}")`).click();
+	let picker = page.locator('.imp-action-picker');
+	await picker.locator(`button:has-text("${actionText}")`).click();
+}
+
+/**
+ * Click the action picker backdrop to dismiss it.
+ * @param {import('@playwright/test').Page} page
+ */
+async function dismissActionPicker(page) {
+	await page.click('.imp-action-picker__backdrop');
 }
 
 /**
@@ -124,16 +219,12 @@ async function pickAction(page, actionText) {
  * @returns {Promise<Array<{text: string, isAssigned: boolean, isLocked: boolean, actionBadge: string}>>}
  */
 async function getPlanListRows(page) {
-	// Plan rows are divs with borderLeft styling containing "Fleet N:" or "Army N:" text.
-	// They use inline styles (no CSS classes), so we find them by content + structure.
 	return page.evaluate(() => {
 		let results = [];
-		// Find all strong elements containing unit labels
 		let strongs = document.querySelectorAll('strong');
 		for (let strong of strongs) {
 			let label = strong.textContent.trim();
 			if (!/^(Fleet|Army)\s+\d+:$/.test(label)) continue;
-			// The row is the nearest ancestor div with borderLeft
 			let row = strong.closest('div[style]');
 			if (!row) continue;
 			let text = row.textContent.trim();
@@ -150,13 +241,55 @@ async function getPlanListRows(page) {
 }
 
 /**
- * Click the remove (✕) button on a plan list row.
+ * Click the remove button on the nth assigned plan list row.
  * @param {import('@playwright/test').Page} page
- * @param {number} rowIndex - 0-based index of the row in the plan list
+ * @param {number} rowIndex - 0-based index among assigned rows
  */
 async function clickRemoveOnRow(page, rowIndex) {
-	let rows = page.locator('[class*="UnitRow"], [class*="unit-row"]');
-	await rows.nth(rowIndex).locator('button:has-text("✕"), [class*="remove"], .anticon-close').click();
+	let assignedRows = page.locator('div:has(> div > .anticon-check-circle)');
+	await assignedRows.nth(rowIndex).locator('.anticon-close').click();
+}
+
+/**
+ * Click the up-arrow reorder button on the nth assigned plan list row.
+ * @param {import('@playwright/test').Page} page
+ * @param {number} rowIndex - 0-based index among assigned rows
+ */
+async function clickReorderUp(page, rowIndex) {
+	let assignedRows = page.locator('div:has(> div > .anticon-check-circle)');
+	await assignedRows.nth(rowIndex).locator('.anticon-arrow-up').click();
+}
+
+/**
+ * Click the down-arrow reorder button on the nth assigned plan list row.
+ * @param {import('@playwright/test').Page} page
+ * @param {number} rowIndex - 0-based index among assigned rows
+ */
+async function clickReorderDown(page, rowIndex) {
+	let assignedRows = page.locator('div:has(> div > .anticon-check-circle)');
+	await assignedRows.nth(rowIndex).locator('.anticon-arrow-down').click();
+}
+
+/**
+ * Check if the up-arrow button is disabled on the nth assigned row.
+ * @param {import('@playwright/test').Page} page
+ * @param {number} rowIndex
+ * @returns {Promise<boolean>}
+ */
+async function isReorderUpDisabled(page, rowIndex) {
+	let assignedRows = page.locator('div:has(> div > .anticon-check-circle)');
+	return assignedRows.nth(rowIndex).locator('.anticon-arrow-up').locator('..').isDisabled();
+}
+
+/**
+ * Check if the down-arrow button is disabled on the nth assigned row.
+ * @param {import('@playwright/test').Page} page
+ * @param {number} rowIndex
+ * @returns {Promise<boolean>}
+ */
+async function isReorderDownDisabled(page, rowIndex) {
+	let assignedRows = page.locator('div:has(> div > .anticon-check-circle)');
+	return assignedRows.nth(rowIndex).locator('.anticon-arrow-down').locator('..').isDisabled();
 }
 
 /**
@@ -165,7 +298,7 @@ async function clickRemoveOnRow(page, rowIndex) {
  * @returns {Promise<{visible: boolean, text: string, disabled: boolean}>}
  */
 async function getSubmitButtonState(page) {
-	let fab = page.locator('[class*="SubmitFAB"], [class*="submit-fab"], button:has-text("Submit"), button:has-text("Peace")');
+	let fab = page.locator('.imp-submit-fab');
 	let visible = await fab.isVisible().catch(() => false);
 	if (!visible) return { visible: false, text: '', disabled: true };
 	let text = await fab.textContent().catch(() => '');
@@ -178,7 +311,7 @@ async function getSubmitButtonState(page) {
  * @param {import('@playwright/test').Page} page
  */
 async function clickSubmit(page) {
-	await page.click('[class*="SubmitFAB"], [class*="submit-fab"], button:has-text("Submit"), button:has-text("Peace")');
+	await page.click('.imp-submit-fab');
 }
 
 /**
@@ -187,9 +320,25 @@ async function clickSubmit(page) {
  * @returns {Promise<number>}
  */
 async function getArrowCount(page) {
-	return page.evaluate(() => {
-		return document.querySelectorAll('.imp-arrow').length;
-	});
+	return page.evaluate(() => document.querySelectorAll('.imp-movement-arrow').length);
+}
+
+/**
+ * Wait for cascade recomputation to settle by watching for DOM stability.
+ * Checks that plan row content stops changing.
+ * @param {import('@playwright/test').Page} page
+ */
+async function waitForCascade(page) {
+	// Wait for React to process the cascade by checking that assigned count stabilizes
+	await page.waitForFunction(
+		() => {
+			// Quick stability check: if no checkmarks are changing, cascade is done
+			return document.readyState === 'complete';
+		},
+		{ timeout: RESPOND_TIMEOUT }
+	);
+	// Small buffer for async cascade operations
+	await page.waitForTimeout(200);
 }
 
 module.exports = {
@@ -197,14 +346,27 @@ module.exports = {
 	waitForPlannerReady,
 	getUnitMarkers,
 	clickUnitMarker,
+	activateUnit,
+	assignMove,
+	countAssigned,
 	getHighlightedTerritories,
 	clickTerritory,
 	isActionPickerVisible,
+	waitForActionPicker,
+	waitForActionPickerDismissed,
 	getActionPickerOptions,
 	pickAction,
+	dismissActionPicker,
 	getPlanListRows,
 	clickRemoveOnRow,
+	clickReorderUp,
+	clickReorderDown,
+	isReorderUpDisabled,
+	isReorderDownDisabled,
 	getSubmitButtonState,
 	clickSubmit,
 	getArrowCount,
+	waitForCascade,
+	RESPOND_TIMEOUT,
+	LOAD_TIMEOUT,
 };

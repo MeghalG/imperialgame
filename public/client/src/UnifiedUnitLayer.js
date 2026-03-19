@@ -96,21 +96,13 @@ function UnifiedUnitLayer({ mapWidth }) {
 			// Hostile armies
 			for (let k = 0; k < countryUnits[j][1]; k++) {
 				icons.push(
-					<i
-						key={'ha-' + j + '-' + k}
-						style={{ color: color, opacity: opacity }}
-						className="fas fa-circle fa"
-					></i>
+					<i key={'ha-' + j + '-' + k} style={{ color: color, opacity: opacity }} className="fas fa-circle fa"></i>
 				);
 			}
 			// Peaceful armies
 			for (let k = 0; k < countryUnits[j][2]; k++) {
 				icons.push(
-					<i
-						key={'pa-' + j + '-' + k}
-						style={{ color: color, opacity: opacity }}
-						className="fas fa-plus-circle fa"
-					></i>
+					<i key={'pa-' + j + '-' + k} style={{ color: color, opacity: opacity }} className="fas fa-plus-circle fa"></i>
 				);
 			}
 		}

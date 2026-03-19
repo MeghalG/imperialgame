@@ -4,14 +4,14 @@ const { seedManeuverGame, seedSetupData, cleanupGame } = require('./helpers/seed
 const {
 	joinGame,
 	waitForPlannerReady,
-	clickUnitMarker,
+	activateUnit,
+	assignMove,
 	clickTerritory,
 	pickAction,
 	getPlanListRows,
 	clickRemoveOnRow,
-	isActionPickerVisible,
-	getActionPickerOptions,
-	getArrowCount,
+	waitForCascade,
+	RESPOND_TIMEOUT,
 } = require('./helpers/selectors');
 
 // Tests for §8.4 (war→cancel cascade) and §8.5 (fleet removal cascade)
@@ -25,17 +25,18 @@ test.describe('Maneuver Planner — War Cancel Cascade (§8.4)', () => {
 	});
 
 	test.beforeEach(async () => {
-		// Setup: Austria has 2 armies. Italy has 1 army at Rome.
+		// Setup: Austria has 2 armies (Vienna, Trieste). Italy has 1 army at Budapest.
+		// Both Vienna and Trieste are adjacent to Budapest.
 		gameID = await seedManeuverGame({
 			player: 'Alice',
 			country: 'Austria',
 			fleets: [],
 			armies: [
 				{ territory: 'Vienna', hostile: true },
-				{ territory: 'Budapest', hostile: true },
+				{ territory: 'Trieste', hostile: true },
 			],
 			enemyUnits: {
-				Italy: { armies: [{ territory: 'Rome', hostile: true }] },
+				Italy: { armies: [{ territory: 'Budapest', hostile: true }] },
 			},
 		});
 	});
@@ -48,33 +49,40 @@ test.describe('Maneuver Planner — War Cancel Cascade (§8.4)', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Step 1: Army 1 → Rome, pick "war Italy army"
-		await clickUnitMarker(page, 'army at Vienna');
-		await clickTerritory(page, 'Rome');
-		await pickAction(page, 'war');
+		// Step 1: Army 1 → Budapest, declare war on Italy army
+		await activateUnit(page, 'army at Vienna');
+		await clickTerritory(page, 'Budapest');
+		await pickAction(page, 'Declare war on Italy army');
 
-		// Step 2: Army 2 → Rome, pick "hostile" (available because Army 1's war clears enemies)
-		await clickUnitMarker(page, 'army at Budapest');
-		await clickTerritory(page, 'Rome');
-		// In virtual state, enemies are cleared by Army 1's war → hostile should be available
-		await pickAction(page, 'hostile');
+		// Wait for assignment
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 1, {
+			timeout: RESPOND_TIMEOUT,
+		});
+
+		// Step 2: Army 2 → Budapest. In virtual state, Army 1's war cleared the enemy,
+		// so hostile is the only option and should auto-assign (no picker).
+		await activateUnit(page, 'army at Trieste');
+		await clickTerritory(page, 'Budapest');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 2, {
+			timeout: RESPOND_TIMEOUT,
+		});
 
 		// Verify both rows assigned
 		let rows = await getPlanListRows(page);
 		expect(rows.filter((r) => r.isAssigned).length).toBe(2);
 
-		// Step 3: Cancel Army 1's move (first row, index 0)
+		// Step 3: Cancel Army 1's move (first assigned row)
 		await clickRemoveOnRow(page, 0);
+		await waitForCascade(page);
 
 		// CASCADE: Army 2's "hostile" should now be INVALID because
-		// enemies are no longer cleared at Rome.
-		// Army 2 should keep its destination (Rome) but action should reset
-		// to a valid default (e.g. "war Italy army")
+		// enemies are no longer cleared at Budapest.
+		// Army 2 should keep its destination (Budapest) but action should change.
 		rows = await getPlanListRows(page);
-		const army2Row = rows.find((r) => r.isAssigned && r.text.includes('Rome'));
+		const army2Row = rows.find((r) => r.isAssigned && r.text.includes('Budapest'));
 		expect(army2Row).toBeDefined();
-		// The action should NOT be "hostile" anymore
-		expect(army2Row.actionBadge).not.toContain('hostile');
+		// The action should NOT be "hostile" anymore (enemies are back)
+		expect(army2Row.actionBadge.toLowerCase()).not.toContain('hostile');
 	});
 });
 
@@ -84,13 +92,13 @@ test.describe('Maneuver Planner — Fleet Removal Cascade (§8.5)', () => {
 	});
 
 	test.beforeEach(async () => {
-		// Setup: Austria has 1 fleet at Adriatic Sea, 1 army at Trieste.
-		// Army can reach Albania via fleet convoy.
+		// Setup: Austria has 1 fleet at Trieste (port on Adriatic), 1 army at Vienna.
+		// Fleet can move to Adriatic Sea; army can then convoy to Rome.
 		gameID = await seedManeuverGame({
 			player: 'Alice',
 			country: 'Austria',
-			fleets: [{ territory: 'Adriatic Sea', hostile: true }],
-			armies: [{ territory: 'Trieste', hostile: true }],
+			fleets: [{ territory: 'Trieste', hostile: true }],
+			armies: [{ territory: 'Vienna', hostile: true }],
 		});
 	});
 
@@ -102,26 +110,32 @@ test.describe('Maneuver Planner — Fleet Removal Cascade (§8.5)', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Step 1: Fleet stays in place (provides convoy at Adriatic)
-		await clickUnitMarker(page, 'fleet at Adriatic Sea');
-		await clickTerritory(page, 'Adriatic Sea');
+		// Step 1: Fleet moves from Trieste to Ionian Sea (provides convoy)
+		await assignMove(page, 'fleet at Trieste', 'Ionian Sea');
 
-		// Step 2: Army crosses Adriatic via convoy to reach Albania
-		await clickUnitMarker(page, 'army at Trieste');
-		await clickTerritory(page, 'Albania');
+		// Step 2: Army → Naples (only reachable via convoy through Ionian Sea)
+		// Naples is an Italian territory adjacent to Ionian Sea, unreachable by land from Vienna.
+		await activateUnit(page, 'army at Vienna');
+		// Wait for army selectables to include convoy destinations
+		await page.waitForFunction(() => !!document.querySelector('.imp-boundary--selectable[data-territory="Naples"]'), {
+			timeout: RESPOND_TIMEOUT,
+		});
+		await clickTerritory(page, 'Naples');
+		await page.waitForFunction(() => document.querySelectorAll('.anticon-check-circle').length >= 2, {
+			timeout: RESPOND_TIMEOUT,
+		});
 
-		// Verify both assigned
+		// Verify both assigned (fleet + army)
 		let rows = await getPlanListRows(page);
 		expect(rows.filter((r) => r.isAssigned).length).toBe(2);
 
-		// Step 3: Cancel Fleet's move
-		await clickRemoveOnRow(page, 0); // Fleet is first row
+		// Step 3: Cancel Fleet's move (fleet is first in the list)
+		await clickRemoveOnRow(page, 0);
+		await waitForCascade(page);
 
-		// CASCADE: Army's destination "Albania" should be cleared
-		// because the fleet no longer provides convoy
+		// CASCADE: Army's convoy destination should be cleared
 		rows = await getPlanListRows(page);
-		const armyRow = rows.find((r) => r.text.includes('Trieste'));
-		// Army should be unassigned (destination cleared by cascade)
+		const armyRow = rows.find((r) => r.text.includes('Army'));
 		expect(armyRow.isAssigned).toBe(false);
 	});
 });
@@ -138,21 +152,20 @@ test.describe('Maneuver Planner — Action Change Cascade', () => {
 	});
 
 	test('changing war to peace recascades: downstream hostile stays valid if enemies still exist', async ({ page }) => {
-		// 3 Austrian armies, 2 Italian armies at Rome
+		// 2 Austrian armies, 2 Italian armies at Budapest
 		gameID2 = await seedManeuverGame({
 			player: 'Alice',
 			country: 'Austria',
 			fleets: [],
 			armies: [
 				{ territory: 'Vienna', hostile: true },
-				{ territory: 'Budapest', hostile: true },
 				{ territory: 'Trieste', hostile: true },
 			],
 			enemyUnits: {
 				Italy: {
 					armies: [
-						{ territory: 'Rome', hostile: true },
-						{ territory: 'Rome', hostile: true },
+						{ territory: 'Budapest', hostile: true },
+						{ territory: 'Budapest', hostile: true },
 					],
 				},
 			},
@@ -160,15 +173,15 @@ test.describe('Maneuver Planner — Action Change Cascade', () => {
 		await joinGame(page, gameID2, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Army 1 → Rome with war (clears 1 Italian army)
-		await clickUnitMarker(page, 'army at Vienna');
-		await clickTerritory(page, 'Rome');
-		await pickAction(page, 'war');
+		// Army 1 auto-activates → Budapest with war (clears 1 Italian army)
+		await page.waitForSelector('.imp-boundary--selectable', { timeout: RESPOND_TIMEOUT });
+		await clickTerritory(page, 'Budapest');
+		await pickAction(page, 'Declare war on Italy army');
 
-		// Army 2 → Rome with war (clears 2nd Italian army)
-		await clickUnitMarker(page, 'army at Budapest');
-		await clickTerritory(page, 'Rome');
-		await pickAction(page, 'war');
+		// Army 2 auto-activates → Budapest with war (clears 2nd)
+		await page.waitForSelector('.imp-boundary--selectable', { timeout: RESPOND_TIMEOUT });
+		await clickTerritory(page, 'Budapest');
+		await pickAction(page, 'Declare war on Italy army');
 
 		// Both assigned
 		let rows = await getPlanListRows(page);
@@ -189,13 +202,11 @@ test.describe('Maneuver Planner — Action Change Cascade', () => {
 		await joinGame(page, gameID2, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Army 1 stays at Vienna
-		await clickUnitMarker(page, 'army at Vienna');
-		await clickTerritory(page, 'Vienna');
+		// Army 1 → stay at Vienna
+		await assignMove(page, 'army at Vienna', 'Vienna');
 
-		// Army 2 stays at Budapest
-		await clickUnitMarker(page, 'army at Budapest');
-		await clickTerritory(page, 'Budapest');
+		// Army 2 → stay at Budapest
+		await assignMove(page, 'army at Budapest', 'Budapest');
 
 		// Both assigned
 		let rows = await getPlanListRows(page);
@@ -203,11 +214,12 @@ test.describe('Maneuver Planner — Action Change Cascade', () => {
 
 		// Cancel Army 1 — Army 2 should NOT be affected
 		await clickRemoveOnRow(page, 0);
+		await waitForCascade(page);
 
 		rows = await getPlanListRows(page);
 		let army2 = rows.find((r) => r.text.includes('Budapest') && r.isAssigned);
-		expect(army2).toBeDefined(); // Army 2 still assigned
+		expect(army2).toBeDefined();
 		let army1 = rows.find((r) => r.text.includes('Vienna') && !r.isAssigned);
-		expect(army1).toBeDefined(); // Army 1 unassigned
+		expect(army1).toBeDefined();
 	});
 });

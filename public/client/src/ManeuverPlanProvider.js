@@ -217,23 +217,16 @@ function ManeuverPlanProvider({ children }) {
 		let plan = buildPlan();
 		try {
 			let destOptions = await proposalAPI.getUnitOptionsFromPlans(contextRef.current, plan, phase, index);
-			if (phase === 'fleet') {
-				setFleetPlans((prev) => {
-					let plans = [...prev];
-					if (plans[index]) {
-						plans[index] = { ...plans[index], destOptions: destOptions || [] };
-					}
-					return plans;
-				});
-			} else {
-				setArmyPlans((prev) => {
-					let plans = [...prev];
-					if (plans[index]) {
-						plans[index] = { ...plans[index], destOptions: destOptions || [] };
-					}
-					return plans;
-				});
-			}
+			let setter = phase === 'fleet' ? setFleetPlans : setArmyPlans;
+			let ref = phase === 'fleet' ? fleetPlansRef : armyPlansRef;
+			setter((prev) => {
+				let plans = [...prev];
+				if (plans[index]) {
+					plans[index] = { ...plans[index], destOptions: destOptions || [] };
+				}
+				ref.current = plans;
+				return plans;
+			});
 		} catch (e) {
 			console.error('Failed to compute options for', phase, index, e);
 		}
@@ -760,8 +753,15 @@ function ManeuverPlanProvider({ children }) {
 	const loadData = useCallback(async () => {
 		try {
 			let gameState = await readGameState(contextRef.current);
+			if (!gameState) {
+				console.warn('[ManeuverPlanProvider] loadData: no game state');
+				return;
+			}
 			let cm = gameState.currentManeuver;
-			if (!cm) return;
+			if (!cm) {
+				console.warn('[ManeuverPlanProvider] loadData: no currentManeuver');
+				return;
+			}
 
 			let tSetup = await readSetup(gameState.setup + '/territories');
 

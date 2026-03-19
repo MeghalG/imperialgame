@@ -55,8 +55,9 @@ async function getUnits(context) {
 		}
 	}
 	for (let key in t) {
-		let coord = territorySetup[key].unitCoords;
-		un.push([coord, t[key]]);
+		let terr = territorySetup[key];
+		if (!terr || !terr.unitCoords) continue;
+		un.push([terr.unitCoords, t[key]]);
 	}
 	return un;
 }
@@ -306,7 +307,9 @@ async function getCurrentTax(context) {
 async function getRondel(context) {
 	let w = {};
 	let gameState = await readGameState(context);
+	if (!gameState) return w;
 	let countryInfo = gameState.countryInfo;
+	if (!countryInfo) return w;
 	let wheelCoords = await readSetup(gameState.setup + '/wheelCoords');
 
 	for (let key in countryInfo) {

@@ -28,7 +28,6 @@ function MapApp() {
 	const [seaFactories, setSeaFactories] = useState([]);
 	const [landFactories, setLandFactories] = useState([]);
 	const [taxChips, setTaxChips] = useState([]);
-	const [units, setUnits] = useState([]);
 	const [points, setPoints] = useState({});
 	const [money, setMoney] = useState({});
 	const [availStock, setAvailStock] = useState({});
@@ -66,11 +65,10 @@ function MapApp() {
 	}
 
 	const getMapItems = useCallback(async () => {
-		let [sea, land, unitsData, rondelData, tax, pointsData, moneyData, availStockData, lastTaxData, currentTaxData] =
+		let [sea, land, rondelData, tax, pointsData, moneyData, availStockData, lastTaxData, currentTaxData] =
 			await Promise.all([
 				mapAPI.getSeaFactories(contextRef.current),
 				mapAPI.getLandFactories(contextRef.current),
-				mapAPI.getUnits(contextRef.current),
 				mapAPI.getRondel(contextRef.current),
 				mapAPI.getTaxChips(contextRef.current),
 				mapAPI.getPoints(contextRef.current),
@@ -81,7 +79,6 @@ function MapApp() {
 			]);
 		setSeaFactories(sea);
 		setLandFactories(land);
-		setUnits(unitsData);
 		setRondel(rondelData);
 		setTaxChips(tax);
 		setPoints(pointsData);

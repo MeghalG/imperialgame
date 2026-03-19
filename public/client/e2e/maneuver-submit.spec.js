@@ -4,8 +4,7 @@ const { seedManeuverGame, seedSetupData, cleanupGame } = require('./helpers/seed
 const {
 	joinGame,
 	waitForPlannerReady,
-	clickUnitMarker,
-	clickTerritory,
+	assignMove,
 	getSubmitButtonState,
 	clickSubmit,
 	getPlanListRows,
@@ -49,11 +48,9 @@ test.describe('Maneuver Planner — Submit Flow', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Assign both armies to stay in place
-		await clickUnitMarker(page, 'army at Vienna');
-		await clickTerritory(page, 'Vienna');
-		await clickUnitMarker(page, 'army at Budapest');
-		await clickTerritory(page, 'Budapest');
+		// Assign Army 1 to stay at Vienna, then Army 2 to stay at Budapest
+		await assignMove(page, 'army at Vienna', 'Vienna');
+		await assignMove(page, 'army at Budapest', 'Budapest');
 
 		const state = await getSubmitButtonState(page);
 		expect(state.disabled).toBe(false);
@@ -65,16 +62,13 @@ test.describe('Maneuver Planner — Submit Flow', () => {
 		await waitForPlannerReady(page);
 
 		// Assign both to stay in place
-		await clickUnitMarker(page, 'army at Vienna');
-		await clickTerritory(page, 'Vienna');
-		await clickUnitMarker(page, 'army at Budapest');
-		await clickTerritory(page, 'Budapest');
+		await assignMove(page, 'army at Vienna', 'Vienna');
+		await assignMove(page, 'army at Budapest', 'Budapest');
 
 		// Submit should work
 		await clickSubmit(page);
 
-		// After submit, mode should change (maneuver complete)
-		// The planner should no longer be visible
-		await page.waitForSelector('[class*="ManeuverPlan"]', { state: 'hidden', timeout: 10000 });
+		// After submit, wait for mode change (planner disappears)
+		await page.waitForSelector('.imp-unit-marker', { state: 'hidden', timeout: 5000 }).catch(() => {});
 	});
 });

@@ -12,6 +12,9 @@
  *   test.afterEach(async () => { await cleanupGame(gameID); });
  */
 
+const path = require('path');
+const fs = require('fs');
+
 const EMULATOR_HOST = process.env.FIREBASE_EMULATOR_HOST || 'localhost';
 const EMULATOR_PORT = process.env.FIREBASE_EMULATOR_PORT || 9000;
 // The Firebase SDK connects to the emulator with ns=PROJECT_ID (no suffix).
@@ -25,15 +28,15 @@ const BASE_URL = `http://${EMULATOR_HOST}:${EMULATOR_PORT}`;
  * @param {string} path - Database path (e.g. "games/test123")
  * @param {*} data - JSON-serializable data
  */
-async function dbSet(path, data) {
-	const url = `${BASE_URL}/${path}.json?ns=${NAMESPACE}&access_token=owner`;
+async function dbSet(dbPath, data) {
+	const url = `${BASE_URL}/${dbPath}.json?ns=${NAMESPACE}&access_token=owner`;
 	const res = await fetch(url, {
 		method: 'PUT',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(data),
 	});
 	if (!res.ok) {
-		throw new Error(`Firebase emulator PUT ${path} failed: ${res.status} ${await res.text()}`);
+		throw new Error(`Firebase emulator PUT ${dbPath} failed: ${res.status} ${await res.text()}`);
 	}
 }
 
@@ -41,11 +44,11 @@ async function dbSet(path, data) {
  * Delete a Firebase Realtime Database path via the emulator REST API.
  * @param {string} path - Database path to delete
  */
-async function dbDelete(path) {
-	const url = `${BASE_URL}/${path}.json?ns=${NAMESPACE}&access_token=owner`;
+async function dbDelete(dbPath) {
+	const url = `${BASE_URL}/${dbPath}.json?ns=${NAMESPACE}&access_token=owner`;
 	const res = await fetch(url, { method: 'DELETE' });
 	if (!res.ok) {
-		throw new Error(`Firebase emulator DELETE ${path} failed: ${res.status} ${await res.text()}`);
+		throw new Error(`Firebase emulator DELETE ${dbPath} failed: ${res.status} ${await res.text()}`);
 	}
 }
 
@@ -201,6 +204,11 @@ function baseGameState() {
  * @param {Array} [options.fleets] - Override fleet positions [{territory, hostile}]
  * @param {Array} [options.armies] - Override army positions [{territory, hostile}]
  * @param {Object} [options.enemyUnits] - Extra enemy units: {Italy: {armies: [...], fleets: [...]}}
+ * @param {Object} [options.enemyFactories] - Override enemy factories: {Italy: ['Rome', 'Naples', 'Venice']}
+ * @param {Array} [options.completedFleetMoves] - Prior completed fleet moves [[origin, dest, action], ...]
+ * @param {Array} [options.completedArmyMoves] - Prior completed army moves [[origin, dest, action], ...]
+ * @param {Object} [options.pendingPeace] - Pending peace vote state: {country, territory, ...}
+ * @param {Object} [options.factories] - Override own country factories: ['Vienna', 'Budapest', 'Trieste']
  * @returns {Promise<string>} The game ID
  */
 async function seedManeuverGame(options = {}) {
@@ -211,6 +219,11 @@ async function seedManeuverGame(options = {}) {
 	let gs = baseGameState();
 	gs.mode = 'continue-man';
 	gs.countryUp = country;
+
+	// Override own country factories
+	if (options.factories) {
+		gs.countryInfo[country].factories = options.factories;
+	}
 
 	// Override units if provided
 	if (options.fleets) {
@@ -228,6 +241,13 @@ async function seedManeuverGame(options = {}) {
 		}
 	}
 
+	// Override enemy factories
+	if (options.enemyFactories) {
+		for (let [enemyCountry, factories] of Object.entries(options.enemyFactories)) {
+			gs.countryInfo[enemyCountry].factories = factories;
+		}
+	}
+
 	// Set up currentManeuver
 	let pendingFleets = (gs.countryInfo[country].fleets || []).map((f) => ({ ...f }));
 	let pendingArmies = (gs.countryInfo[country].armies || []).map((a) => ({ ...a }));
@@ -240,11 +260,11 @@ async function seedManeuverGame(options = {}) {
 		unitIndex: 0,
 		pendingFleets: pendingFleets,
 		pendingArmies: pendingArmies,
-		completedFleetMoves: [],
-		completedArmyMoves: [],
+		completedFleetMoves: options.completedFleetMoves || [],
+		completedArmyMoves: options.completedArmyMoves || [],
 		returnMode: 'execute',
 		proposalSlot: 0,
-		pendingPeace: null,
+		pendingPeace: options.pendingPeace || null,
 	};
 
 	// Set myTurn for the maneuvering player
@@ -265,9 +285,9 @@ async function cleanupGame(gameID) {
 }
 
 /**
- * Seed the setup data (territories, countries, wheel, costs) from production
- * into the emulator. Only needs to run once per emulator session.
- * Copies from a known production setup URL.
+ * Seed the setup data (territories, countries, wheel, costs) from a local
+ * fixture file into the emulator. Only needs to run once per emulator session.
+ * Uses a checked-in fixture to avoid production network dependency.
  */
 async function seedSetupData() {
 	// Check if setup data already exists (in the project namespace)
@@ -276,13 +296,13 @@ async function seedSetupData() {
 	const existing = await check.json();
 	if (existing && existing.territories) return; // Already seeded
 
-	// Fetch from production and write to emulator
-	const prodUrl = 'https://imperialgame-e8a12.firebaseio.com/setups/oove.json';
-	const prodRes = await fetch(prodUrl);
-	const setupData = await prodRes.json();
-	if (setupData) {
-		await dbSet('setups/standard', setupData);
+	// Load from local fixture file (no production network dependency)
+	const fixturePath = path.resolve(__dirname, '../fixtures/setup-standard.json');
+	const setupData = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+	if (!setupData || !setupData.territories) {
+		throw new Error('Setup fixture is empty or missing territories. Regenerate e2e/fixtures/setup-standard.json');
 	}
+	await dbSet('setups/standard', setupData);
 }
 
 module.exports = {

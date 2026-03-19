@@ -1,0 +1,541 @@
+{
+	"countries": {
+		"Austria": { "armyLimit": 12, "fleetLimit": 6, "order": 1 },
+		"England": { "armyLimit": 6, "fleetLimit": 12, "order": 4 },
+		"France": { "armyLimit": 9, "fleetLimit": 9, "order": 3 },
+		"Germany": { "armyLimit": 9, "fleetLimit": 9, "order": 5 },
+		"Italy": { "armyLimit": 9, "fleetLimit": 9, "order": 2 },
+		"Russia": { "armyLimit": 9, "fleetLimit": 9, "order": 6 }
+	},
+	"stockCosts": [0, 2, 4, 6, 9, 12, 16, 20, 25],
+	"territories": {
+		"Algeria": {
+			"adjacencies": ["Morocco", "Tunis", "Western Med"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["34.5%", "94.8%"],
+			"unitCoords": ["29.6%", "97.3%"]
+		},
+		"Baltic Sea": {
+			"adjacencies": ["Norway", "Sweden", "Denmark", "St Petersburg", "Danzig", "Berlin", "North Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["66.7%", "12.3%"],
+			"unitCoords": ["64%", "19.5%"]
+		},
+		"Bay of Biscay": {
+			"adjacencies": [
+				"Spain",
+				"Portugal",
+				"Western Med",
+				"Bordeaux",
+				"North Atlantic",
+				"English Channel",
+				"Brest",
+				"Morocco"
+			],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["17.2%", "48.2%"],
+			"unitCoords": ["13.1%", "50.5%"]
+		},
+		"Belgium": {
+			"adjacencies": ["Paris", "Dijon", "Munich", "Cologne", "Holland", "English Channel"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["42.1%", "36.6%"],
+			"unitCoords": ["39.6%", "39.0%"]
+		},
+		"Berlin": {
+			"adjacencies": ["Munich", "Cologne", "Hamburg", "Danzig", "Baltic Sea"],
+			"country": "Germany",
+			"factoryCoords": ["54.7%", "29.2%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["54.8%", "34.8%"]
+		},
+		"Black Sea": {
+			"adjacencies": ["Odessa", "Bulgaria", "Romania", "Turkey", "Eastern Med"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["96.9%", "60.4%"],
+			"unitCoords": ["90.8%", "62.9%"]
+		},
+		"Bordeaux": {
+			"adjacencies": ["Brest", "Dijon", "Marseille", "Spain", "Bay of Biscay"],
+			"country": "France",
+			"factoryCoords": ["26.9%", "54.1%"],
+			"port": "Bay of Biscay",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["26.9%", "59.5%"]
+		},
+		"Brest": {
+			"adjacencies": ["Bay of Biscay", "English Channel", "Paris", "Dijon", "Bordeaux"],
+			"country": "France",
+			"factoryCoords": ["23.8%", "38%"],
+			"port": "English Channel",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["25%", "43.3%"]
+		},
+		"Budapest": {
+			"adjacencies": ["Vienna", "Lemberg", "Romania", "Western Balkans", "Trieste", "Prague"],
+			"country": "Austria",
+			"factoryCoords": ["65.2%", "48.8%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["65.2%", "54.3%"]
+		},
+		"Bulgaria": {
+			"adjacencies": ["Western Balkans", "Romania", "Black Sea", "Turkey", "Greece"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["83%", "65.2%"],
+			"unitCoords": ["77.4%", "68%"]
+		},
+		"Cologne": {
+			"adjacencies": ["Berlin", "Holland", "Belgium", "Hamburg", "Munich"],
+			"country": "Germany",
+			"factoryCoords": ["43.7%", "34.1%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["43.9%", "39.6%"]
+		},
+		"Danzig": {
+			"adjacencies": ["Baltic Sea", "St Petersburg", "Warsaw", "Prague", "Berlin"],
+			"country": "Germany",
+			"factoryCoords": ["63.2%", "22%"],
+			"port": "Baltic Sea",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["63.3%", "27.6%"]
+		},
+		"Denmark": {
+			"adjacencies": ["North Sea", "Baltic Sea", "Hamburg"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["53.3%", "18.2%"],
+			"unitCoords": ["49%", "18.5%"]
+		},
+		"Dijon": {
+			"adjacencies": ["Paris", "Belgium", "Munich", "Marseille", "Bordeaux", "Brest"],
+			"country": "France",
+			"factoryCoords": ["39.3%", "46.6%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["39.3%", "52.3%"]
+		},
+		"Dublin": {
+			"adjacencies": ["North Atlantic"],
+			"country": "England",
+			"factoryCoords": ["20.4%", "19.6%"],
+			"port": "North Atlantic",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["20.5%", "24.9%"]
+		},
+		"Eastern Med": {
+			"adjacencies": ["Turkey", "Greece", "Ionian Sea", "Black Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["96.6%", "91.6%"],
+			"unitCoords": ["89.2%", "96.5%"]
+		},
+		"Edinburgh": {
+			"adjacencies": ["Liverpool", "Sheffield", "North Sea", "North Atlantic"],
+			"country": "England",
+			"factoryCoords": ["27.5%", "11.4%"],
+			"port": "North Sea",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["27.4%", "16.6%"]
+		},
+		"English Channel": {
+			"adjacencies": ["North Atlantic", "North Sea", "Bay of Biscay", "London", "Brest", "Paris", "Belgium", "Holland"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["29.5%", "36.5%"],
+			"unitCoords": ["19.3%", "38.8%"]
+		},
+		"Florence": {
+			"adjacencies": ["Genoa", "Venice", "Rome", "Western Med"],
+			"country": "Italy",
+			"factoryCoords": ["49.7%", "61.3%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["49.9%", "66.8%"]
+		},
+		"Genoa": {
+			"adjacencies": ["Marseille", "Vienna", "Venice", "Florence", "Western Med"],
+			"country": "Italy",
+			"factoryCoords": ["44.8%", "55.3%"],
+			"port": "Western Med",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["44.900000000000006%", "60.8%"]
+		},
+		"Greece": {
+			"adjacencies": ["Western Balkans", "Bulgaria", "Eastern Med", "Ionian Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["75.3%", "78%"],
+			"unitCoords": ["71.2%", "80.5%"]
+		},
+		"Hamburg": {
+			"adjacencies": ["Holland", "Denmark", "Berlin", "Cologne", "North Sea"],
+			"country": "Germany",
+			"factoryCoords": ["48%", "25.4%"],
+			"port": "North Sea",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["48.2%", "31.0%"]
+		},
+		"Holland": {
+			"adjacencies": ["Belgium", "Cologne", "Hamburg", "English Channel", "North Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["44.2%", "28.8%"],
+			"unitCoords": ["42%", "32.4%"]
+		},
+		"Ionian Sea": {
+			"adjacencies": [
+				"Venice",
+				"Rome",
+				"Naples",
+				"Trieste",
+				"Western Balkans",
+				"Greece",
+				"Tunis",
+				"Eastern Med",
+				"Western Med"
+			],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["69.8%", "91.5%"],
+			"unitCoords": ["63%", "93.9%"]
+		},
+		"Kiev": {
+			"adjacencies": ["Warsaw", "Moscow", "Odessa", "Romania", "Lemberg"],
+			"country": "Russia",
+			"factoryCoords": ["84.3%", "32.7%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["84.3%", "38.3%"]
+		},
+		"Lemberg": {
+			"adjacencies": ["Warsaw", "Kiev", "Romania", "Budapest", "Prague"],
+			"country": "Austria",
+			"factoryCoords": ["73.7%", "39.1%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["73.9%", "44.6%"]
+		},
+		"Liverpool": {
+			"adjacencies": ["London", "Edinburgh", "Sheffield", "North Atlantic"],
+			"country": "England",
+			"factoryCoords": ["26.8%", "21.3%"],
+			"port": "North Atlantic",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["26.9%", "26.3%"]
+		},
+		"London": {
+			"adjacencies": ["English Channel", "Liverpool", "Sheffield", "North Atlantic", "North Sea"],
+			"country": "England",
+			"factoryCoords": ["31.4%", "29.2%"],
+			"port": "English Channel",
+			"sea": false,
+			"taxChipCoords": ["0%", "0%"],
+			"unitCoords": ["31.4%", "34.3%"]
+		},
+		"Marseille": {
+			"adjacencies": ["Bordeaux", "Dijon", "Genoa", "Spain", "Western Med"],
+			"country": "France",
+			"factoryCoords": ["37.6%", "57%"],
+			"port": "Western Med",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["37.800000000000004%", "62.6%"]
+		},
+		"Morocco": {
+			"adjacencies": ["Algeria", "Bay of Biscay"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["15%", "94.8%"],
+			"unitCoords": ["9.6%", "97.3%"]
+		},
+		"Moscow": {
+			"adjacencies": ["St Petersburg", "Kiev", "Warsaw"],
+			"country": "Russia",
+			"factoryCoords": ["87.1%", "10%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["87.10000000000001%", "15.8%"]
+		},
+		"Munich": {
+			"adjacencies": ["Vienna", "Prague", "Berlin", "Cologne", "Belgium", "Dijon"],
+			"country": "Germany",
+			"factoryCoords": ["51.9%", "41.6%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["52%", "47.3%"]
+		},
+		"Naples": {
+			"adjacencies": ["Western Med", "Rome", "Ionian Sea"],
+			"country": "Italy",
+			"factoryCoords": ["58.7%", "70.9%"],
+			"port": "Western Med",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["59%", "76.6%"]
+		},
+		"North Atlantic": {
+			"adjacencies": ["Bay of Biscay", "English Channel", "North Sea", "Dublin", "Liverpool", "London", "Edinburgh"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["14.7%", "30%"],
+			"unitCoords": ["7.1000000000000005%", "34.5%"]
+		},
+		"North Sea": {
+			"adjacencies": [
+				"Denmark",
+				"Norway",
+				"Edinburgh",
+				"Sheffield",
+				"London",
+				"Holland",
+				"Hamburg",
+				"North Atlantic",
+				"English Channel",
+				"Baltic Sea"
+			],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["43.0%", "13.8%"],
+			"unitCoords": ["36.800000000000004%", "16.0%"]
+		},
+		"Norway": {
+			"adjacencies": ["Sweden", "Baltic Sea", "North Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["51.9%", "0.1%"],
+			"unitCoords": ["46.900000000000006%", "2.2%"]
+		},
+		"Odessa": {
+			"adjacencies": ["Kiev", "Romania", "Black Sea"],
+			"country": "Russia",
+			"factoryCoords": ["87.3%", "44.6%"],
+			"port": "Black Sea",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["87.5%", "50.1%"]
+		},
+		"Paris": {
+			"adjacencies": ["English Channel", "Belgium", "Dijon", "Brest"],
+			"country": "France",
+			"factoryCoords": ["34.9%", "39.3%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["35.1%", "44.8%"]
+		},
+		"Portugal": {
+			"adjacencies": ["Spain", "Bay of Biscay"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["11.8%", "65.6%"],
+			"unitCoords": ["8.5%", "74%"]
+		},
+		"Prague": {
+			"adjacencies": ["Danzig", "Warsaw", "Lemberg", "Budapest", "Vienna", "Munich"],
+			"country": "Austria",
+			"factoryCoords": ["56.5%", "38.5%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["56.6%", "44%"]
+		},
+		"Romania": {
+			"adjacencies": ["Western Balkans", "Budapest", "Lemberg", "Bulgaria", "Odessa", "Black Sea", "Kiev"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["83.3%", "57.9%"],
+			"unitCoords": ["77.8%", "60.4%"]
+		},
+		"Rome": {
+			"adjacencies": ["Florence", "Venice", "Naples", "Ionian Sea", "Western Med"],
+			"country": "Italy",
+			"factoryCoords": ["53.8%", "65.7%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["54%", "71.2%"]
+		},
+		"Sheffield": {
+			"adjacencies": ["Edinburgh", "Liverpool", "London", "North Sea"],
+			"country": "England",
+			"factoryCoords": ["30.9%", "21.7%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["30.8%", "27.1%"]
+		},
+		"Spain": {
+			"adjacencies": ["Portugal", "Bay of Biscay", "Bordeaux", "Marseille", "Western Med"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["20.2%", "71.1%"],
+			"unitCoords": ["16.599999999999998%", "73.6%"]
+		},
+		"St Petersburg": {
+			"adjacencies": ["Baltic Sea", "Moscow", "Warsaw", "Danzig"],
+			"country": "Russia",
+			"factoryCoords": ["79.4%", "-0.5%"],
+			"port": "Baltic Sea",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["79.4%", "5.2%"]
+		},
+		"Sweden": {
+			"adjacencies": ["Norway", "Baltic Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["60.7%", "3.3%"],
+			"unitCoords": ["56.1%", "5.6%"]
+		},
+		"Trieste": {
+			"adjacencies": ["Vienna", "Budapest", "Western Balkans", "Ionian Sea", "Venice"],
+			"country": "Austria",
+			"factoryCoords": ["57.9%", "52.7%"],
+			"port": "Ionian Sea",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["57.900000000000006%", "58.2%"]
+		},
+		"Tunis": {
+			"adjacencies": ["Algeria", "Western Med", "Ionian Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["48.6%", "94.8%"],
+			"unitCoords": ["43.900000000000006%", "97.3%"]
+		},
+		"Turkey": {
+			"adjacencies": ["Black Sea", "Bulgaria", "Eastern Med"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["97%", "77.5%"],
+			"unitCoords": ["92.5%", "79.8%"]
+		},
+		"Venice": {
+			"adjacencies": ["Rome", "Florence", "Genoa", "Vienna", "Trieste", "Ionian Sea"],
+			"country": "Italy",
+			"factoryCoords": ["50.1%", "54.9%"],
+			"port": "Ionian Sea",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["50.2%", "60.5%"]
+		},
+		"Vienna": {
+			"adjacencies": ["Munich", "Prague", "Budapest", "Trieste", "Venice", "Genoa"],
+			"country": "Austria",
+			"factoryCoords": ["59.5%", "45.7%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["59.6%", "51.3%"]
+		},
+		"Warsaw": {
+			"adjacencies": ["St Petersburg", "Danzig", "Prague", "Lemberg", "Kiev", "Moscow"],
+			"country": "Russia",
+			"factoryCoords": ["69.2%", "29.9%"],
+			"port": "",
+			"sea": false,
+			"taxChipCoords": "",
+			"unitCoords": ["69.2%", "35.5%"]
+		},
+		"Western Balkans": {
+			"adjacencies": ["Trieste", "Budapest", "Romania", "Bulgaria", "Greece", "Ionian Sea"],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": false,
+			"taxChipCoords": ["73.6%", "66.5%"],
+			"unitCoords": ["68.4%", "69.2%"]
+		},
+		"Western Med": {
+			"adjacencies": [
+				"Marseille",
+				"Genoa",
+				"Florence",
+				"Rome",
+				"Naples",
+				"Ionian Sea",
+				"Tunis",
+				"Algeria",
+				"Spain",
+				"Bay of Biscay"
+			],
+			"country": "",
+			"factoryCoords": "",
+			"port": "",
+			"sea": true,
+			"taxChipCoords": ["44.1%", "83.4%"],
+			"unitCoords": ["26.5%", "85.7%"]
+		}
+	},
+	"wheel": ["Factory", "R-Produce", "R-Maneuver", "Investor", "Import", "L-Produce", "L-Maneuver", "Taxation"]
+}

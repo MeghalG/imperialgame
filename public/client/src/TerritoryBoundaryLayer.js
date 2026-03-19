@@ -95,6 +95,7 @@ function TerritoryBoundaryLayer({
 			<polygon
 				key={name}
 				className={className}
+				data-territory={name}
 				points={toPointsString(verts)}
 				fill={fill}
 				stroke={stroke}

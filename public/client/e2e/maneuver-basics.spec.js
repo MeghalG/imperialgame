@@ -5,10 +5,12 @@ const {
 	joinGame,
 	waitForPlannerReady,
 	getUnitMarkers,
-	clickUnitMarker,
+	activateUnit,
+	assignMove,
 	getHighlightedTerritories,
 	clickTerritory,
 	isActionPickerVisible,
+	waitForActionPicker,
 	getPlanListRows,
 	getArrowCount,
 	getSubmitButtonState,
@@ -59,17 +61,8 @@ test.describe('Maneuver Planner — Basics', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Wait for loadData to complete — markers should appear
-		await page.waitForSelector('.imp-unit-marker', { timeout: 10000 });
-
-		// Click Army 1 at Vienna
-		await clickUnitMarker(page, 'army at Vienna');
-
-		// Wait for the marker to become active
-		await page.waitForSelector('.imp-unit-marker--active', { timeout: 5000 });
-
-		// Wait for selectable hotspots to appear
-		await page.waitForSelector('.imp-hotspot--selectable', { timeout: 10000 });
+		// Activate Army 1 at Vienna (clicks marker + waits for selectable highlights)
+		await activateUnit(page, 'army at Vienna');
 
 		// Map should show highlighted territories
 		const highlights = await getHighlightedTerritories(page);
@@ -81,10 +74,8 @@ test.describe('Maneuver Planner — Basics', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Activate Army 1
-		await clickUnitMarker(page, 'army at Vienna');
-		// Click a reachable territory
-		await clickTerritory(page, 'Budapest');
+		// Activate Army 1 and assign to Budapest
+		await assignMove(page, 'army at Vienna', 'Budapest');
 
 		// Arrow should appear
 		const arrows = await getArrowCount(page);
@@ -97,7 +88,7 @@ test.describe('Maneuver Planner — Basics', () => {
 	});
 
 	test('action picker appears when moving to territory with enemy units', async ({ page }) => {
-		// Seed with Italian army at Rome
+		// Seed with Italian army at Budapest (adjacent to Vienna, so reachable)
 		if (gameID) await cleanupGame(gameID);
 		gameID = await seedManeuverGame({
 			player: 'Alice',
@@ -105,19 +96,19 @@ test.describe('Maneuver Planner — Basics', () => {
 			fleets: [],
 			armies: [{ territory: 'Vienna', hostile: true }],
 			enemyUnits: {
-				Italy: { armies: [{ territory: 'Rome', hostile: true }] },
+				Italy: { armies: [{ territory: 'Budapest', hostile: true }] },
 			},
 		});
 
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Activate Army 1
-		await clickUnitMarker(page, 'army at Vienna');
-		// Click Rome (has enemy)
-		await clickTerritory(page, 'Rome');
+		// Activate Army 1 and click Budapest (has enemy)
+		await activateUnit(page, 'army at Vienna');
+		await clickTerritory(page, 'Budapest');
 
 		// Action picker should appear with war + peace options
+		await waitForActionPicker(page);
 		const pickerVisible = await isActionPickerVisible(page);
 		expect(pickerVisible).toBe(true);
 	});
@@ -126,10 +117,8 @@ test.describe('Maneuver Planner — Basics', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Activate Army 1 at Vienna
-		await clickUnitMarker(page, 'army at Vienna');
-		// Click Vienna itself (origin, should be gold-highlighted)
-		await clickTerritory(page, 'Vienna');
+		// Activate Army 1 at Vienna and click Vienna (stay in place)
+		await assignMove(page, 'army at Vienna', 'Vienna');
 
 		// Should auto-assign move action (stay in place)
 		const rows = await getPlanListRows(page);

@@ -4,9 +4,10 @@ const { seedManeuverGame, seedSetupData, cleanupGame } = require('./helpers/seed
 const {
 	joinGame,
 	waitForPlannerReady,
-	clickUnitMarker,
+	activateUnit,
 	clickTerritory,
 	pickAction,
+	waitForActionPicker,
 	getActionPickerOptions,
 	getPlanListRows,
 	isActionPickerVisible,
@@ -22,23 +23,24 @@ test.describe('Maneuver Planner — Multi-Unit War (§8.7)', () => {
 	});
 
 	test.beforeEach(async () => {
-		// Austria has 3 armies. Rome has 2 Italian armies + 1 Italian fleet.
+		// Austria has 2 armies at Vienna and Trieste.
+		// Budapest has 2 Italian armies + 1 Italian fleet (enemies).
+		// Budapest is adjacent to both Vienna and Trieste.
 		gameID = await seedManeuverGame({
 			player: 'Alice',
 			country: 'Austria',
 			fleets: [],
 			armies: [
 				{ territory: 'Vienna', hostile: true },
-				{ territory: 'Budapest', hostile: true },
 				{ territory: 'Trieste', hostile: true },
 			],
 			enemyUnits: {
 				Italy: {
 					armies: [
-						{ territory: 'Rome', hostile: true },
-						{ territory: 'Rome', hostile: true },
+						{ territory: 'Budapest', hostile: true },
+						{ territory: 'Budapest', hostile: true },
 					],
-					fleets: [{ territory: 'Rome', hostile: true }],
+					fleets: [{ territory: 'Budapest', hostile: true }],
 				},
 			},
 		});
@@ -52,24 +54,25 @@ test.describe('Maneuver Planner — Multi-Unit War (§8.7)', () => {
 		await joinGame(page, gameID, 'Alice');
 		await waitForPlannerReady(page);
 
-		// Army 1 → Rome, war Italy army (destroys 1 of 2 Italian armies)
-		await clickUnitMarker(page, 'army at Vienna');
-		await clickTerritory(page, 'Rome');
-		await pickAction(page, 'war on Italy army');
+		// Army 1 → Budapest, declare war on Italy army
+		await activateUnit(page, 'army at Vienna');
+		await clickTerritory(page, 'Budapest');
+		await pickAction(page, 'Declare war on Italy army');
 
-		// Army 2 → Rome: should see updated options
+		// Army 2 → Budapest: should see updated options
 		// Virtual state: 1 Italian army + 1 Italian fleet remain
-		await clickUnitMarker(page, 'army at Budapest');
-		await clickTerritory(page, 'Rome');
+		await activateUnit(page, 'army at Trieste');
+		await clickTerritory(page, 'Budapest');
+		await waitForActionPicker(page);
 		const visible = await isActionPickerVisible(page);
 		expect(visible).toBe(true);
 
 		const options = await getActionPickerOptions(page);
-		// Should have: war Italy army, war Italy fleet, peace
-		// Should NOT have: hostile (enemies still present)
+		// Should have war and peace options
 		expect(options.some((o) => o.includes('army'))).toBe(true);
 		expect(options.some((o) => o.includes('fleet'))).toBe(true);
-		expect(options.some((o) => o.includes('peace') || o.includes('Peace'))).toBe(true);
-		expect(options.some((o) => o.includes('hostile') || o.includes('Hostile'))).toBe(false);
+		expect(options.some((o) => o.toLowerCase().includes('peace'))).toBe(true);
+		// Should NOT have hostile (enemies still present)
+		expect(options.some((o) => o.toLowerCase().includes('hostile'))).toBe(false);
 	});
 });

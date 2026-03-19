@@ -164,7 +164,8 @@ function CountryCard(props) {
 		if (!info.gov || !info.leadership || info.leadership.length === 0) return '';
 		let prefix = info.gov === 'democracy' ? 'Dem: ' : 'Dict: ';
 		if (info.gov === 'dictatorship') return prefix + info.leadership[0];
-		if (info.gov === 'democracy') return prefix + info.leadership[0] + (info.leadership[1] ? ' / ' + info.leadership[1] : '');
+		if (info.gov === 'democracy')
+			return prefix + info.leadership[0] + (info.leadership[1] ? ' / ' + info.leadership[1] : '');
 		return '';
 	}
 

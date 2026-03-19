@@ -38,7 +38,9 @@ async function getCountries(context) {
  */
 async function getPlayersInOrder(context) {
 	let gameState = await readGameState(context);
+	if (!gameState) return [];
 	let playerInfo = gameState.playerInfo;
+	if (!playerInfo) return [];
 	let t = [null, null, null, null, null, null];
 	for (let key in playerInfo) {
 		if (playerInfo[key].order) {
@@ -322,14 +324,17 @@ async function getStockBelow(price, countryInfo, context) {
  * @returns {number} The player's total victory score
  */
 function computeScore(playerInfo, countryInfos) {
+	if (!playerInfo || !countryInfos) return 0;
 	let score = 0;
 	for (let i in playerInfo.stock) {
-		let value = Math.floor(countryInfos[playerInfo.stock[i].country].points / 5);
+		let countryData = countryInfos[playerInfo.stock[i].country];
+		if (!countryData) continue;
+		let value = Math.floor(countryData.points / 5);
 		let amt = playerInfo.stock[i].stock;
 		score += value * amt;
 	}
-	score += playerInfo.money;
-	score += playerInfo.scoreModifier;
+	score += playerInfo.money || 0;
+	score += playerInfo.scoreModifier || 0;
 	return score;
 }
 /**
@@ -585,6 +590,15 @@ async function getTimer(context) {
 		};
 	}
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.playerInfo || !gameState.timer) {
+		return {
+			timed: false,
+			increment: 0,
+			pause: 0,
+			lastMove: 0,
+			banked: {},
+		};
+	}
 	let banked = {};
 	for (let key in gameState.playerInfo) {
 		banked[key] = gameState.playerInfo[key].banked;
