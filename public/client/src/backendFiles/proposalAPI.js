@@ -312,16 +312,13 @@ async function getFleetPeaceOptions(context) {
 	for (let c in gameState.countryInfo) {
 		if (c !== country) {
 			for (let a of gameState.countryInfo[c].armies || []) {
-				if (a.hostile) {
-					let entry = c + ' army';
-					if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
-				}
+				// All enemy armies are war targets (even coexisting ones — player can choose to attack)
+				let entry = c + ' army';
+				if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
 			}
 			for (let f of gameState.countryInfo[c].fleets || []) {
-				if (f.hostile) {
-					let entry = c + ' fleet';
-					if (!damage[f.territory].includes(entry)) damage[f.territory].push(entry);
-				}
+				let entry = c + ' fleet';
+				if (!damage[f.territory].includes(entry)) damage[f.territory].push(entry);
 			}
 		}
 	}
@@ -537,19 +534,23 @@ async function getArmyPeaceOptions(context) {
 	for (let territory in territorySetup) {
 		damage[territory] = [];
 	}
+	let hostileAt = {}; // tracks territories with HOSTILE enemy units (blocks hostile action)
+	for (let territory in territorySetup) {
+		hostileAt[territory] = false;
+	}
 	for (let c in gameState.countryInfo) {
 		if (c !== country) {
 			for (let a of gameState.countryInfo[c].armies || []) {
-				// Only count hostile (occupying) armies as enemies.
-				// Coexisting armies (hostile=false) auto-accept peace.
-				if (a.hostile !== false) {
-					let entry = c + ' army';
-					if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
-				}
+				// All enemy armies are war targets (even coexisting ones)
+				let entry = c + ' army';
+				if (!damage[a.territory].includes(entry)) damage[a.territory].push(entry);
+				// But only hostile armies block the hostile action
+				if (a.hostile !== false) hostileAt[a.territory] = true;
 			}
 			for (let f of gameState.countryInfo[c].fleets || []) {
 				let entry = c + ' fleet';
 				if (!damage[f.territory].includes(entry)) damage[f.territory].push(entry);
+				hostileAt[f.territory] = true; // fleets are always hostile
 			}
 		}
 	}
@@ -557,12 +558,18 @@ async function getArmyPeaceOptions(context) {
 	for (let key in damage) {
 		d[key] = damage[key].map((x) => 'war ' + x);
 		let hasEnemies = damage[key].length > 0;
+		let hasHostileEnemies = hostileAt[key];
+		let isForeignHome = territorySetup[key].country && territorySetup[key].country !== country;
 		if (hasEnemies) {
-			// Enemies present: war + peace only. Hostile NOT available.
+			// Any enemies present (hostile or coexisting): war options already added above.
+			// Peace is always an option when enemies are present.
 			d[key].push(MANEUVER_ACTIONS.PEACE);
-		} else if (territorySetup[key].country && territorySetup[key].country !== country) {
-			// No enemies at foreign territory: peace + hostile (if not last factory)
-			d[key].push(MANEUVER_ACTIONS.PEACE);
+		}
+		if (isForeignHome) {
+			// Foreign home territory: offer peace (if not already added) + hostile
+			if (!hasEnemies) d[key].push(MANEUVER_ACTIONS.PEACE);
+			// Hostile is available ONLY when no HOSTILE enemies remain.
+			// Coexisting enemies don't block hostile.
 			let targetName = territorySetup[key].country;
 			let isLastFactory = false;
 			if (gameState.countryInfo[targetName].factories.includes(key)) {
@@ -580,12 +587,9 @@ async function getArmyPeaceOptions(context) {
 				}
 				if (opCount <= 1) isLastFactory = true;
 			}
-			if (!isLastFactory) {
+			if (!isLastFactory && !hasHostileEnemies) {
 				d[key].push(MANEUVER_ACTIONS.HOSTILE);
 			}
-		} else {
-			// Own/neutral territory, no enemies: just peace
-			d[key].push(MANEUVER_ACTIONS.PEACE);
 		}
 		if (
 			territorySetup[key].country &&

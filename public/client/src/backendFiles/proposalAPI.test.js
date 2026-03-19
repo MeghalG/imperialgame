@@ -158,7 +158,7 @@ function buildMockDbData(overrides = {}) {
 				gov: 'dictatorship',
 				leadership: ['Bob'],
 				fleets: [],
-				armies: [{ territory: 'Rome', hostile: false }],
+				armies: [{ territory: 'Rome', hostile: true }],
 				taxChips: [],
 				availStock: [2, 4],
 				offLimits: false,
@@ -677,17 +677,13 @@ describe('getFleetOptions', () => {
 // getFleetPeaceOptions
 // ===========================================================================
 describe('getFleetPeaceOptions', () => {
-	test('returns empty object when no hostile enemy units exist', async () => {
+	test('returns empty object when no enemy units exist at all', async () => {
+		// Remove all enemy armies so there are no war targets
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		clearCache();
 		const context = { game: 'g1', fleetMan: [] };
 		const result = await getFleetPeaceOptions(context);
-		// No hostile enemy units => all territories have empty damage arrays => d is empty
-		// (only territories with non-empty damage arrays get entries in d)
-		for (const key in result) {
-			// Every territory that has at least 'peace' must have had hostile units
-			// With no hostile units, result should have no entries with war options
-			// but the function only adds entries if damage[key].length !== 0
-		}
-		// With no hostile enemy units, result should effectively be empty
+		// No enemy units at all => no war options anywhere
 		expect(Object.keys(result).filter((k) => result[k].some((a) => a.startsWith('war')))).toEqual([]);
 	});
 
@@ -750,13 +746,12 @@ describe('getFleetPeaceOptions', () => {
 		expect(result['Adriatic Sea']).toContain('peace');
 	});
 
-	test('does not include non-hostile enemy units', async () => {
-		// Italy army at Rome is hostile: false
+	test('includes coexisting enemy units as war targets', async () => {
+		// Italy army at Rome is hostile: false (coexisting) — war IS still available
 		mockDbData.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: false }];
 		const context = { game: 'g1', fleetMan: [] };
 		const result = await getFleetPeaceOptions(context);
-		// Fleet peace options only consider hostile units
-		expect(result['Rome'] || []).not.toContain('war Italy army');
+		expect(result['Rome']).toContain('war Italy army');
 	});
 
 	test('excludes own country units from war options', async () => {
@@ -981,29 +976,32 @@ describe('getArmyOptions', () => {
 // getArmyPeaceOptions
 // ===========================================================================
 describe('getArmyPeaceOptions', () => {
-	test('returns peace option for all territories', async () => {
+	test('returns peace option for foreign territories and territories with enemies', async () => {
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
-		// Every territory gets a peace option in army peace (even without hostile units)
-		for (const key in result) {
-			expect(result[key]).toContain('peace');
-		}
+		// Foreign home territory (Rome = Italy's home) should have peace
+		expect(result['Rome']).toContain('peace');
+		// Own territory (Vienna = Austria's home) should NOT have peace
+		expect(result['Vienna'] || []).not.toContain('peace');
 	});
 
-	test('coexisting enemies do NOT block hostile or offer war', async () => {
+	test('coexisting enemies: war IS offered, hostile IS available', async () => {
+		// France has a coexisting army on Italian home territory (Rome).
+		// Remove the hostile Italian army so only the coexisting French one remains.
+		mockDbData.games.g1.countryInfo.Italy.armies = [];
+		mockDbData.games.g1.countryInfo.France.armies = [{ territory: 'Rome', hostile: false }];
+		clearCache();
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
-		// Italy has an army at Rome (hostile: false / coexisting) — coexisting units
-		// are NOT counted as enemies, so hostile IS available and war is NOT offered
+		// War IS offered against coexisting units (player can choose to attack)
+		expect(result['Rome']).toContain('war France army');
+		// Hostile IS available (coexisting units don't block it)
 		expect(result['Rome']).toContain('hostile');
 		expect(result['Rome']).toContain('peace');
-		expect(result['Rome']).not.toContain('war Italy army');
 	});
 
 	test('hostile units DO block hostile and offer war', async () => {
-		// Set Italian army to hostile
-		mockDbData.games.g1.countryInfo.Italy.armies = [{ territory: 'Rome', hostile: true }];
-		clearCache();
+		// Default: Italy has hostile army at Rome
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
 		expect(result['Rome']).not.toContain('hostile');

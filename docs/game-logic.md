@@ -213,7 +213,9 @@ Every unit has a boolean attribute `hostile`. This spec uses the following termi
 **Key rules about occupancy state:**
 - All fleets are always occupying. Fleets are on seas, never on enemy home territory, so the distinction never applies.
 - Armies default to occupying. An army enters coexisting state only when: (a) the peace action was chosen, (b) peace was accepted (vote passed or no vote needed), AND (c) the destination is enemy home territory.
-- **Coexisting units automatically accept future peace offers** from the home nation. If a country maneuvers into a territory where the only enemy units present are coexisting units from that country's perspective, no peace vote is triggered. (Note: not yet implemented in code.)
+- **Coexisting units can still be attacked.** The home nation may choose `war` against coexisting units (mutual destruction). War is always an option against any enemy unit regardless of occupancy state.
+- **Coexisting units do not block the hostile action.** If the only enemy units at a territory are coexisting, the `hostile` action is available (as if no enemies are present).
+- **Coexisting units automatically accept future peace offers.** If peace is offered to a territory where the only enemy units are coexisting, no peace vote is triggered — peace is auto-accepted. The home nation is not required to offer peace; they can also choose war, hostile, or simply ignore the coexisting units.
 - **Occupying units on enemy home territory cannot be peaced** by the home nation. The home nation must use war to remove them.
 
 #### 1.4 ManeuverTuple
@@ -308,10 +310,10 @@ The third element of every ManeuverTuple encodes what happens when the unit arri
 
 **Applies to:** Army only.
 **When available:** The destination is enemy home territory AND:
-- No enemy units remain at the destination. If enemies are present, they must be cleared first via `war` actions from other units in the same plan. The UI must enforce this.
+- No **hostile** (occupying) enemy units remain at the destination. Hostile enemies must be cleared first via `war` actions from other units in the same plan. **Coexisting** enemy units do NOT block the hostile action — they are treated as if not present for this check.
 - The territory is NOT the target country's last operational factory (see 3.5 for "operational" definition).
 
-Hostile is also available as a choice (alongside peace) when entering **empty** enemy home territory.
+Hostile is also available as a choice (alongside peace and war) when entering enemy home territory that has only coexisting units, or no units at all.
 
 **Effect:**
 - Unit enters as **occupying** (`hostile: true`), blocking the territory's functioning (saturates factories, denies tax chips to the home country).
@@ -324,7 +326,7 @@ Hostile is also available as a choice (alongside peace) when entering **empty** 
 #### 3.4 War (`"war {country} {unitType}"`)
 
 **Applies to:** Fleet or Army.
-**When available:** Enemy units of the specified type and country exist at the destination.
+**When available:** Enemy units of the specified type and country exist at the destination. This includes **coexisting** units — war can target any enemy unit regardless of occupancy state.
 
 When multiple enemy unit types or countries are present, the player chooses which specific `{country} {unitType}` combination to target. Example: `"war Austria fleet"` or `"war Italy army"`.
 
