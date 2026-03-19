@@ -1,60 +1,64 @@
-# E2E Test Debug Status
+# Maneuver System — Session Handoff
 
 ## Key Reference Files
 - `docs/game-logic.md` — Rules spec (sections 1-10 under "Maneuver System")
 - `docs/maneuver-ui-spec.md` — UI interaction spec (map-first interaction model, plan list, action picker, peace votes, submit state machine, edge cases)
-- `TODOS.md` — Remaining work items and completed phases
+- `TODOS.md` — All completed phases and remaining work
 - `CLAUDE.md` — Project overview, tech stack, architecture
 
-## Current State: 2/14 E2E tests pass
+## Phased Plan Status
 
-### Root Cause Found
-The `TerritoryHotspotLayer` renders `TerritoryBoundaryLayer` (SVG polygons), NOT `TerritoryHotspot` divs. The `data-territory` attribute was added to `TerritoryHotspot.js` but that component is NOT used by the hotspot layer anymore — it was replaced by `TerritoryBoundaryLayer.js`.
+| Phase | What | Status | Tests |
+|-------|------|--------|-------|
+| Pre | Rules spec rewrite (game-logic.md §1-10) | ✅ Done | — |
+| Pre | UI interaction spec (maneuver-ui-spec.md) | ✅ Done | — |
+| P0 | Playwright E2E infrastructure | ✅ Done | 5/14 E2E pass |
+| P1 | Game logic correctness (8 bugs fixed) | ✅ Done | 675→710 Jest |
+| P2 | Peace system + convoy (2/3) | ✅ Done | 710 Jest |
+| P2 | Deprecate step-by-step path (-1997 lines) | ✅ Done | — |
+| P3 | Visualization (unified layer, destruction viz, convoy) | ✅ Done | — |
+| — | Null-safety fixes for E2E | ✅ Done | 5 E2E basics pass |
 
-### What Works
-- Firebase emulator seeds data correctly (correct namespace + auth token)
-- App renders the maneuver planner (plan list with Fleet/Army rows)
-- Unit markers render with correct titles ("fleet at Trieste", "army at Vienna")
-- Clicking unit markers activates them (confirmed via CSS class change)
-- `loadData` completes successfully, destOptions are populated (Fleet: 2 opts, Army: 13 opts each)
-- `mapInteraction.setInteraction('select-territory', selectables, ...)` IS called with correct selectables
-- No more runtime errors (null guards added)
+## What's Next
 
-### What Doesn't Work
-- `TerritoryBoundaryLayer` renders SVG polygons for territory selection, not `TerritoryHotspot` div elements
-- The E2E selectors query for `.imp-hotspot--selectable` and `[data-territory]` — these CSS classes/attributes exist on `TerritoryHotspot.js` but NOT on `TerritoryBoundaryLayer.js`
-- The boundary layer uses different CSS classes for its SVG elements
+### Immediate: Get remaining 9 E2E tests passing
+5/14 E2E tests pass (the basics suite). The remaining 9 tests across 4 spec files need:
+- `maneuver-submit.spec.js` — submit flow tests
+- `maneuver-peace.spec.js` — peace action flow
+- `maneuver-multi-unit.spec.js` — multi-unit war with virtual state
+- `maneuver-war-cascade.spec.js` — cancel/cascade edge cases
 
-### Fix Required
-Update the E2E selectors to match what `TerritoryBoundaryLayer` actually renders. Check:
-1. What CSS classes does `TerritoryBoundaryLayer` use for selectable territories?
-2. Does it have any data attributes for territory names?
-3. Update `e2e/helpers/selectors.js` to match the actual DOM structure
+These tests may need selector fixes similar to what was done for the basics suite, or may need more game state in the seed data.
 
-Alternatively, add `data-territory` attributes to the SVG elements in `TerritoryBoundaryLayer.js`.
+### After E2E: Write MORE E2E tests
+The UI spec (`docs/maneuver-ui-spec.md`) documents many edge cases that don't have E2E coverage yet:
+- §8.1: Unit selection and deselection
+- §8.2: Visualization of unit stacking
+- §8.3: War vs peace choice during movement
+- §8.4: Cancel cascade (war→hostile invalidation)
+- §8.5: Fleet removal cascade (convoy invalidation)
+- §8.6: Blow-up with army consumption
+- §8.7: Multi-unit interactions at same territory
 
-### Debug Logging Added (remove after fix)
-- `ManeuverPlanProvider.js`: console.log in loadData (dest options count), map effect (activeUnit, selectables count)
-- `maneuver-basics.spec.js`: browser console capture, marker state debug
+### Deferred Items (from TODOS.md)
+- Democracy rejection unit-type vote (rare scenario, auto-picks fleet)
+- Timer behavior during maneuver
+- Keyboard navigation / screen reader support
+- Drag-to-reorder army execution order
 
-### Remaining Null-Safety Issues
-The error context snapshot still shows runtime errors:
-- `helper.getPlayersInOrder` — reads `gameState.playerInfo` without null check
-- `mapAPI.getRondel` — reads `gameState.countryInfo` without null check
-These need null guards like the others.
+## Bugs Fixed This Session
+1. Peace vote voter pool — all stockholders, not just leadership
+2. Peace votes on neutral/sea territories — not just foreign home
+3. Army BFS over-expansion — no recursive getD0 from one-hop territories
+4. Coexisting unit rules — war allowed, hostile unblocked, auto-accept peace
+5. Virtual state blow-up consumption — forward order, not backward
+6. Fleet tax chips on seas — reverted, they're valid
+7. Convoy 1:1 cleanup — uses fixed getAdjacentLands
+8. Multi-country sequential peace votes
 
-### Files Changed
-- `public/client/src/backendFiles/turnAPI.js` — null guards (committed)
-- `public/client/src/backendFiles/helper.js` — null guard on getCountries (committed), getPlayersInOrder still needs one
-- `public/client/src/backendFiles/mapAPI.js` — null guards on most functions (committed), getRondel still needs one
-- `public/client/src/ManeuverPlanProvider.js` — debug logging (uncommitted, remove after fix)
-- `public/client/e2e/maneuver-basics.spec.js` — debug logging (uncommitted, remove after fix)
-- `public/client/src/TerritoryHotspot.js` — data-territory added (committed, but not used by hotspot layer)
-
-### Session Summary
-This session completed 4 phases of maneuver system work:
-1. **Rules spec** — Full rewrite of game-logic.md maneuver section (10 sections)
-2. **UI spec** — docs/maneuver-ui-spec.md (interaction model, edge cases, state machine)
-3. **Bug fixes** — 8 bugs fixed (peace voter pool, neutral/sea peace, BFS over-expansion, coexisting rules, blow-up consumption, etc.)
-4. **Code changes** — Deprecated step-by-step path (-1997 lines), unified unit layer, destruction viz, cascade extraction, convoy cleanup, multi-country peace votes
-5. **Tests** — 666 → 710 Jest tests, 14 Playwright E2E skeletons (2 passing)
+## Code Changes This Session
+- **New files:** UnifiedUnitLayer.js, e2e/ test infrastructure
+- **Deleted:** ContinueManeuverApp.js, step-by-step functions (-1997 lines)
+- **Major edits:** submitAPI.js (peace votes, execution), proposalAPI.js (BFS, action options, virtual state), ManeuverPlanProvider.js (cascade extraction)
+- **Null guards:** turnAPI.js, helper.js, mapAPI.js, stateAPI.js
+- **Tests:** 666 → 710 Jest, 14 Playwright E2E skeletons (5 passing)
