@@ -821,9 +821,7 @@ async function _submitBatchManeuverLocal(context) {
 		for (let a of convoyResult.assignments) {
 			let tuple = armyMoves[a.armyIndex];
 			if (!tuple || !tuple[1] || tuple[1] === tuple[0]) continue;
-			let actionSplit = (tuple[2] || '').split(' ');
-			if (actionSplit[0] === MANEUVER_ACTIONS.WAR_PREFIX || actionSplit[0] === 'blow') continue;
-			// Army needs convoy but wasn't assigned a fleet
+			// Army needs convoy but wasn't assigned a fleet (even war/blow armies need transport)
 			if (a.fleetSeas.length === 0) {
 				let landReach = getAdjacentLands(tuple[0], territorySetup, cm.country, { fleetMan: [] });
 				if (!landReach.includes(tuple[1])) {

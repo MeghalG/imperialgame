@@ -91,16 +91,16 @@ const mockTerritorySetup = {
 	Budapest: { country: 'Austria', port: false, sea: false, adjacencies: ['Vienna', 'Trieste'] },
 	Trieste: {
 		country: 'Austria',
-		port: 'Adriatic Sea',
+		port: 'Ionian Sea',
 		sea: false,
-		adjacencies: ['Vienna', 'Budapest', 'Adriatic Sea'],
+		adjacencies: ['Vienna', 'Budapest', 'Ionian Sea'],
 	},
-	'Adriatic Sea': { country: null, port: false, sea: true, adjacencies: ['Trieste', 'Rome', 'West Med'] },
-	Rome: { country: 'Italy', port: 'West Med', sea: false, adjacencies: ['West Med', 'Naples'] },
+	'Ionian Sea': { country: null, port: false, sea: true, adjacencies: ['Trieste', 'Rome', 'Western Med'] },
+	Rome: { country: 'Italy', port: 'Western Med', sea: false, adjacencies: ['Ionian Sea', 'Western Med', 'Naples'] },
 	Naples: { country: 'Italy', port: false, sea: false, adjacencies: ['Rome'] },
-	'West Med': { country: null, port: false, sea: true, adjacencies: ['Adriatic Sea', 'Rome', 'Marseille'] },
+	'Western Med': { country: null, port: false, sea: true, adjacencies: ['Ionian Sea', 'Rome', 'Marseille'] },
 	Paris: { country: 'France', port: false, sea: false, adjacencies: ['Marseille'] },
-	Marseille: { country: 'France', port: 'West Med', sea: false, adjacencies: ['Paris', 'West Med'] },
+	Marseille: { country: 'France', port: 'Western Med', sea: false, adjacencies: ['Paris', 'Western Med'] },
 };
 
 const standardWheel = [
@@ -438,8 +438,8 @@ describe('getFleetProduceOptions', () => {
 	test('returns limit of 0 when at fleet capacity', async () => {
 		mockDbData.games.g1.countryInfo.Austria.fleets = [
 			{ territory: 'Trieste', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'West Med', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Western Med', hostile: true },
 		];
 		const context = { game: 'g1' };
 		const result = await getFleetProduceOptions(context);
@@ -620,31 +620,31 @@ describe('getTaxMessage', () => {
 // ===========================================================================
 describe('getFleetOptions', () => {
 	test('fleet at port territory returns current territory and adjacent sea', async () => {
-		// Austria's fleet is at Trieste, which has port 'Adriatic Sea'
+		// Austria's fleet is at Trieste, which has port 'Ionian Sea'
 		const context = { game: 'g1' };
 		const result = await getFleetOptions(context);
-		expect(result).toEqual([['Trieste', ['Trieste', 'Adriatic Sea']]]);
+		expect(result).toEqual([['Trieste', ['Trieste', 'Ionian Sea']]]);
 	});
 
 	test('fleet at sea territory returns current territory and adjacent seas', async () => {
-		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const context = { game: 'g1' };
 		const result = await getFleetOptions(context);
-		// Adriatic Sea adjacencies: Trieste, Rome, West Med
-		// Only West Med is sea (Trieste and Rome are land)
-		expect(result).toEqual([['Adriatic Sea', ['Adriatic Sea', 'West Med']]]);
+		// Ionian Sea adjacencies: Trieste, Rome, Western Med
+		// Only Western Med is sea (Trieste and Rome are land)
+		expect(result).toEqual([['Ionian Sea', ['Ionian Sea', 'Western Med']]]);
 	});
 
 	test('returns options for multiple fleets', async () => {
 		mockDbData.games.g1.countryInfo.Austria.fleets = [
 			{ territory: 'Trieste', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		];
 		const context = { game: 'g1' };
 		const result = await getFleetOptions(context);
 		expect(result).toHaveLength(2);
 		expect(result[0][0]).toBe('Trieste');
-		expect(result[1][0]).toBe('Adriatic Sea');
+		expect(result[1][0]).toBe('Ionian Sea');
 	});
 
 	test('returns empty array when country has no fleets', async () => {
@@ -662,13 +662,13 @@ describe('getFleetOptions', () => {
 	});
 
 	test('fleet at sea adjacent to two seas includes both', async () => {
-		// West Med adjacencies: Adriatic Sea, Rome
-		// Adriatic Sea is sea, Rome is not
-		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'West Med', hostile: true }];
+		// Western Med adjacencies: Ionian Sea, Rome
+		// Ionian Sea is sea, Rome is not
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Western Med', hostile: true }];
 		const context = { game: 'g1' };
 		const result = await getFleetOptions(context);
-		expect(result[0][1]).toContain('West Med');
-		expect(result[0][1]).toContain('Adriatic Sea');
+		expect(result[0][1]).toContain('Western Med');
+		expect(result[0][1]).toContain('Ionian Sea');
 		expect(result[0][1]).not.toContain('Rome');
 	});
 });
@@ -688,11 +688,11 @@ describe('getFleetPeaceOptions', () => {
 	});
 
 	test('returns war options for territory with hostile enemy fleet', async () => {
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const context = { game: 'g1', fleetMan: [] };
 		const result = await getFleetPeaceOptions(context);
-		expect(result['Adriatic Sea']).toContain('war Italy fleet');
-		expect(result['Adriatic Sea']).toContain('peace');
+		expect(result['Ionian Sea']).toContain('war Italy fleet');
+		expect(result['Ionian Sea']).toContain('peace');
 	});
 
 	test('returns war options for territory with hostile enemy army', async () => {
@@ -705,45 +705,45 @@ describe('getFleetPeaceOptions', () => {
 
 	test('removes chosen war actions from available options', async () => {
 		mockDbData.games.g1.countryInfo.Italy.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		];
 		const context = {
 			game: 'g1',
 			// First fleet already chose war on one of them
-			fleetMan: [['Trieste', 'Adriatic Sea', 'war Italy fleet']],
+			fleetMan: [['Trieste', 'Ionian Sea', 'war Italy fleet']],
 		};
 		const result = await getFleetPeaceOptions(context);
 		// 2 Italy fleets are deduplicated to 1 "war Italy fleet" entry + "peace"
 		// After removing the one "war Italy fleet", only "peace" should remain
-		const warCount = result['Adriatic Sea'].filter((a) => a === 'war Italy fleet').length;
+		const warCount = result['Ionian Sea'].filter((a) => a === 'war Italy fleet').length;
 		expect(warCount).toBe(0);
-		expect(result['Adriatic Sea']).toContain('peace');
+		expect(result['Ionian Sea']).toContain('peace');
 	});
 
 	test('does not remove peace actions from chosen options', async () => {
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', 'peace']],
+			fleetMan: [['Trieste', 'Ionian Sea', 'peace']],
 		};
 		const result = await getFleetPeaceOptions(context);
 		// Peace should remain because the code only removes non-peace actions
-		expect(result['Adriatic Sea']).toContain('peace');
+		expect(result['Ionian Sea']).toContain('peace');
 	});
 
 	test('deduplicates war options when multiple units of same type exist', async () => {
 		mockDbData.games.g1.countryInfo.Italy.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		];
 		const context = { game: 'g1', fleetMan: [] };
 		const result = await getFleetPeaceOptions(context);
 		// 3 Italian fleets should produce only 1 "war Italy fleet" entry
-		const warCount = result['Adriatic Sea'].filter((a) => a === 'war Italy fleet').length;
+		const warCount = result['Ionian Sea'].filter((a) => a === 'war Italy fleet').length;
 		expect(warCount).toBe(1);
-		expect(result['Adriatic Sea']).toContain('peace');
+		expect(result['Ionian Sea']).toContain('peace');
 	});
 
 	test('includes coexisting enemy units as war targets', async () => {
@@ -773,7 +773,7 @@ describe('allFleetsMoved', () => {
 	test('returns true when all fleets have destinations and no multi-option peace', async () => {
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', '']],
+			fleetMan: [['Trieste', 'Ionian Sea', '']],
 		};
 		const result = await allFleetsMoved(context);
 		expect(result).toBe(true);
@@ -799,10 +799,10 @@ describe('allFleetsMoved', () => {
 
 	test('returns true when all fleets moved and peace actions chosen where needed', async () => {
 		// Set up a hostile Italian fleet so there are peace options
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', 'peace']],
+			fleetMan: [['Trieste', 'Ionian Sea', 'peace']],
 		};
 		const result = await allFleetsMoved(context);
 		expect(result).toBe(true);
@@ -810,14 +810,14 @@ describe('allFleetsMoved', () => {
 
 	test('returns false when fleet at territory with multiple peace options has no action', async () => {
 		// Set up two hostile units at same territory => multiple peace options
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
-		mockDbData.games.g1.countryInfo.France.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.France.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', '']], // no action chosen
+			fleetMan: [['Trieste', 'Ionian Sea', '']], // no action chosen
 		};
 		const result = await allFleetsMoved(context);
-		// peaceOptions for Adriatic Sea: ['war Italy fleet', 'war France fleet', 'peace'] => length > 1
+		// peaceOptions for Ionian Sea: ['war Italy fleet', 'war France fleet', 'peace'] => length > 1
 		expect(result).toBe(false);
 	});
 
@@ -831,7 +831,7 @@ describe('allFleetsMoved', () => {
 		// No hostile enemies => no peace options for any territory
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', '']],
+			fleetMan: [['Trieste', 'Ionian Sea', '']],
 		};
 		const result = await allFleetsMoved(context);
 		expect(result).toBe(true);
@@ -849,8 +849,8 @@ describe('getArmyOptions', () => {
 		// From each d0 territory, expand one step:
 		//   Vienna adj + Vienna: [Budapest, Trieste, Vienna]
 		//   Budapest adj + Budapest: [Vienna, Trieste, Budapest]
-		//   Trieste adj + Trieste: [Vienna, Budapest, Adriatic Sea, Trieste]
-		//     Adriatic Sea is sea, d0 from Adriatic requires fleet control
+		//   Trieste adj + Trieste: [Vienna, Budapest, Ionian Sea, Trieste]
+		//     Ionian Sea is sea, d0 from Adriatic requires fleet control
 		// Non-sea unique lands from all expansions: Vienna, Budapest, Trieste
 		const context = { game: 'g1', fleetMan: [] };
 		const result = await getArmyOptions(context);
@@ -862,35 +862,35 @@ describe('getArmyOptions', () => {
 	});
 
 	test('army can reach through friendly fleet-controlled sea', async () => {
-		// Fleet moved to Adriatic Sea with peace (MOVE='')
-		// This should allow the army to traverse through Adriatic Sea
+		// Fleet moved to Ionian Sea with peace (MOVE='')
+		// This should allow the army to traverse through Ionian Sea
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', '']], // MOVE action
+			fleetMan: [['Trieste', 'Ionian Sea', '']], // MOVE action
 		};
 		const result = await getArmyOptions(context);
 		// Vienna -> d0 includes Vienna, Budapest, Trieste (home)
-		// Trieste adj Adriatic Sea which has a fleet with MOVE => sea=true
-		// So Adriatic Sea enters d0, then from Adriatic Sea adj: Trieste, Rome, West Med
-		// Rome is Italy land, West Med is sea (needs fleet)
-		// From Adriatic Sea d0a(Rome) = [Rome] (Italy, not Austria, so no free traversal from Adriatic)
+		// Trieste adj Ionian Sea which has a fleet with MOVE => sea=true
+		// So Ionian Sea enters d0, then from Ionian Sea adj: Trieste, Rome, Western Med
+		// Rome is Italy land, Western Med is sea (needs fleet)
+		// From Ionian Sea d0a(Rome) = [Rome] (Italy, not Austria, so no free traversal from Adriatic)
 		// Wait, let's trace more carefully:
 		// d0(Vienna): start=[Vienna], queue=[Vienna]
 		//   pop Vienna, adj=[Budapest, Trieste]
 		//     Budapest: country=Austria, Vienna.country=Austria => add => d0=[Vienna,Budapest], q=[Budapest]
 		//     Trieste: country=Austria, Vienna.country=Austria => add => d0=[V,B,T], q=[B,T]
-		//   pop Trieste, adj=[Vienna, Budapest, Adriatic Sea]
+		//   pop Trieste, adj=[Vienna, Budapest, Ionian Sea]
 		//     Vienna: already in d0
 		//     Budapest: already in d0
-		//     Adriatic Sea: sea=true, fleetMan has ['Trieste','Adriatic Sea',''] => x[1]='Adriatic Sea', x[2]='' which equals MOVE => sea=true
-		//       => add Adriatic Sea => d0=[V,B,T,AS], q=[B,AS]
-		//   pop AS, adj=[Trieste, Rome, West Med]
+		//     Ionian Sea: sea=true, fleetMan has ['Trieste','Ionian Sea',''] => x[1]='Ionian Sea', x[2]='' which equals MOVE => sea=true
+		//       => add Ionian Sea => d0=[V,B,T,AS], q=[B,AS]
+		//   pop AS, adj=[Trieste, Rome, Western Med]
 		//     Trieste: already in d0
 		//     Rome: not sea, country=Italy, AS.country=null => first condition fails; not sea => skip
-		//     West Med: sea=true, no fleet there => sea=false; country=null, AS.country=null => Austria!=null => skip
+		//     Western Med: sea=true, no fleet there => sea=false; country=null, AS.country=null => Austria!=null => skip
 		//   pop B, adj=[Vienna, Trieste]
 		//     both already in d0
-		// d0 = [Vienna, Budapest, Trieste, Adriatic Sea]
+		// d0 = [Vienna, Budapest, Trieste, Ionian Sea]
 		//
 		// getAdjacentLands expands:
 		// For each t in d0, get adj+t, then for each a get d0(a):
@@ -899,18 +899,18 @@ describe('getArmyOptions', () => {
 		//     d0(Trieste) = same
 		//     d0(Vienna) = same
 		//   t=Budapest: same expansions
-		//   t=Trieste: adj+t = [Vienna, Budapest, Adriatic Sea, Trieste]
-		//     d0(Adriatic Sea) starting from Adriatic: adj=[Trieste,Rome,West Med]
+		//   t=Trieste: adj+t = [Vienna, Budapest, Ionian Sea, Trieste]
+		//     d0(Ionian Sea) starting from Adriatic: adj=[Trieste,Rome,Western Med]
 		//       Trieste: country=Austria, AS.country=null => not both Austria => check sea: Trieste is not sea => skip
 		//       Rome: not sea, country=Italy, AS.country=null => skip
-		//       West Med: sea, no fleet => skip
-		//       d0(AS) = [Adriatic Sea] => sea, filtered out
-		//   t=Adriatic Sea: adj+t = [Trieste, Rome, West Med, Adriatic Sea]
+		//       Western Med: sea, no fleet => skip
+		//       d0(AS) = [Ionian Sea] => sea, filtered out
+		//   t=Ionian Sea: adj+t = [Trieste, Rome, Western Med, Ionian Sea]
 		//     d0(Rome) = [Rome] (Italy home, no connections to Austria)
 		//       Rome is not sea => add Rome
-		//     d0(West Med) = [West Med] => sea, filtered out
-		//     d0(Trieste) => Vienna,Budapest,Trieste,Adriatic Sea => non-sea: V,B,T
-		//     d0(Adriatic Sea) = [AS] => sea, filtered
+		//     d0(Western Med) = [Western Med] => sea, filtered out
+		//     d0(Trieste) => Vienna,Budapest,Trieste,Ionian Sea => non-sea: V,B,T
+		//     d0(Ionian Sea) = [AS] => sea, filtered
 		// Result includes: Vienna, Budapest, Trieste, Rome
 		expect(result[0][1]).toContain('Vienna');
 		expect(result[0][1]).toContain('Budapest');
@@ -921,7 +921,7 @@ describe('getArmyOptions', () => {
 	test('army cannot cross sea without fleet control', async () => {
 		const context = { game: 'g1', fleetMan: [] };
 		const result = await getArmyOptions(context);
-		// Without fleet in Adriatic Sea, army can't reach Rome
+		// Without fleet in Ionian Sea, army can't reach Rome
 		expect(result[0][1]).not.toContain('Rome');
 	});
 
@@ -942,7 +942,7 @@ describe('getArmyOptions', () => {
 	test('army can reach through fleet with peace action', async () => {
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', 'peace']],
+			fleetMan: [['Trieste', 'Ionian Sea', 'peace']],
 		};
 		const result = await getArmyOptions(context);
 		// peace also enables sea traversal
@@ -952,7 +952,7 @@ describe('getArmyOptions', () => {
 	test('army cannot cross sea with hostile fleet action', async () => {
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', 'hostile']],
+			fleetMan: [['Trieste', 'Ionian Sea', 'hostile']],
 		};
 		const result = await getArmyOptions(context);
 		// hostile does not match '' or 'peace', so sea is not accessible
@@ -1031,7 +1031,7 @@ describe('getArmyPeaceOptions', () => {
 	test('does not include hostile option for sea territories', async () => {
 		const context = { game: 'g1', fleetMan: [], armyMan: [] };
 		const result = await getArmyPeaceOptions(context);
-		expect(result['Adriatic Sea']).not.toContain('hostile');
+		expect(result['Ionian Sea']).not.toContain('hostile');
 	});
 
 	test('includes war options for territories with HOSTILE enemy units', async () => {
@@ -1122,15 +1122,15 @@ describe('getArmyPeaceOptions', () => {
 	});
 
 	test('removes chosen war actions from fleetMan', async () => {
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const context = {
 			game: 'g1',
-			fleetMan: [['Trieste', 'Adriatic Sea', 'war Italy fleet']],
+			fleetMan: [['Trieste', 'Ionian Sea', 'war Italy fleet']],
 			armyMan: [],
 		};
 		const result = await getArmyPeaceOptions(context);
-		// war Italy fleet should be removed from Adriatic Sea options
-		expect(result['Adriatic Sea']).not.toContain('war Italy fleet');
+		// war Italy fleet should be removed from Ionian Sea options
+		expect(result['Ionian Sea']).not.toContain('war Italy fleet');
 	});
 
 	test('does not remove peace or hostile actions from chosen armyMan', async () => {
@@ -1296,7 +1296,7 @@ describe('getImportOptions', () => {
 
 	test('returns zero limits when at capacity', async () => {
 		mockDbData.games.g1.countryInfo.Austria.armies = Array(5).fill({ territory: 'Vienna', hostile: false });
-		mockDbData.games.g1.countryInfo.Austria.fleets = Array(3).fill({ territory: 'Adriatic Sea', hostile: true });
+		mockDbData.games.g1.countryInfo.Austria.fleets = Array(3).fill({ territory: 'Ionian Sea', hostile: true });
 		const context = { game: 'g1' };
 		const result = await getImportOptions(context);
 		expect(result.limits.army).toBe(0);
@@ -1340,81 +1340,81 @@ describe('getImportOptions', () => {
 // ===========================================================================
 describe('getD0 — BFS for army reachable zone', () => {
 	test('returns only the start territory when no fleets control adjacent seas', () => {
-		// Army at Trieste, no fleet in Adriatic Sea
+		// Army at Trieste, no fleet in Ionian Sea
 		const context = { fleetMan: [] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
-		// Trieste is adjacent to Vienna and Budapest (same country) and Adriatic Sea (sea, no fleet)
+		// Trieste is adjacent to Vienna and Budapest (same country) and Ionian Sea (sea, no fleet)
 		// BFS should traverse all connected Austrian lands
 		expect(d0).toContain('Trieste');
 		expect(d0).toContain('Vienna');
 		expect(d0).toContain('Budapest');
-		expect(d0).not.toContain('Adriatic Sea');
+		expect(d0).not.toContain('Ionian Sea');
 		expect(d0).not.toContain('Rome');
 	});
 
 	test('traverses through fleet-controlled sea', () => {
-		// Army at Trieste, Austrian fleet moved to Adriatic Sea (normal move)
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		// Army at Trieste, Austrian fleet moved to Ionian Sea (normal move)
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', '']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
-		// Should reach: Trieste, Vienna, Budapest (Austrian lands) + Adriatic Sea (fleet-controlled)
+		// Should reach: Trieste, Vienna, Budapest (Austrian lands) + Ionian Sea (fleet-controlled)
 		expect(d0).toContain('Trieste');
 		expect(d0).toContain('Vienna');
 		expect(d0).toContain('Budapest');
-		expect(d0).toContain('Adriatic Sea');
-		// Rome is adjacent to Adriatic Sea but it's Italian land, not Austrian — stops BFS
-		// However Rome IS reachable because d0 includes Adriatic Sea → d0 includes all
-		// accessible nodes from Adriatic Sea that are same-country or fleet-controlled seas
+		expect(d0).toContain('Ionian Sea');
+		// Rome is adjacent to Ionian Sea but it's Italian land, not Austrian — stops BFS
+		// However Rome IS reachable because d0 includes Ionian Sea → d0 includes all
+		// accessible nodes from Ionian Sea that are same-country or fleet-controlled seas
 		expect(d0).not.toContain('Rome'); // Rome is Italy, not Austria
 	});
 
 	test('traverses through multiple fleet-controlled seas', () => {
-		// Austrian fleets at Adriatic Sea and West Med
+		// Austrian fleets at Ionian Sea and Western Med
 		const context = {
 			fleetMan: [
-				['Trieste', 'Adriatic Sea', ''],
-				['Adriatic Sea', 'West Med', ''],
+				['Trieste', 'Ionian Sea', ''],
+				['Ionian Sea', 'Western Med', ''],
 			],
 		};
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
 		expect(d0).toContain('Trieste');
-		expect(d0).toContain('Adriatic Sea');
-		expect(d0).toContain('West Med');
+		expect(d0).toContain('Ionian Sea');
+		expect(d0).toContain('Western Med');
 		// Foreign lands still not included in d0
 		expect(d0).not.toContain('Rome');
 	});
 
 	test('does not traverse sea when fleet action is war (fleet destroyed)', () => {
-		// Fleet went to war at Adriatic Sea — fleet is destroyed
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'war Italy fleet']] };
+		// Fleet went to war at Ionian Sea — fleet is destroyed
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', 'war Italy fleet']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
 		// War fleets don't provide sea control — war action is not '' or 'peace'
 		expect(d0).toContain('Trieste');
 		expect(d0).toContain('Vienna');
 		expect(d0).toContain('Budapest');
-		expect(d0).not.toContain('Adriatic Sea');
+		expect(d0).not.toContain('Ionian Sea');
 	});
 
 	test('traverses sea when fleet action is peace', () => {
-		// Fleet entered Adriatic Sea with peace
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'peace']] };
+		// Fleet entered Ionian Sea with peace
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', 'peace']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
-		expect(d0).toContain('Adriatic Sea');
+		expect(d0).toContain('Ionian Sea');
 	});
 
 	test('does not traverse sea when fleet is hostile (not peace or move)', () => {
-		// Fleet entered Adriatic Sea with 'hostile' action
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'hostile']] };
+		// Fleet entered Ionian Sea with 'hostile' action
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', 'hostile']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
 		// 'hostile' is not '' (MOVE) and not 'peace', so sea not controlled
-		expect(d0).not.toContain('Adriatic Sea');
+		expect(d0).not.toContain('Ionian Sea');
 	});
 
 	test('fleet at origin (staying put) does not provide convoy for its starting sea', () => {
-		// Fleet stays at Adriatic Sea (fleetMan entry: ['Adriatic Sea', 'Adriatic Sea', ''])
-		const context = { fleetMan: [['Adriatic Sea', 'Adriatic Sea', '']] };
+		// Fleet stays at Ionian Sea (fleetMan entry: ['Ionian Sea', 'Ionian Sea', ''])
+		const context = { fleetMan: [['Ionian Sea', 'Ionian Sea', '']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
-		// getD0 checks x[1] === adj, so 'Adriatic Sea' destination matches
-		expect(d0).toContain('Adriatic Sea');
+		// getD0 checks x[1] === adj, so 'Ionian Sea' destination matches
+		expect(d0).toContain('Ionian Sea');
 	});
 });
 
@@ -1430,43 +1430,43 @@ describe('getAdjacentLands — army movement destinations', () => {
 		expect(lands).not.toContain('Naples');
 	});
 
-	test('army at Trieste with fleet at Adriatic Sea can reach Rome (convoy)', () => {
-		// Fleet moved to Adriatic Sea (normal move)
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+	test('army at Trieste with fleet at Ionian Sea can reach Rome (convoy)', () => {
+		// Fleet moved to Ionian Sea (normal move)
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', '']] };
 		const lands = getAdjacentLands('Trieste', mockTerritorySetup, 'Austria', context);
-		// Trieste → d0 includes Trieste, Vienna, Budapest, Adriatic Sea
-		// Then expand: adjacencies of Adriatic Sea include Rome → d0(Rome) for Austria
+		// Trieste → d0 includes Trieste, Vienna, Budapest, Ionian Sea
+		// Then expand: adjacencies of Ionian Sea include Rome → d0(Rome) for Austria
 		// = just Rome (Italy land, not Austrian, but Rome is reachable as a one-step expansion)
 		expect(lands).toContain('Trieste');
 		expect(lands).toContain('Vienna');
 		expect(lands).toContain('Budapest');
 		expect(lands).toContain('Rome');
 		// No sea territories in result
-		expect(lands).not.toContain('Adriatic Sea');
-		expect(lands).not.toContain('West Med');
+		expect(lands).not.toContain('Ionian Sea');
+		expect(lands).not.toContain('Western Med');
 	});
 
-	test('army at Vienna with fleet at Adriatic Sea can convoy through Trieste→Adriatic→Rome', () => {
-		// Vienna and Trieste are connected (same country), Adriatic Sea is fleet-controlled
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+	test('army at Vienna with fleet at Ionian Sea can convoy through Trieste→Adriatic→Rome', () => {
+		// Vienna and Trieste are connected (same country), Ionian Sea is fleet-controlled
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', '']] };
 		const lands = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
 		expect(lands).toContain('Rome');
 	});
 
-	test('army at Vienna with fleets at Adriatic Sea + West Med can reach Marseille', () => {
-		// Two fleets providing convoy chain: Adriatic Sea → West Med
+	test('army at Vienna with fleets at Ionian Sea + Western Med can reach Marseille', () => {
+		// Two fleets providing convoy chain: Ionian Sea → Western Med
 		const context = {
 			fleetMan: [
-				['Trieste', 'Adriatic Sea', ''],
-				['Adriatic Sea', 'West Med', ''],
+				['Trieste', 'Ionian Sea', ''],
+				['Ionian Sea', 'Western Med', ''],
 			],
 		};
 		const lands = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
-		// d0(Vienna) = Vienna, Budapest, Trieste, Adriatic Sea, West Med
-		// Expand from West Med: adjacent is Adriatic Sea (already in d0), Rome (Italian)
+		// d0(Vienna) = Vienna, Budapest, Trieste, Ionian Sea, Western Med
+		// Expand from Western Med: adjacent is Ionian Sea (already in d0), Rome (Italian)
 		// d0(Rome) from Austria context = just Rome (not Austrian land, no further BFS)
 		// expand from Rome: Naples (Italian land)
-		// Also: West Med adj includes Marseille (French port) → d0(Marseille) = just Marseille
+		// Also: Western Med adj includes Marseille (French port) → d0(Marseille) = just Marseille
 		expect(lands).toContain('Rome');
 		expect(lands).toContain('Marseille');
 	});
@@ -1481,7 +1481,7 @@ describe('getAdjacentLands — army movement destinations', () => {
 	});
 
 	test('army cannot reach across sea when fleet was destroyed in war', () => {
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'war Italy fleet']] };
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', 'war Italy fleet']] };
 		const lands = getAdjacentLands('Trieste', mockTerritorySetup, 'Austria', context);
 		// War fleet doesn't control the sea
 		expect(lands).not.toContain('Rome');
@@ -1490,8 +1490,8 @@ describe('getAdjacentLands — army movement destinations', () => {
 	test('never returns sea territories', () => {
 		const context = {
 			fleetMan: [
-				['Trieste', 'Adriatic Sea', ''],
-				['Adriatic Sea', 'West Med', ''],
+				['Trieste', 'Ionian Sea', ''],
+				['Ionian Sea', 'Western Med', ''],
 			],
 		};
 		const lands = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
@@ -1504,15 +1504,15 @@ describe('getAdjacentLands — army movement destinations', () => {
 describe('getAdjacentSeas — fleet movement destinations', () => {
 	test('fleet at port returns fleet position + port sea', () => {
 		const result = getAdjacentSeas('Trieste', mockTerritorySetup);
-		// Trieste has port = 'Adriatic Sea'
-		expect(result).toEqual(['Trieste', 'Adriatic Sea']);
+		// Trieste has port = 'Ionian Sea'
+		expect(result).toEqual(['Trieste', 'Ionian Sea']);
 	});
 
 	test('fleet at sea returns current position + adjacent seas', () => {
-		const result = getAdjacentSeas('Adriatic Sea', mockTerritorySetup);
-		// Adriatic Sea adj: Trieste (not sea), Rome (not sea), West Med (sea)
-		expect(result).toContain('Adriatic Sea');
-		expect(result).toContain('West Med');
+		const result = getAdjacentSeas('Ionian Sea', mockTerritorySetup);
+		// Ionian Sea adj: Trieste (not sea), Rome (not sea), Western Med (sea)
+		expect(result).toContain('Ionian Sea');
+		expect(result).toContain('Western Med');
 		expect(result).not.toContain('Trieste');
 		expect(result).not.toContain('Rome');
 	});
@@ -1542,23 +1542,23 @@ describe('getVirtualStateFromPlans', () => {
 			country: 'Austria',
 			pendingFleets: [{ territory: 'Trieste', hostile: true }],
 			pendingArmies: [{ territory: 'Vienna', hostile: false }],
-			fleetTuples: [['Trieste', 'Adriatic Sea', '']],
+			fleetTuples: [['Trieste', 'Ionian Sea', '']],
 			armyTuples: [],
 		};
 		const result = getVirtualStateFromPlans(countryInfo, plan);
-		expect(result.Austria.fleets).toEqual([{ territory: 'Adriatic Sea', hostile: true }]);
+		expect(result.Austria.fleets).toEqual([{ territory: 'Ionian Sea', hostile: true }]);
 		// Original shouldn't be mutated
 		expect(countryInfo.Austria.fleets[0].territory).toBe('Trieste');
 	});
 
 	it('handles fleet war — attacking fleet destroyed, target removed', () => {
 		const countryInfo = buildMockDbData().games.g1.countryInfo;
-		countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const plan = {
 			country: 'Austria',
 			pendingFleets: [{ territory: 'Trieste', hostile: true }],
 			pendingArmies: [],
-			fleetTuples: [['Trieste', 'Adriatic Sea', 'war Italy fleet']],
+			fleetTuples: [['Trieste', 'Ionian Sea', 'war Italy fleet']],
 			armyTuples: [],
 		};
 		const result = getVirtualStateFromPlans(countryInfo, plan);
@@ -1635,22 +1635,22 @@ describe('getVirtualStateFromPlans', () => {
 		const countryInfo = buildMockDbData().games.g1.countryInfo;
 		countryInfo.Austria.fleets = [
 			{ territory: 'Trieste', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		];
 		const plan = {
 			country: 'Austria',
 			pendingFleets: [
 				{ territory: 'Trieste', hostile: true },
-				{ territory: 'Adriatic Sea', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
 			],
 			pendingArmies: [],
-			fleetTuples: [['Trieste', 'Adriatic Sea', '']], // only first fleet planned
+			fleetTuples: [['Trieste', 'Ionian Sea', '']], // only first fleet planned
 			armyTuples: [],
 		};
 		const result = getVirtualStateFromPlans(countryInfo, plan);
 		expect(result.Austria.fleets).toEqual([
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		]);
 	});
 });
@@ -1669,53 +1669,53 @@ describe('getUnitOptionsFromPlans', () => {
 		};
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 0);
 		expect(result).toContain('Trieste');
-		expect(result).toContain('Adriatic Sea');
+		expect(result).toContain('Ionian Sea');
 	});
 
 	it('returns destinations from virtual position after earlier fleet moves', async () => {
 		mockDbData.games.g1.countryInfo.Austria.fleets = [
 			{ territory: 'Trieste', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		];
 		const plan = {
 			country: 'Austria',
 			pendingFleets: [
 				{ territory: 'Trieste', hostile: true },
-				{ territory: 'Adriatic Sea', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
 			],
 			pendingArmies: [],
 			fleetTuples: [
-				['Trieste', 'Adriatic Sea', ''], // fleet 0 moved
+				['Trieste', 'Ionian Sea', ''], // fleet 0 moved
 			],
 			armyTuples: [],
 		};
-		// Fleet 1 is still at Adriatic Sea (original position)
+		// Fleet 1 is still at Ionian Sea (original position)
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1);
-		expect(result).toContain('Adriatic Sea');
-		expect(result).toContain('West Med');
+		expect(result).toContain('Ionian Sea');
+		expect(result).toContain('Western Med');
 	});
 
 	it('skips destroyed fleet when computing surviving index', async () => {
 		mockDbData.games.g1.countryInfo.Austria.fleets = [
 			{ territory: 'Trieste', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		];
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const plan = {
 			country: 'Austria',
 			pendingFleets: [
 				{ territory: 'Trieste', hostile: true },
-				{ territory: 'Adriatic Sea', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
 			],
 			pendingArmies: [],
 			fleetTuples: [
-				['Trieste', 'Adriatic Sea', 'war Italy fleet'], // fleet 0 destroyed in war
+				['Trieste', 'Ionian Sea', 'war Italy fleet'], // fleet 0 destroyed in war
 			],
 			armyTuples: [],
 		};
 		// Fleet 0 destroyed, so fleet 1 is at virtual index 0
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1);
-		expect(result).toContain('Adriatic Sea');
+		expect(result).toContain('Ionian Sea');
 	});
 
 	it('returns adjacent lands for an army', async () => {
@@ -1737,11 +1737,11 @@ describe('getUnitOptionsFromPlans', () => {
 			country: 'Austria',
 			pendingFleets: [{ territory: 'Trieste', hostile: true }],
 			pendingArmies: [{ territory: 'Vienna', hostile: false }],
-			fleetTuples: [['Trieste', 'Adriatic Sea', '']], // fleet controls Adriatic
+			fleetTuples: [['Trieste', 'Ionian Sea', '']], // fleet controls Adriatic
 			armyTuples: [],
 		};
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
-		// Army should be able to reach Rome through Adriatic Sea
+		// Army should be able to reach Rome through Ionian Sea
 		expect(result).toContain('Rome');
 	});
 });
@@ -1842,7 +1842,7 @@ describe('getUnitActionOptionsFromPlans', () => {
 	});
 
 	it('fleet: returns war + peace when enemy fleet at destination', async () => {
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const plan = {
 			country: 'Austria',
 			pendingFleets: [{ territory: 'Trieste', hostile: true }],
@@ -1850,7 +1850,7 @@ describe('getUnitActionOptionsFromPlans', () => {
 			fleetTuples: [],
 			armyTuples: [],
 		};
-		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 0, 'Adriatic Sea');
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 0, 'Ionian Sea');
 		expect(result).toContain('war Italy fleet');
 		expect(result).toContain('peace');
 	});
@@ -1858,23 +1858,23 @@ describe('getUnitActionOptionsFromPlans', () => {
 	it('reflects virtual state — enemy destroyed by earlier war not available', async () => {
 		mockDbData.games.g1.countryInfo.Austria.fleets = [
 			{ territory: 'Trieste', hostile: true },
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 		];
-		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Italy.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		const plan = {
 			country: 'Austria',
 			pendingFleets: [
 				{ territory: 'Trieste', hostile: true },
-				{ territory: 'Adriatic Sea', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
 			],
 			pendingArmies: [],
 			fleetTuples: [
-				['Trieste', 'Adriatic Sea', 'war Italy fleet'], // fleet 0 destroys Italian fleet
+				['Trieste', 'Ionian Sea', 'war Italy fleet'], // fleet 0 destroys Italian fleet
 			],
 			armyTuples: [],
 		};
-		// Fleet 1 moves to Adriatic Sea — Italian fleet is already destroyed by fleet 0
-		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1, 'Adriatic Sea');
+		// Fleet 1 moves to Ionian Sea — Italian fleet is already destroyed by fleet 0
+		const result = await getUnitActionOptionsFromPlans({ game: 'g1' }, plan, 'fleet', 1, 'Ionian Sea');
 		expect(result).toEqual([]); // no enemy units remaining
 	});
 });
@@ -1991,20 +1991,20 @@ describe('§2.1 Fleet Movement Rules', () => {
 	test('fleet at port: can move to port sea or stay', () => {
 		const result = getAdjacentSeas('Trieste', mockTerritorySetup);
 		expect(result).toContain('Trieste');
-		expect(result).toContain('Adriatic Sea');
+		expect(result).toContain('Ionian Sea');
 		expect(result).toHaveLength(2);
 	});
 
 	test('fleet at sea: can move to adjacent seas or stay', () => {
-		const result = getAdjacentSeas('Adriatic Sea', mockTerritorySetup);
-		expect(result).toContain('Adriatic Sea');
-		expect(result).toContain('West Med');
+		const result = getAdjacentSeas('Ionian Sea', mockTerritorySetup);
+		expect(result).toContain('Ionian Sea');
+		expect(result).toContain('Western Med');
 		expect(result).not.toContain('Trieste');
 		expect(result).not.toContain('Rome');
 	});
 
 	test('fleet cannot return to port from sea', () => {
-		const result = getAdjacentSeas('Adriatic Sea', mockTerritorySetup);
+		const result = getAdjacentSeas('Ionian Sea', mockTerritorySetup);
 		expect(result).not.toContain('Trieste');
 	});
 
@@ -2013,7 +2013,7 @@ describe('§2.1 Fleet Movement Rules', () => {
 		const result = await getFleetOptions(context);
 		expect(result).toHaveLength(1);
 		expect(result[0][0]).toBe('Trieste');
-		expect(result[0][1]).toContain('Adriatic Sea');
+		expect(result[0][1]).toContain('Ionian Sea');
 		expect(result[0][1]).toContain('Trieste');
 	});
 });
@@ -2038,25 +2038,25 @@ describe('§2.2 Army Movement (BFS)', () => {
 	});
 
 	test('getD0: expands through conveyed seas', () => {
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', '']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
-		expect(d0).toContain('Adriatic Sea');
+		expect(d0).toContain('Ionian Sea');
 	});
 
 	test('getD0: fleet with war action does NOT provide convoy', () => {
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'war Italy fleet']] };
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', 'war Italy fleet']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
-		expect(d0).not.toContain('Adriatic Sea');
+		expect(d0).not.toContain('Ionian Sea');
 	});
 
 	test('getD0: fleet with peace action DOES provide convoy', () => {
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', 'peace']] };
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', 'peace']] };
 		const d0 = getD0('Trieste', mockTerritorySetup, 'Austria', context);
-		expect(d0).toContain('Adriatic Sea');
+		expect(d0).toContain('Ionian Sea');
 	});
 
 	test('getAdjacentLands: with convoy, reaches land across sea', () => {
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', '']] };
 		const result = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
 		expect(result).toContain('Rome');
 		expect(result).toContain('Trieste');
@@ -2069,7 +2069,7 @@ describe('§2.2 Army Movement (BFS)', () => {
 	});
 
 	test('getAdjacentLands: does NOT over-expand (no recursive getD0)', () => {
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', '']] };
 		const result = getAdjacentLands('Vienna', mockTerritorySetup, 'Austria', context);
 		expect(result).toContain('Rome');
 		// Naples is adjacent to Rome but TWO hops from D0 — should NOT be reachable
@@ -2077,10 +2077,10 @@ describe('§2.2 Army Movement (BFS)', () => {
 	});
 
 	test('army cannot reach sea territories', () => {
-		const context = { fleetMan: [['Trieste', 'Adriatic Sea', '']] };
+		const context = { fleetMan: [['Trieste', 'Ionian Sea', '']] };
 		const result = getAdjacentLands('Trieste', mockTerritorySetup, 'Austria', context);
-		expect(result).not.toContain('Adriatic Sea');
-		expect(result).not.toContain('West Med');
+		expect(result).not.toContain('Ionian Sea');
+		expect(result).not.toContain('Western Med');
 	});
 });
 
@@ -2168,7 +2168,7 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 			country: 'Austria',
 			pendingFleets: [{ territory: 'Trieste', hostile: true }],
 			pendingArmies: [{ territory: 'Trieste', hostile: true }],
-			fleetTuples: [['Trieste', 'Adriatic Sea', '']],
+			fleetTuples: [['Trieste', 'Ionian Sea', '']],
 			armyTuples: [],
 		};
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
@@ -2182,7 +2182,7 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 			country: 'Austria',
 			pendingFleets: [{ territory: 'Trieste', hostile: true }],
 			pendingArmies: [{ territory: 'Trieste', hostile: true }],
-			fleetTuples: [['Trieste', 'Adriatic Sea', 'war Italy fleet']],
+			fleetTuples: [['Trieste', 'Ionian Sea', 'war Italy fleet']],
 			armyTuples: [],
 		};
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
@@ -2190,14 +2190,14 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 	});
 
 	test('fleet staying provides convoy', async () => {
-		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		mockDbData.games.g1.countryInfo.Austria.armies = [{ territory: 'Trieste', hostile: true }];
 		clearCache();
 		const plan = {
 			country: 'Austria',
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingFleets: [{ territory: 'Ionian Sea', hostile: true }],
 			pendingArmies: [{ territory: 'Trieste', hostile: true }],
-			fleetTuples: [['Adriatic Sea', 'Adriatic Sea', '']],
+			fleetTuples: [['Ionian Sea', 'Ionian Sea', '']],
 			armyTuples: [],
 		};
 		const result = await getUnitOptionsFromPlans({ game: 'g1' }, plan, 'army', 0);
@@ -2205,8 +2205,8 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 	});
 
 	test('convoy 1:1 limit: second army cannot use same fleet', async () => {
-		// 1 fleet at Adriatic Sea, 2 armies at Trieste
-		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		// 1 fleet at Ionian Sea, 2 armies at Trieste
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		mockDbData.games.g1.countryInfo.Austria.armies = [
 			{ territory: 'Trieste', hostile: true },
 			{ territory: 'Trieste', hostile: true },
@@ -2214,12 +2214,12 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 		clearCache();
 		const plan = {
 			country: 'Austria',
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingFleets: [{ territory: 'Ionian Sea', hostile: true }],
 			pendingArmies: [
 				{ territory: 'Trieste', hostile: true },
 				{ territory: 'Trieste', hostile: true },
 			],
-			fleetTuples: [['Adriatic Sea', 'Adriatic Sea', '']], // fleet stays, provides convoy
+			fleetTuples: [['Ionian Sea', 'Ionian Sea', '']], // fleet stays, provides convoy
 			armyTuples: [['Trieste', 'Rome', '']], // army 0 uses the fleet
 		};
 		// Army 1: fleet already used by army 0 — should NOT reach Rome
@@ -2229,7 +2229,7 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 
 	test('convoy 1:1: army reachable by land is not affected', async () => {
 		// Army at Vienna going to Budapest — no fleet needed
-		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		mockDbData.games.g1.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		mockDbData.games.g1.countryInfo.Austria.armies = [
 			{ territory: 'Trieste', hostile: true },
 			{ territory: 'Vienna', hostile: true },
@@ -2237,12 +2237,12 @@ describe('§2.3 Convoy — getUnitOptionsFromPlans', () => {
 		clearCache();
 		const plan = {
 			country: 'Austria',
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingFleets: [{ territory: 'Ionian Sea', hostile: true }],
 			pendingArmies: [
 				{ territory: 'Trieste', hostile: true },
 				{ territory: 'Vienna', hostile: true },
 			],
-			fleetTuples: [['Adriatic Sea', 'Adriatic Sea', '']],
+			fleetTuples: [['Ionian Sea', 'Ionian Sea', '']],
 			armyTuples: [['Trieste', 'Rome', '']], // army 0 uses the fleet
 		};
 		// Army 1 at Vienna → Budapest by land — should work regardless of fleet usage
@@ -2255,7 +2255,7 @@ describe('§2.3 computeConvoyAssignments', () => {
 	const { computeConvoyAssignments } = require('./proposalAPI.js');
 
 	test('single fleet, single army needing convoy', () => {
-		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let fleetTuples = [['Trieste', 'Ionian Sea', '']];
 		let armyTuples = [['Trieste', 'Rome', '']];
 		let { assignments, usedFleetSeas } = computeConvoyAssignments(
 			fleetTuples,
@@ -2264,23 +2264,23 @@ describe('§2.3 computeConvoyAssignments', () => {
 			'Austria'
 		);
 		expect(assignments).toHaveLength(1);
-		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
-		expect(usedFleetSeas.has('Adriatic Sea')).toBe(true);
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
+		expect(usedFleetSeas.has('Ionian Sea')).toBe(true);
 	});
 
 	test('single fleet, two armies needing convoy — second gets nothing', () => {
-		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let fleetTuples = [['Trieste', 'Ionian Sea', '']];
 		let armyTuples = [
 			['Trieste', 'Rome', ''],
 			['Trieste', 'Rome', ''],
 		];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
-		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
 		expect(assignments[1].fleetSeas).toEqual([]);
 	});
 
 	test('army reachable by land returns empty fleetSeas', () => {
-		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let fleetTuples = [['Trieste', 'Ionian Sea', '']];
 		let armyTuples = [['Vienna', 'Budapest', '']];
 		let { assignments, usedFleetSeas } = computeConvoyAssignments(
 			fleetTuples,
@@ -2294,8 +2294,8 @@ describe('§2.3 computeConvoyAssignments', () => {
 
 	test('two fleets, two armies — each gets different fleet', () => {
 		let fleetTuples = [
-			['Trieste', 'Adriatic Sea', ''],
-			['Marseille', 'West Med', ''],
+			['Trieste', 'Ionian Sea', ''],
+			['Marseille', 'Western Med', ''],
 		];
 		let armyTuples = [
 			['Trieste', 'Rome', ''],
@@ -2313,75 +2313,86 @@ describe('§2.3 computeConvoyAssignments', () => {
 	});
 
 	test('fleet with war action does not provide convoy', () => {
-		let fleetTuples = [['Trieste', 'Adriatic Sea', 'war Italy fleet']];
+		let fleetTuples = [['Trieste', 'Ionian Sea', 'war Italy fleet']];
 		let armyTuples = [['Trieste', 'Rome', '']];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
 		expect(assignments[0].fleetSeas).toEqual([]);
 	});
 
 	test('army staying in place returns empty fleetSeas', () => {
-		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let fleetTuples = [['Trieste', 'Ionian Sea', '']];
 		let armyTuples = [['Vienna', 'Vienna', '']];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
 		expect(assignments[0].fleetSeas).toEqual([]);
 	});
 
 	test('army with war action still gets convoy if crossing water', () => {
-		let fleetTuples = [['Trieste', 'Adriatic Sea', '']];
+		let fleetTuples = [['Trieste', 'Ionian Sea', '']];
 		let armyTuples = [['Trieste', 'Rome', 'war Italy army']];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
 		// War armies still need fleet transport to cross sea — convoy should be assigned
-		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
 	});
 
 	test('two fleets in same sea can transport two armies', () => {
 		let fleetTuples = [
-			['Trieste', 'Adriatic Sea', ''],
-			['Trieste', 'Adriatic Sea', ''],
+			['Trieste', 'Ionian Sea', ''],
+			['Trieste', 'Ionian Sea', ''],
 		];
 		let armyTuples = [
 			['Trieste', 'Rome', ''],
 			['Trieste', 'Rome', ''],
 		];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
-		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
-		expect(assignments[1].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
+		expect(assignments[1].fleetSeas).toEqual(['Ionian Sea']);
 	});
 
 	test('assigned fleet provides convoy, unassigned fleet does not', () => {
-		// Fleet 1: assigned to Adriatic Sea. Fleet 2: unassigned (dest empty, no convoy)
+		// Fleet 1: assigned to Ionian Sea. Fleet 2: unassigned (dest empty, no convoy)
 		let fleetTuples = [
-			['Trieste', 'Adriatic Sea', ''], // assigned — provides convoy
+			['Trieste', 'Ionian Sea', ''], // assigned — provides convoy
 			['Trieste', '', ''], // unassigned — no dest, can't provide convoy
 		];
 		let armyTuples = [['Trieste', 'Rome', '']];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
-		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
 	});
 
 	test('army uses the only assigned fleet when other is unassigned', () => {
-		// Only the West Med fleet has a destination; Adriatic fleet is unassigned
+		// Only the Western Med fleet has a destination; Adriatic fleet is unassigned
 		let fleetTuples = [
 			['Trieste', '', ''], // unassigned
-			['Trieste', 'Adriatic Sea', ''], // assigned
+			['Trieste', 'Ionian Sea', ''], // assigned
 		];
 		let armyTuples = [['Trieste', 'Rome', '']];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
-		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
 	});
 
 	test('two armies same sea — both assigned fleets get used', () => {
 		let fleetTuples = [
-			['Trieste', 'Adriatic Sea', ''],
-			['Trieste', 'Adriatic Sea', ''],
+			['Trieste', 'Ionian Sea', ''],
+			['Trieste', 'Ionian Sea', ''],
 		];
 		let armyTuples = [
 			['Trieste', 'Rome', ''],
 			['Trieste', 'Rome', ''],
 		];
 		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
-		expect(assignments[0].fleetSeas).toEqual(['Adriatic Sea']);
-		expect(assignments[1].fleetSeas).toEqual(['Adriatic Sea']);
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
+		expect(assignments[1].fleetSeas).toEqual(['Ionian Sea']);
+	});
+
+	test('army with peace action from Vienna to Rome via Ionian Sea', () => {
+		let fleetTuples = [['Ionian Sea', 'Ionian Sea', '']];
+		let armyTuples = [
+			['Vienna', 'Rome', 'peace'],
+			['Budapest', 'Budapest', ''],
+		];
+		let { assignments } = computeConvoyAssignments(fleetTuples, armyTuples, mockTerritorySetup, 'Austria');
+		expect(assignments[0].fleetSeas).toEqual(['Ionian Sea']);
+		expect(assignments[1].fleetSeas).toEqual([]);
 	});
 
 	test('null inputs return empty results', () => {
@@ -2393,10 +2404,10 @@ describe('§2.3 computeConvoyAssignments', () => {
 	test('assigns the correct fleet when multiple fleets present (wrong-fleet regression)', () => {
 		// Bug: old code tested each fleet with ALL other fleets available,
 		// so the first fleet in the array was assigned even if it wasn't the one
-		// enabling the path. E.g. army Paris→Rome needs West Med, not Adriatic Sea.
+		// enabling the path. E.g. army Paris→Rome needs Western Med, not Ionian Sea.
 		let fleetTuples = [
-			['Trieste', 'Adriatic Sea', ''], // NOT the fleet Paris needs
-			['Marseille', 'West Med', ''], // THIS fleet enables Paris→Rome
+			['Trieste', 'Ionian Sea', ''], // NOT the fleet Paris needs
+			['Marseille', 'Western Med', ''], // THIS fleet enables Paris→Rome
 		];
 		let armyTuples = [['Paris', 'Rome', '']];
 		let { assignments, usedFleetSeas } = computeConvoyAssignments(
@@ -2405,22 +2416,22 @@ describe('§2.3 computeConvoyAssignments', () => {
 			mockTerritorySetup,
 			'France'
 		);
-		expect(assignments[0].fleetSeas).toEqual(['West Med']);
-		expect(usedFleetSeas.has('West Med')).toBe(true);
-		expect(usedFleetSeas.has('Adriatic Sea')).toBe(false);
+		expect(assignments[0].fleetSeas).toEqual(['Western Med']);
+		expect(usedFleetSeas.has('Western Med')).toBe(true);
+		expect(usedFleetSeas.has('Ionian Sea')).toBe(false);
 	});
 
 	test('multi-hop convoy finds correct sea path', () => {
-		// Army at Paris needs to reach Rome via West Med + Adriatic Sea
+		// Army at Paris needs to reach Rome via Western Med + Ionian Sea
 		// (if Rome is only reachable through chaining two seas)
-		// In our test data: Paris→Marseille→West Med→Adriatic Sea→Rome
-		// West Med is adjacent to both Marseille and Adriatic Sea
-		// Adriatic Sea is adjacent to both West Med and Rome
-		// So this requires two fleets: West Med + Adriatic Sea
+		// In our test data: Paris→Marseille→Western Med→Ionian Sea→Rome
+		// Western Med is adjacent to both Marseille and Ionian Sea
+		// Ionian Sea is adjacent to both Western Med and Rome
+		// So this requires two fleets: Western Med + Ionian Sea
 		//
 		// But first check: can a single fleet do it?
-		// With only West Med: D0={Paris,Marseille,West Med}. One-hop from West Med: Rome (adjacent) ✓
-		// So actually West Med alone reaches Rome. Use a different topology for multi-hop.
+		// With only Western Med: D0={Paris,Marseille,Western Med}. One-hop from Western Med: Rome (adjacent) ✓
+		// So actually Western Med alone reaches Rome. Use a different topology for multi-hop.
 		//
 		// For a true multi-hop test we'd need a longer sea chain. Skip for now —
 		// the single-fleet fix is the critical regression.

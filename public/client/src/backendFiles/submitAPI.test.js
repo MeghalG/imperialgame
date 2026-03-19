@@ -120,23 +120,22 @@ const realisticTerritorySetup = {
 	Budapest: { country: 'Austria', port: false, sea: false, adjacencies: ['Vienna', 'Trieste'] },
 	Trieste: {
 		country: 'Austria',
-		port: 'Adriatic Sea',
+		port: 'Ionian Sea',
 		sea: false,
-		adjacencies: ['Vienna', 'Budapest', 'Adriatic Sea'],
+		adjacencies: ['Vienna', 'Budapest', 'Ionian Sea'],
 	},
-	'Adriatic Sea': { country: null, port: false, sea: true, adjacencies: ['Trieste', 'Rome', 'West Med'] },
-	Rome: { country: 'Italy', port: 'West Med', sea: false, adjacencies: ['West Med', 'Naples', 'Adriatic Sea'] },
+	'Ionian Sea': { country: null, port: false, sea: true, adjacencies: ['Trieste', 'Rome', 'Western Med'] },
+	Rome: { country: 'Italy', port: 'Western Med', sea: false, adjacencies: ['Western Med', 'Naples', 'Ionian Sea'] },
 	Naples: { country: 'Italy', port: false, sea: false, adjacencies: ['Rome'] },
-	'West Med': { country: null, port: false, sea: true, adjacencies: ['Adriatic Sea', 'Rome', 'Marseille'] },
+	'Western Med': { country: null, port: false, sea: true, adjacencies: ['Ionian Sea', 'Rome', 'Marseille'] },
 	Paris: { country: 'France', port: false, sea: false, adjacencies: ['Marseille'] },
-	Marseille: { country: 'France', port: 'West Med', sea: false, adjacencies: ['Paris', 'West Med'] },
-	'East Med': { country: null, port: false, sea: true, adjacencies: ['West Med'] },
+	Marseille: { country: 'France', port: 'Western Med', sea: false, adjacencies: ['Paris', 'Western Med'] },
+	'East Med': { country: null, port: false, sea: true, adjacencies: ['Western Med'] },
 	Galicia: { country: 'Austria', port: false, sea: false, adjacencies: ['Vienna', 'Budapest'] },
-	Venice: { country: 'Italy', port: 'Adriatic Sea', sea: false, adjacencies: ['Trieste', 'Rome', 'Adriatic Sea'] },
-	'Tyrrhenian Sea': { country: null, port: false, sea: true, adjacencies: ['West Med', 'Rome', 'Naples'] },
-	'Ionian Sea': { country: null, port: false, sea: true, adjacencies: ['East Med', 'Adriatic Sea'] },
+	Venice: { country: 'Italy', port: 'Ionian Sea', sea: false, adjacencies: ['Trieste', 'Rome', 'Ionian Sea'] },
+	'Tyrrhenian Sea': { country: null, port: false, sea: true, adjacencies: ['Western Med', 'Rome', 'Naples'] },
 	'Neutral Land': { country: null, port: false, sea: false, adjacencies: ['Vienna', 'Galicia'] },
-	Marseilles: { country: 'France', port: 'West Med', sea: false, adjacencies: ['Paris', 'West Med'] },
+	Marseilles: { country: 'France', port: 'Western Med', sea: false, adjacencies: ['Paris', 'Western Med'] },
 	Zagreb: { country: 'Austria', port: false, sea: false, adjacencies: ['Budapest', 'Trieste'] },
 };
 
@@ -1586,7 +1585,7 @@ describe('executeProposal — L-Produce / R-Produce', () => {
 			game: 'testGame',
 			name: 'Alice',
 			wheelSpot: 'L-Produce',
-			fleetProduce: ['Adriatic Sea'],
+			fleetProduce: ['Ionian Sea'],
 			armyProduce: [],
 		};
 
@@ -1594,7 +1593,7 @@ describe('executeProposal — L-Produce / R-Produce', () => {
 		await flushPromises();
 
 		const written = mockSetData['games/testGame'];
-		expect(written.countryInfo.Austria.fleets).toEqual([{ territory: 'Adriatic Sea', hostile: true }]);
+		expect(written.countryInfo.Austria.fleets).toEqual([{ territory: 'Ionian Sea', hostile: true }]);
 	});
 
 	test('handles empty produce arrays', async () => {
@@ -1808,7 +1807,7 @@ describe('executeProposal — Import', () => {
 			wheelSpot: 'Import',
 			import: {
 				types: ['fleet', 'army', 'fleet'],
-				territories: ['Adriatic Sea', 'Vienna', 'West Med'],
+				territories: ['Ionian Sea', 'Vienna', 'Western Med'],
 			},
 		};
 
@@ -1817,8 +1816,8 @@ describe('executeProposal — Import', () => {
 
 		const written = mockSetData['games/testGame'];
 		expect(written.countryInfo.Austria.fleets).toEqual([
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'West Med', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Western Med', hostile: true },
 		]);
 		expect(written.countryInfo.Austria.armies).toEqual([{ territory: 'Vienna', hostile: true }]);
 	});
@@ -1988,7 +1987,7 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
@@ -1999,14 +1998,14 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 			game: 'testGame',
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
-			fleetMan: [['Adriatic Sea', 'West Med', '']],
+			fleetMan: [['Ionian Sea', 'Western Med', '']],
 			armyMan: [],
 		};
 
 		// Call executeProposal directly to test the maneuver logic
 		await executeProposal(gs, context);
 
-		expect(gs.countryInfo.Austria.fleets).toEqual([{ territory: 'West Med', hostile: true }]);
+		expect(gs.countryInfo.Austria.fleets).toEqual([{ territory: 'Western Med', hostile: true }]);
 	});
 
 	test('moves armies to new territories', async () => {
@@ -2039,9 +2038,9 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
-		gs.countryInfo.Italy.fleets = [{ territory: 'West Med', hostile: true }];
+		gs.countryInfo.Italy.fleets = [{ territory: 'Western Med', hostile: true }];
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
@@ -2051,13 +2050,13 @@ describe('executeProposal — L-Maneuver / R-Maneuver', () => {
 			game: 'testGame',
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
-			fleetMan: [['Adriatic Sea', 'West Med', 'war Italy fleet']],
+			fleetMan: [['Ionian Sea', 'Western Med', 'war Italy fleet']],
 			armyMan: [],
 		};
 
 		await executeProposal(gs, context);
 
-		// Italy's fleet at West Med should be destroyed
+		// Italy's fleet at Western Med should be destroyed
 		expect(gs.countryInfo.Italy.fleets).toEqual([]);
 	});
 
@@ -2263,7 +2262,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
@@ -2286,7 +2285,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		expect(written.currentManeuver.player).toBe('Alice');
 		expect(written.currentManeuver.phase).toBe('fleet');
 		expect(written.currentManeuver.unitIndex).toBe(0);
-		expect(written.currentManeuver.pendingFleets).toEqual([{ territory: 'Adriatic Sea', hostile: true }]);
+		expect(written.currentManeuver.pendingFleets).toEqual([{ territory: 'Ionian Sea', hostile: true }]);
 		expect(written.currentManeuver.pendingArmies).toEqual([{ territory: 'Vienna', hostile: true }]);
 		expect(written.currentManeuver.returnMode).toBe('execute');
 		expect(written.playerInfo.Alice.myTurn).toBe(true);
@@ -2350,7 +2349,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.countryInfo.Austria.gov = 'democracy';
 		gs.countryInfo.Austria.leadership = ['Alice', 'Bob'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
@@ -2377,7 +2376,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		// Factory=0, L-Maneuver=2, diff=2, within free 3 steps
 		gs.countryInfo.Austria.wheelSpot = 'Factory';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		gs.playerInfo.Alice.money = 20;
 		gs.playerInfo.Alice.myTurn = true;
@@ -3364,7 +3363,7 @@ describe('submitProposal — maneuver wheel cost', () => {
 		// wheelSpot starts at Factory (index 0 in the wheel array)
 		gs.countryInfo.Austria.wheelSpot = 'Factory';
 		// Has units so maneuver doesn't complete immediately
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
@@ -3398,7 +3397,7 @@ describe('submitProposal — maneuver wheel cost', () => {
 		// But let's test with a position that WOULD cost: R-Maneuver is index 7.
 		// From Factory (0) to R-Maneuver (7) is 7 steps, 4 over free = $8 cost.
 		gs.countryInfo.Austria.wheelSpot = 'Factory';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Alice.money = 20;
@@ -3445,8 +3444,8 @@ describe('submitBatchManeuver', () => {
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
 		gs.countryInfo.Austria.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'West Med', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Western Med', hostile: true },
 		];
 		gs.countryInfo.Austria.armies = [];
 		gs.currentManeuver = {
@@ -3456,8 +3455,8 @@ describe('submitBatchManeuver', () => {
 			phase: 'fleet',
 			unitIndex: 0,
 			pendingFleets: [
-				{ territory: 'Adriatic Sea', hostile: true },
-				{ territory: 'West Med', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
+				{ territory: 'Western Med', hostile: true },
 			],
 			pendingArmies: [],
 			completedFleetMoves: [],
@@ -3475,8 +3474,8 @@ describe('submitBatchManeuver', () => {
 			game: 'testGame',
 			name: 'Alice',
 			fleetMan: [
-				['Adriatic Sea', 'West Med', ''],
-				['West Med', 'East Med', ''],
+				['Ionian Sea', 'Western Med', ''],
+				['Western Med', 'East Med', ''],
 			],
 			armyMan: [],
 		});
@@ -3542,8 +3541,8 @@ describe('submitBatchManeuver', () => {
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
 		gs.countryInfo.Austria.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'West Med', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Western Med', hostile: true },
 			{ territory: 'East Med', hostile: true },
 		];
 		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
@@ -3557,8 +3556,8 @@ describe('submitBatchManeuver', () => {
 			phase: 'fleet',
 			unitIndex: 0,
 			pendingFleets: [
-				{ territory: 'Adriatic Sea', hostile: true },
-				{ territory: 'West Med', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
+				{ territory: 'Western Med', hostile: true },
 				{ territory: 'East Med', hostile: true },
 			],
 			pendingArmies: [{ territory: 'Vienna', hostile: true }],
@@ -3580,8 +3579,8 @@ describe('submitBatchManeuver', () => {
 			game: 'testGame',
 			name: 'Alice',
 			fleetMan: [
-				['Adriatic Sea', 'West Med', ''],
-				['West Med', 'Tyrrhenian Sea', 'peace'],
+				['Ionian Sea', 'Western Med', ''],
+				['Western Med', 'Tyrrhenian Sea', 'peace'],
 				['East Med', 'East Med', ''],
 			],
 			armyMan: [['Vienna', 'Vienna', '']],
@@ -3590,7 +3589,7 @@ describe('submitBatchManeuver', () => {
 
 		const written = mockSetData['games/testGame'];
 		// Fleet 0 committed, Fleet 1 triggers peace, Fleet 2 + Army remain
-		expect(written.currentManeuver.completedFleetMoves).toEqual([['Adriatic Sea', 'West Med', '']]);
+		expect(written.currentManeuver.completedFleetMoves).toEqual([['Ionian Sea', 'Western Med', '']]);
 		expect(written.currentManeuver.pendingPeace).not.toBeNull();
 		expect(written.currentManeuver.pendingPeace.targetCountry).toBe('Italy');
 		expect(written.currentManeuver.pendingPeace.unitType).toBe('fleet');
@@ -3607,7 +3606,7 @@ describe('submitBatchManeuver', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [
 			{ territory: 'Vienna', hostile: true },
 			{ territory: 'Budapest', hostile: true },
@@ -3623,7 +3622,7 @@ describe('submitBatchManeuver', () => {
 			wheelSpot: 'L-Maneuver',
 			phase: 'fleet',
 			unitIndex: 0,
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingFleets: [{ territory: 'Ionian Sea', hostile: true }],
 			pendingArmies: [
 				{ territory: 'Vienna', hostile: true },
 				{ territory: 'Budapest', hostile: true },
@@ -3642,7 +3641,7 @@ describe('submitBatchManeuver', () => {
 		await submitBatchManeuver({
 			game: 'testGame',
 			name: 'Alice',
-			fleetMan: [['Adriatic Sea', 'Adriatic Sea', '']],
+			fleetMan: [['Ionian Sea', 'Ionian Sea', '']],
 			armyMan: [
 				['Vienna', 'Rome', 'peace'],
 				['Budapest', 'Budapest', ''],
@@ -3652,7 +3651,7 @@ describe('submitBatchManeuver', () => {
 
 		const written = mockSetData['games/testGame'];
 		// Fleet committed, army 0 triggers peace vote
-		expect(written.currentManeuver.completedFleetMoves).toEqual([['Adriatic Sea', 'Adriatic Sea', '']]);
+		expect(written.currentManeuver.completedFleetMoves).toEqual([['Ionian Sea', 'Ionian Sea', '']]);
 		expect(written.currentManeuver.completedArmyMoves || []).toEqual([]);
 		expect(written.currentManeuver.remainingFleetPlans).toEqual([]);
 		expect(written.currentManeuver.remainingArmyPlans).toEqual([['Budapest', 'Budapest', '']]);
@@ -3715,8 +3714,8 @@ describe('submitBatchManeuver', () => {
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
 		gs.countryInfo.Austria.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
-			{ territory: 'West Med', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
+			{ territory: 'Western Med', hostile: true },
 		];
 		gs.countryInfo.Austria.armies = [];
 		gs.countryInfo.Italy.fleets = [{ territory: 'Tyrrhenian Sea', hostile: false }];
@@ -3727,8 +3726,8 @@ describe('submitBatchManeuver', () => {
 			phase: 'fleet',
 			unitIndex: 0,
 			pendingFleets: [
-				{ territory: 'Adriatic Sea', hostile: true },
-				{ territory: 'West Med', hostile: true },
+				{ territory: 'Ionian Sea', hostile: true },
+				{ territory: 'Western Med', hostile: true },
 			],
 			pendingArmies: [],
 			completedFleetMoves: [],
@@ -3749,8 +3748,8 @@ describe('submitBatchManeuver', () => {
 			game: 'testGame',
 			name: 'Alice',
 			fleetMan: [
-				['Adriatic Sea', 'Tyrrhenian Sea', 'war Italy fleet'],
-				['West Med', 'Tyrrhenian Sea', 'peace'],
+				['Ionian Sea', 'Tyrrhenian Sea', 'war Italy fleet'],
+				['Western Med', 'Tyrrhenian Sea', 'peace'],
 			],
 			armyMan: [],
 		});
@@ -3809,7 +3808,7 @@ describe('submitBatchManeuver', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'L-Maneuver';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [{ territory: 'Vienna', hostile: true }];
 		gs.currentManeuver = {
 			country: 'Austria',
@@ -3817,7 +3816,7 @@ describe('submitBatchManeuver', () => {
 			wheelSpot: 'L-Maneuver',
 			phase: 'fleet',
 			unitIndex: 0,
-			pendingFleets: [{ territory: 'Adriatic Sea', hostile: true }],
+			pendingFleets: [{ territory: 'Ionian Sea', hostile: true }],
 			pendingArmies: [{ territory: 'Vienna', hostile: true }],
 			completedFleetMoves: [],
 			completedArmyMoves: [],
@@ -3833,7 +3832,7 @@ describe('submitBatchManeuver', () => {
 		await submitBatchManeuver({
 			game: 'testGame',
 			name: 'Alice',
-			fleetMan: [['Adriatic Sea', 'West Med', '']],
+			fleetMan: [['Ionian Sea', 'Western Med', '']],
 			armyMan: [['Vienna', 'Budapest', '']],
 		});
 		await flushPromises();
@@ -3877,7 +3876,7 @@ describe('submitBatchManeuver', () => {
 			game: 'testGame',
 			name: 'Alice',
 			fleetMan: [],
-			armyMan: [['Vienna', 'Adriatic Sea', '']],
+			armyMan: [['Vienna', 'Ionian Sea', '']],
 		});
 		await flushPromises();
 
@@ -3963,7 +3962,7 @@ describe('submitBatchManeuver', () => {
 		addTerritorySetup({
 			...realisticTerritorySetup,
 			Vienna: { ...realisticTerritorySetup.Vienna, adjacencies: ['Budapest', 'Trieste', 'Rome'] },
-			Rome: { ...realisticTerritorySetup.Rome, adjacencies: ['West Med', 'Naples', 'Adriatic Sea', 'Vienna'] },
+			Rome: { ...realisticTerritorySetup.Rome, adjacencies: ['Western Med', 'Naples', 'Ionian Sea', 'Vienna'] },
 		});
 
 		await submitBatchManeuver({
@@ -4000,13 +3999,13 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
 		gs.countryInfo.Austria.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 			{ territory: 'East Med', hostile: true },
 		];
 		gs.countryInfo.Austria.armies = [];
-		// Italy has a fleet at West Med that will be attacked
+		// Italy has a fleet at Western Med that will be attacked
 		gs.countryInfo.Italy.fleets = [
-			{ territory: 'West Med', hostile: true },
+			{ territory: 'Western Med', hostile: true },
 			{ territory: 'Tyrrhenian Sea', hostile: true },
 		];
 		gs.playerInfo.Alice.myTurn = true;
@@ -4019,7 +4018,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
 			fleetMan: [
-				['Adriatic Sea', 'West Med', 'war Italy fleet'],
+				['Ionian Sea', 'Western Med', 'war Italy fleet'],
 				['East Med', 'Tyrrhenian Sea', ''],
 			],
 			armyMan: [],
@@ -4027,7 +4026,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 
 		await executeProposal(gs, context);
 
-		// Italy's fleet at West Med should be destroyed
+		// Italy's fleet at Western Med should be destroyed
 		expect(gs.countryInfo.Italy.fleets).toEqual([{ territory: 'Tyrrhenian Sea', hostile: true }]);
 		// Austria's attacking fleet is consumed (war fleet does not survive),
 		// only the non-war fleet remains
@@ -4118,7 +4117,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		// Italy has an army at a coastal territory
 		gs.countryInfo.Italy.armies = [{ territory: 'Venice', hostile: true }];
@@ -4131,7 +4130,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 			game: 'testGame',
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
-			fleetMan: [['Adriatic Sea', 'Venice', 'war Italy army']],
+			fleetMan: [['Ionian Sea', 'Venice', 'war Italy army']],
 			armyMan: [],
 		};
 
@@ -4278,29 +4277,29 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		gs.countryInfo.Austria.taxChips = [];
 		gs.playerInfo.Alice.myTurn = true;
 		gs.playerInfo.Bob.myTurn = false;
 		setupMockDb(gs);
-		// West Med has no country (sea / neutral) so a tax chip should be placed
+		// Western Med has no country (sea / neutral) so a tax chip should be placed
 		addTerritorySetup(realisticTerritorySetup);
 
 		const context = {
 			game: 'testGame',
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
-			fleetMan: [['Adriatic Sea', 'West Med', '']],
+			fleetMan: [['Ionian Sea', 'Western Med', '']],
 			armyMan: [],
 		};
 
 		await executeProposal(gs, context);
 
-		// Tax chip should be placed at West Med
-		expect(gs.countryInfo.Austria.taxChips).toContain('West Med');
+		// Tax chip should be placed at Western Med
+		expect(gs.countryInfo.Austria.taxChips).toContain('Western Med');
 		// Fleet should be at the destination
-		expect(gs.countryInfo.Austria.fleets).toEqual([{ territory: 'West Med', hostile: true }]);
+		expect(gs.countryInfo.Austria.fleets).toEqual([{ territory: 'Western Med', hostile: true }]);
 	});
 
 	test('fleet normal move does NOT place tax chip on owned territory', async () => {
@@ -4308,7 +4307,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.countryInfo.Austria.gov = 'dictatorship';
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
-		gs.countryInfo.Austria.fleets = [{ territory: 'Adriatic Sea', hostile: true }];
+		gs.countryInfo.Austria.fleets = [{ territory: 'Ionian Sea', hostile: true }];
 		gs.countryInfo.Austria.armies = [];
 		gs.countryInfo.Austria.taxChips = [];
 		gs.playerInfo.Alice.myTurn = true;
@@ -4321,7 +4320,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 			game: 'testGame',
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
-			fleetMan: [['Adriatic Sea', 'Venice', '']],
+			fleetMan: [['Ionian Sea', 'Venice', '']],
 			armyMan: [],
 		};
 
@@ -4434,7 +4433,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 		gs.countryInfo.Austria.leadership = ['Alice'];
 		gs.countryInfo.Austria.wheelSpot = 'center';
 		gs.countryInfo.Austria.fleets = [
-			{ territory: 'Adriatic Sea', hostile: true },
+			{ territory: 'Ionian Sea', hostile: true },
 			{ territory: 'East Med', hostile: true },
 		];
 		gs.countryInfo.Austria.armies = [];
@@ -4448,7 +4447,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 			name: 'Alice',
 			wheelSpot: 'L-Maneuver',
 			fleetMan: [
-				['Adriatic Sea', 'West Med', ''],
+				['Ionian Sea', 'Western Med', ''],
 				['East Med', 'Ionian Sea', ''],
 			],
 			armyMan: [],
@@ -4458,7 +4457,7 @@ describe('executeProposal — maneuver war/peace/hostile/tax-chip', () => {
 
 		// Both fleets should be at their destinations
 		expect(gs.countryInfo.Austria.fleets).toEqual([
-			{ territory: 'West Med', hostile: true },
+			{ territory: 'Western Med', hostile: true },
 			{ territory: 'Ionian Sea', hostile: true },
 		]);
 	});
@@ -5293,9 +5292,9 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 					territories: {
 						Vienna: { country: 'Austria', sea: false, adjacencies: ['Budapest', 'Trieste'] },
 						Budapest: { country: 'Austria', sea: false, adjacencies: ['Vienna', 'Trieste'] },
-						Trieste: { country: 'Austria', sea: false, adjacencies: ['Vienna', 'Budapest', 'Adriatic Sea'] },
-						'Adriatic Sea': { country: null, sea: true, adjacencies: ['Trieste', 'Rome'] },
-						Rome: { country: 'Italy', sea: false, adjacencies: ['Naples', 'Adriatic Sea'] },
+						Trieste: { country: 'Austria', sea: false, adjacencies: ['Vienna', 'Budapest', 'Ionian Sea'] },
+						'Ionian Sea': { country: null, sea: true, adjacencies: ['Trieste', 'Rome'] },
+						Rome: { country: 'Italy', sea: false, adjacencies: ['Naples', 'Ionian Sea'] },
 						Naples: { country: 'Italy', sea: false, adjacencies: ['Rome'] },
 						Paris: { country: 'France', sea: false, adjacencies: ['Marseille'] },
 						Marseille: { country: 'France', sea: false, adjacencies: ['Paris'] },
@@ -5314,12 +5313,12 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 	test('peace vote includes ALL stockholders, not just leadership', async () => {
 		// Bob has 4 stock in Italy, Carol has 2 stock in Italy.
 		// Both should be able to vote (myTurn = true).
-		// Fleet at Adriatic Sea provides convoy for army Vienna→Rome.
+		// Fleet at Ionian Sea provides convoy for army Vienna→Rome.
 		const { submitBatchManeuver } = require('./submitAPI.js');
 		const context = {
 			game: 'testGame',
 			name: 'Alice',
-			fleetMan: [['Trieste', 'Adriatic Sea', '']],
+			fleetMan: [['Trieste', 'Ionian Sea', '']],
 			armyMan: [['Vienna', 'Rome', 'peace']],
 		};
 		await submitBatchManeuver(context);
@@ -5337,12 +5336,12 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 	test('multi-country peace: stores pendingPeaceTargets', async () => {
 		// Italy and France both have hostile armies at Rome.
 		// Peace should trigger for the first country found and store the rest.
-		// Fleet at Adriatic Sea provides convoy for army Vienna→Rome.
+		// Fleet at Ionian Sea provides convoy for army Vienna→Rome.
 		const { submitBatchManeuver } = require('./submitAPI.js');
 		const context = {
 			game: 'testGame',
 			name: 'Alice',
-			fleetMan: [['Trieste', 'Adriatic Sea', '']],
+			fleetMan: [['Trieste', 'Ionian Sea', '']],
 			armyMan: [['Vienna', 'Rome', 'peace']],
 		};
 		await submitBatchManeuver(context);
