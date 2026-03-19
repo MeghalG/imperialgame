@@ -1,7 +1,7 @@
 import React from 'react';
 import './MapOverlay.css';
 
-function TerritoryHotspot({ name, coords, isClickable, isSelected, highlightColor, onClick, cost }) {
+function TerritoryHotspot({ name, coords, isClickable, isSelected, highlightColor, onClick }) {
 	if (!coords) return null;
 
 	let className = 'imp-hotspot';
@@ -18,7 +18,7 @@ function TerritoryHotspot({ name, coords, isClickable, isSelected, highlightColo
 			className={className}
 			data-territory={name}
 			role={isClickable ? 'button' : undefined}
-			aria-label={isClickable ? 'Select territory ' + name + (cost ? ' ' + cost : '') : undefined}
+			aria-label={isClickable ? 'Select territory ' + name : undefined}
 			onClick={(e) => {
 				if (isClickable) {
 					e.stopPropagation();
@@ -32,14 +32,7 @@ function TerritoryHotspot({ name, coords, isClickable, isSelected, highlightColo
 				color: highlightColor,
 			}}
 			title={isClickable ? name : undefined}
-		>
-			{(isClickable || isSelected) && (
-				<span className="imp-hotspot__label">
-					{name}
-					{cost && <span className="imp-hotspot__cost">{cost}</span>}
-				</span>
-			)}
-		</div>
+		></div>
 	);
 }
 

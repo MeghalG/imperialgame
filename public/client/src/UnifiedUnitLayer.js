@@ -50,13 +50,11 @@ function UnifiedUnitLayer({ mapWidth }) {
 		countryColors[countries[i]] = colorPalette.map[countries[i]] || '#888';
 	}
 
-	// Get the maneuvering country (if any) to dim other units
+	// Get the maneuvering country (if any) to skip its non-interactive icons
+	// (they're rendered as interactive markers instead).
 	let maneuveringCountry = null;
 	if (isManeuverMode && interactiveMarkers.length > 0) {
-		// The interactive markers are for the maneuvering country.
-		// We can infer it from context or from the marker color matching.
-		// For now, use the color to find the country — or just check context.
-		maneuveringCountry = context.country || null;
+		maneuveringCountry = interactiveMarkers[0].countryName || null;
 	}
 
 	let elements = [];
@@ -168,7 +166,7 @@ function UnifiedUnitLayer({ mapWidth }) {
 				className += ' imp-unit-marker--idle';
 			}
 
-			let icon = marker.unitType === 'fleet' ? '\u2693' : '\u2694';
+			let iconClass = marker.unitType === 'fleet' ? 'fas fa-play fa-rotate-90' : 'fas fa-circle';
 
 			elements.push(
 				<div
@@ -188,7 +186,9 @@ function UnifiedUnitLayer({ mapWidth }) {
 					}}
 					title={marker.unitType + ' at ' + marker.territoryName}
 				>
-					<span className="imp-unit-marker__icon">{icon}</span>
+					<span className="imp-unit-marker__icon">
+						<i className={iconClass}></i>
+					</span>
 					{marker.isPlanned && !marker.isActive && <span className="imp-unit-marker__check">{'\u2713'}</span>}
 				</div>
 			);

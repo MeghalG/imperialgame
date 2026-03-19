@@ -19,7 +19,6 @@ function TerritoryBoundaryLayer({
 	highlightedTerritories,
 	onRightClick,
 	onItemSelected,
-	selectableCosts,
 }) {
 	if (!territories || !boundaries) {
 		return null;
@@ -32,11 +31,9 @@ function TerritoryBoundaryLayer({
 		}
 	}
 
-	let dynamicCosts = selectableCosts || {};
 	let highlights = highlightedTerritories || {};
 
 	let polygons = [];
-	let labels = [];
 	let fallbackHotspots = [];
 
 	let allNames = Object.keys(territories);
@@ -65,7 +62,6 @@ function TerritoryBoundaryLayer({
 						isSelected={isSelected}
 						highlightColor={isHighlighted ? highlights[name] : highlightColor}
 						onClick={onItemSelected}
-						cost={dynamicCosts[name] || ''}
 					/>
 				);
 			}
@@ -120,22 +116,6 @@ function TerritoryBoundaryLayer({
 				}
 			/>
 		);
-
-		// Render label for selectable or selected territories
-		if ((isSelectable || isSelected) && territory.unitCoords) {
-			let left = territory.unitCoords[0];
-			let top = territory.unitCoords[1];
-			// unitCoords may be percentage strings like "50%" or numbers
-			if (typeof left === 'number') left = left + '%';
-			if (typeof top === 'number') top = top + '%';
-
-			labels.push(
-				<div key={'label-' + name} className="imp-boundary-label" style={{ left: left, top: top }}>
-					{name}
-					{dynamicCosts[name] && <span className="imp-boundary-label__cost">{dynamicCosts[name]}</span>}
-				</div>
-			);
-		}
 	}
 
 	return (
@@ -155,18 +135,6 @@ function TerritoryBoundaryLayer({
 			>
 				{polygons}
 			</svg>
-			<div
-				style={{
-					position: 'absolute',
-					top: 0,
-					left: 0,
-					width: '100%',
-					height: '100%',
-					pointerEvents: 'none',
-				}}
-			>
-				{labels}
-			</div>
 			{fallbackHotspots}
 		</React.Fragment>
 	);

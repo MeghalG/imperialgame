@@ -618,26 +618,6 @@ body {
 	}
 }
 
-.imp-hotspot__label {
-	position: absolute;
-	bottom: -16px;
-	left: 50%;
-	transform: translateX(-50%);
-	white-space: nowrap;
-	font-family: var(--imp-font-condensed);
-	font-size: 9px;
-	font-weight: 600;
-	color: #fff;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7);
-	pointer-events: none;
-	letter-spacing: 0.3px;
-}
-
-.imp-hotspot__cost {
-	margin-left: 3px;
-	color: var(--imp-accent-gold);
-}
-
 /* ---- SVG Rondel ---- */
 .imp-rondel-svg {
 	pointer-events: none;
@@ -1735,25 +1715,6 @@ body {
 		fill-opacity: 0.3;
 		stroke-opacity: 0.75;
 	}
-}
-
-.imp-boundary-label {
-	position: absolute;
-	transform: translate(-50%, -50%);
-	white-space: nowrap;
-	font-family: var(--imp-font-condensed);
-	font-size: 9px;
-	font-weight: 600;
-	color: #fff;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7);
-	pointer-events: none;
-	letter-spacing: 0.3px;
-	z-index: 5;
-}
-
-.imp-boundary-label__cost {
-	margin-left: 3px;
-	color: var(--imp-accent-gold);
 }
 
 /* ---- Sound Toggle ---- */
