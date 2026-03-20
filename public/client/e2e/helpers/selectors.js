@@ -230,7 +230,8 @@ async function clickTerritory(page, territoryName) {
 					(k) => k.startsWith('__reactEvents') || k.startsWith('__reactProps')
 				);
 				if (eventProp && el[eventProp] && el[eventProp].onClick) {
-					el[eventProp].onClick({ stopPropagation: () => {}, preventDefault: () => {} });
+					let evtRect = el.getBoundingClientRect();
+					el[eventProp].onClick({ stopPropagation: () => {}, preventDefault: () => {}, clientX: evtRect.left + evtRect.width / 2, clientY: evtRect.top + evtRect.height / 2 });
 					return true;
 				}
 			}

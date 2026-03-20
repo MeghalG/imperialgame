@@ -132,4 +132,117 @@ test.describe('Produce — Map Interaction', () => {
 		let highlights = await getHighlightedTerritories(page);
 		expect(highlights).not.toContain('Trieste');
 	});
+
+	test('army factory territories also appear as clickable on map', async ({ page }) => {
+		gameID = await seedProposalGame({ factories: ['Vienna', 'Budapest', 'Trieste'] });
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
+		let highlights = await getHighlightedTerritories(page);
+		expect(highlights).toContain('Vienna');
+		expect(highlights).toContain('Budapest');
+	});
+
+	test('clicking army territory on map toggles army checkbox', async ({ page }) => {
+		gameID = await seedProposalGame({ factories: ['Vienna', 'Budapest', 'Trieste'] });
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
+		await clickTerritory(page, 'Vienna');
+		await page.waitForTimeout(200);
+		let checkboxes = await getProduceCheckboxes(page);
+		let viennaCheckbox = checkboxes.find((c) => c.label.includes('Vienna'));
+		expect(viennaCheckbox).toBeDefined();
+		expect(viennaCheckbox.checked).toBe(false);
+	});
+
+	test('army factories show ghosted army markers', async ({ page }) => {
+		gameID = await seedProposalGame({ factories: ['Vienna', 'Budapest', 'Trieste'] });
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
+		let markers = await getGhostedMarkers(page);
+		expect(markers.some((m) => m.title.includes('Vienna'))).toBe(true);
+		expect(markers.some((m) => m.title.includes('Budapest'))).toBe(true);
+	});
+
+	test('toggling army factory OFF via map removes its ghosted marker', async ({ page }) => {
+		gameID = await seedProposalGame({ factories: ['Vienna', 'Budapest', 'Trieste'] });
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
+		await clickTerritory(page, 'Vienna');
+		await page.waitForTimeout(200);
+		let markers = await getGhostedMarkers(page);
+		expect(markers.some((m) => m.title.includes('Vienna'))).toBe(false);
+		expect(markers.some((m) => m.title.includes('Budapest'))).toBe(true);
+	});
+
+	test('toggling army factory back ON via map re-adds its ghosted marker', async ({ page }) => {
+		gameID = await seedProposalGame({ factories: ['Vienna', 'Budapest', 'Trieste'] });
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
+		await clickTerritory(page, 'Vienna');
+		await clickTerritory(page, 'Vienna');
+		await page.waitForTimeout(200);
+		let markers = await getGhostedMarkers(page);
+		expect(markers.some((m) => m.title.includes('Vienna'))).toBe(true);
+	});
+
+	test('both army and fleet factories highlighted simultaneously', async ({ page }) => {
+		gameID = await seedProposalGame({ factories: ['Vienna', 'Budapest', 'Trieste'] });
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
+		let highlights = await getHighlightedTerritories(page);
+		expect(highlights).toContain('Trieste');
+		expect(highlights).toContain('Vienna');
+		expect(highlights).toContain('Budapest');
+		expect(highlights.length).toBe(3);
+	});
+
+	test('army and fleet checkboxes appear in one unified group', async ({ page }) => {
+		gameID = await seedProposalGame({ factories: ['Vienna', 'Budapest', 'Trieste'] });
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
+		let checkboxes = await getProduceCheckboxes(page);
+		let hasFleet = checkboxes.some((c) => c.label.includes('Fleet'));
+		let hasArmy = checkboxes.some((c) => c.label.includes('Army'));
+		expect(hasFleet).toBe(true);
+		expect(hasArmy).toBe(true);
+	});
+
+	test('enemy-occupied army factory excluded from map and checkboxes', async ({ page }) => {
+		gameID = await seedProposalGame({
+			factories: ['Vienna', 'Budapest', 'Trieste'],
+			enemyUnits: { Italy: { armies: [{ territory: 'Vienna', hostile: true }] } },
+		});
+		await joinGame(page, gameID, 'Alice');
+		await waitForProposalReady(page);
+		await selectWheelActionDropdown(page, 'L-Produce');
+		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 }).catch(() => {});
+		let checkboxes = await getProduceCheckboxes(page);
+		let viennaCheckbox = checkboxes.find((c) => c.label.includes('Vienna'));
+		expect(viennaCheckbox).toBeUndefined();
+		let highlights = await getHighlightedTerritories(page);
+		expect(highlights).not.toContain('Vienna');
+		expect(highlights).toContain('Budapest');
+	});
 });

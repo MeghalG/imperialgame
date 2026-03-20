@@ -7,6 +7,7 @@ import {
 	MessageDisplay,
 	SimpleMessage,
 	CheckboxSelect,
+	ProduceSelect,
 	ImportSelect,
 	MultiOptionSelect,
 } from './ComponentTemplates.js';
@@ -47,30 +48,19 @@ function ProduceFlow(props) {
 		<ActionFlow
 			className="ProduceApp"
 			submitMethod={() => {}}
-			objects={['producemessage', 'producefleets', 'producearmies']}
+			objects={['producemessage', 'produce']}
 			components={{
 				producemessage: (innerProps) => (
 					<SimpleMessage object="producemessage" message="Choose which units to produce." data={innerProps.data} />
 				),
-				producefleets: (innerProps) => (
-					<CheckboxSelect
-						object="producefleets"
-						setThing="setFleetProduce"
-						getAPI={proposalAPI.getFleetProduceOptions}
-						type="(Fleet)"
+				produce: (innerProps) => (
+					<ProduceSelect
+						object="produce"
 						data={innerProps.data}
+						getFleetAPI={proposalAPI.getFleetProduceOptions}
+						getArmyAPI={proposalAPI.getArmyProduceOptions}
 						mapMode="select-territory"
-						mapColor="#4DAADB"
-						mapUnitType="fleet"
-					/>
-				),
-				producearmies: (innerProps) => (
-					<CheckboxSelect
-						object="producearmies"
-						setThing="setArmyProduce"
-						getAPI={proposalAPI.getArmyProduceOptions}
-						type="(Army)"
-						data={innerProps.data}
+						mapColor="#c9a84c"
 					/>
 				),
 			}}

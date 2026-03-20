@@ -678,6 +678,152 @@ function CheckboxSelect({ object, setThing, getAPI, message, type, data, mapMode
 	);
 }
 
+/**
+ * ProduceSelect — unified produce component that shows both army and fleet
+ * factory checkboxes and manages a single map interaction for all factories.
+ */
+function ProduceSelect({ object, data, getFleetAPI, getArmyAPI, mapMode, mapColor }) {
+	const context = useContext(UserContext);
+	const mapInteraction = useContext(MapInteractionContext);
+	const [allItems, setAllItems] = useState([]);
+	const [itemTypes, setItemTypes] = useState({});
+	const [fleetLimit, setFleetLimit] = useState(0);
+	const [armyLimit, setArmyLimit] = useState(0);
+	const [checked, setChecked] = useState([]);
+	const checkedRef = useRef([]);
+	const itemTypesRef = useRef({});
+	const fleetLimitRef = useRef(0);
+	const armyLimitRef = useRef(0);
+
+	useEffect(() => {
+		data('done', object);
+		async function fetchChoices() {
+			let [fleetRes, armyRes] = await Promise.all([getFleetAPI(context), getArmyAPI(context)]);
+			let types = {};
+			let combined = [];
+			for (let t of fleetRes.items) {
+				types[t] = 'fleet';
+				combined.push(t);
+			}
+			for (let t of armyRes.items) {
+				types[t] = 'army';
+				combined.push(t);
+			}
+			setAllItems(combined);
+			setItemTypes(types);
+			itemTypesRef.current = types;
+			setFleetLimit(fleetRes.limit);
+			setArmyLimit(armyRes.limit);
+			fleetLimitRef.current = fleetRes.limit;
+			armyLimitRef.current = armyRes.limit;
+			let initFleet = fleetRes.items.slice(0, fleetRes.limit);
+			let initArmy = armyRes.items.slice(0, armyRes.limit);
+			let initChecked = [...initFleet, ...initArmy];
+			setChecked(initChecked);
+			checkedRef.current = initChecked;
+			context.setFleetProduce(initFleet);
+			context.setArmyProduce(initArmy);
+		}
+		fetchChoices();
+		return () => {
+			context.setFleetProduce([]);
+			context.setArmyProduce([]);
+			if (mapMode) mapInteraction.setUnitMarkers([]);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	function syncContext(newChecked) {
+		let types = itemTypesRef.current;
+		let fleets = newChecked.filter((t) => types[t] === 'fleet');
+		let armies = newChecked.filter((t) => types[t] === 'army');
+		context.setFleetProduce(fleets);
+		context.setArmyProduce(armies);
+	}
+
+	useMapTerritorySelect(mapMode && allItems.length > 0 ? mapMode : null, allItems, mapColor || '#c9a84c', (name) => {
+		let current = checkedRef.current;
+		let types = itemTypesRef.current;
+		let unitType = types[name];
+		let newChecked;
+		if (current.includes(name)) {
+			newChecked = current.filter((v) => v !== name);
+		} else {
+			let sameTypeCount = current.filter((t) => types[t] === unitType).length;
+			let limit = unitType === 'fleet' ? fleetLimitRef.current : armyLimitRef.current;
+			if (sameTypeCount >= limit) return;
+			newChecked = [...current, name];
+		}
+		setChecked(newChecked);
+		checkedRef.current = newChecked;
+		syncContext(newChecked);
+	});
+
+	useEffect(() => {
+		if (!mapMode) return;
+		let types = itemTypesRef.current;
+		let markers = checked.map((territory, i) => ({
+			territoryName: territory,
+			unitType: types[territory] || 'army',
+			phase: 'ghost',
+			index: i,
+			isActive: false,
+			isPlanned: false,
+			isGhosted: true,
+			color: types[territory] === 'fleet' ? '#4DAADB' : '#D4A843',
+		}));
+		mapInteraction.setUnitMarkers(markers);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [checked, mapMode]);
+
+	function isDisabled(opt) {
+		if (checked.includes(opt)) return false;
+		let unitType = itemTypes[opt];
+		let sameTypeCount = checked.filter((t) => itemTypes[t] === unitType).length;
+		let limit = unitType === 'fleet' ? fleetLimit : armyLimit;
+		return sameTypeCount >= limit;
+	}
+
+	function sendValue(checkedValues) {
+		setChecked(checkedValues);
+		checkedRef.current = checkedValues;
+		syncContext(checkedValues);
+	}
+
+	if (allItems.length === 0) {
+		return <div></div>;
+	}
+
+	let fleetItems = allItems.filter((t) => itemTypes[t] === 'fleet');
+	let armyItems = allItems.filter((t) => itemTypes[t] === 'army');
+
+	return (
+		<div style={{ marginBottom: 30 }}>
+			<label style={{ paddingRight: '50px', whiteSpace: 'nowrap' }}> Produce: </label>
+			<Checkbox.Group onChange={sendValue} value={checked}>
+				{fleetItems.map((opt, i) => (
+					<React.Fragment key={'f-' + i}>
+						<Checkbox value={opt} disabled={isDisabled(opt)}>
+							{' '}
+							{opt} (Fleet){' '}
+						</Checkbox>
+						<br />
+					</React.Fragment>
+				))}
+				{armyItems.map((opt, i) => (
+					<React.Fragment key={'a-' + i}>
+						<Checkbox value={opt} disabled={isDisabled(opt)}>
+							{' '}
+							{opt} (Army){' '}
+						</Checkbox>
+						<br />
+					</React.Fragment>
+				))}
+			</Checkbox.Group>
+		</div>
+	);
+}
+
 function MessageDisplay({ object, getAPI, divider, data }) {
 	const context = useContext(UserContext);
 	const [message, setMessage] = useState('');
@@ -859,6 +1005,7 @@ export {
 	OptionSelect,
 	RadioSelect,
 	CheckboxSelect,
+	ProduceSelect,
 	MessageDisplay,
 	SimpleMessage,
 	ImportSelect,
