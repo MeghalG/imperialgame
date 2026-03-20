@@ -107,17 +107,6 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 				break;
 			}
 		}
-		console.log(
-			'[ImportSelect] fillSlotFromMap:',
-			territory,
-			unitType,
-			'slotIdx:',
-			slotIdx,
-			'before kv:',
-			JSON.stringify(kv),
-			'v:',
-			JSON.stringify(v)
-		);
 		if (slotIdx === -1) return;
 		kv[slotIdx] = unitType;
 		v[slotIdx] = territory;
@@ -125,7 +114,6 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 		setValues(v);
 		keyValuesRef.current = kv;
 		valuesRef.current = v;
-		console.log('[ImportSelect] fillSlotFromMap AFTER:', JSON.stringify(kv), JSON.stringify(v));
 		dataIfDone(kv, v);
 	}
 
@@ -167,18 +155,14 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 		(name, event) => {
 			let kv = keyValuesRef.current;
 			let hasEmpty = kv.some((v) => !v);
-			console.log('[ImportSelect] map click:', name, 'hasEmpty:', hasEmpty, 'kv:', JSON.stringify(kv));
 			if (!hasEmpty) return;
 			let types = getAvailableTypesForTerritory(name);
-			console.log('[ImportSelect] types for', name, ':', JSON.stringify(types));
 			if (types.length === 0) return;
 			if (types.length === 1) {
-				console.log('[ImportSelect] auto-filling slot with', types[0]);
 				fillSlotFromMap(name, types[0]);
 			} else {
 				let x = event && event.clientX ? event.clientX : 200;
 				let y = event && event.clientY ? event.clientY : 200;
-				console.log('[ImportSelect] showing picker at', x, y, 'types:', types);
 				setPickerState({ territory: name, position: { x, y }, availableTypes: types });
 			}
 		}
@@ -500,7 +484,6 @@ function OptionSelect({ object, setThing, getAPI, message, costs, data, mapMode,
 	const sendValueRef = useRef(null);
 
 	function sendValue(value) {
-		console.log('[OptionSelect] sendValue called:', value, 'object:', object);
 		setControlledValue(value || undefined);
 		data(value, object);
 		context[setThing](value);
@@ -938,7 +921,6 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 	});
 
 	function update(value, object) {
-		console.log('[ActionFlow] update called:', value, object);
 		const idx = objects.indexOf(object);
 
 		// Compute new visible layers
@@ -949,7 +931,6 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 		if (!value) {
 			newVis[idx + 1] = false;
 		}
-		console.log('[ActionFlow] newVis:', JSON.stringify(newVis));
 
 		setFlowState((prev) => {
 			let newKeys = [...prev.keys];
@@ -986,14 +967,6 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 	}
 
 	function buildComponents() {
-		console.log(
-			'[ActionFlow] buildComponents className:',
-			className,
-			'vis:',
-			JSON.stringify(flowState.visibleLayers),
-			'comps:',
-			objects.map((o) => (flowState.currentComponents[o] ? o + '=YES' : o + '=null'))
-		);
 		let table = [];
 		for (let i = 0; i < objects.length; i++) {
 			let vis = flowState.visibleLayers[i];

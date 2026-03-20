@@ -401,10 +401,15 @@ function Sidebar() {
 
 	return (
 		<React.Fragment>
-			{/* Desktop: inline sidebar */}
-			<div className="imp-sidebar imp-sidebar--desktop">{sidebarContent}</div>
+			{/* Single sidebar instance — inline on desktop, slides in as drawer on narrow */}
+			<div className={'imp-sidebar imp-sidebar--desktop' + (drawerOpen ? ' imp-sidebar--drawer-open' : '')}>
+				{sidebarContent}
+			</div>
 
-			{/* Narrow: icon strip + drawer */}
+			{/* Narrow: icon strip + drawer — drawer is a CSS overlay that repositions
+			    the desktop sidebar content via the imp-sidebar--desktop element.
+			    We do NOT duplicate sidebarContent here to avoid dual component
+			    instances fighting over MapInteractionContext callbacks. */}
 			<div className="imp-sidebar-strip">
 				{TABS.map((tab) => {
 					let Icon = tab.icon;
@@ -428,9 +433,6 @@ function Sidebar() {
 				})}
 			</div>
 			{drawerOpen && <div className="imp-sidebar-drawer__mask" onClick={() => setDrawerOpen(false)} />}
-			<div className={'imp-sidebar imp-sidebar--drawer' + (drawerOpen ? ' imp-sidebar--drawer-open' : '')}>
-				{sidebarContent}
-			</div>
 		</React.Fragment>
 	);
 }

@@ -585,8 +585,19 @@ body {
 
 /* Narrow screen: hide desktop sidebar, show strip + drawer */
 @media (max-width: 1024px) {
+	/* On narrow screens, desktop sidebar becomes a slide-out drawer */
 	.imp-sidebar--desktop {
-		display: none;
+		position: fixed;
+		top: 40px;
+		right: -300px;
+		bottom: 0;
+		width: 300px;
+		z-index: 200;
+		transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.imp-sidebar--desktop.imp-sidebar--drawer-open {
+		right: 0;
 	}
 
 	.imp-sidebar-strip {
@@ -631,21 +642,6 @@ body {
 		border-radius: 50%;
 		background: var(--imp-accent-gold);
 		box-shadow: 0 0 4px var(--imp-accent-gold);
-	}
-
-	.imp-sidebar--drawer {
-		display: flex;
-		position: fixed;
-		top: 40px;
-		right: -300px;
-		bottom: 0;
-		width: 300px;
-		z-index: 200;
-		transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-	}
-
-	.imp-sidebar--drawer-open {
-		right: 0;
 	}
 
 	.imp-sidebar-drawer__mask {
@@ -2065,7 +2061,7 @@ body {
 	}
 
 	/* Narrow screen drawer adjustments */
-	.imp-sidebar--drawer {
+	.imp-sidebar--desktop {
 		top: 36px;
 	}
 }
