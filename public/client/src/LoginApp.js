@@ -146,7 +146,7 @@ function LoginApp() {
 
 	function buildColorblindToggle() {
 		return (
-			<Tooltip title="Colorblind Mode" mouseLeaveDelay={0}>
+			<Tooltip title="Colorblind Mode" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 				<Button
 					type="link"
 					onClick={() => context.setColorblindMode(!context.colorblindMode)}
