@@ -1497,6 +1497,155 @@ describe('ImportTypePicker', () => {
 	});
 });
 
+describe('ImportSelect with map integration', () => {
+	test('calls setInteraction with all eligible territories', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetImport = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setImport: mockSetImport };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
+				object: 'importunits', setThing: 'setImport',
+				getAPI: () => Promise.resolve({
+					labels: ['Import #1', 'Import #2', 'Import #3'],
+					options: { army: ['Vienna', 'Budapest', 'Trieste'], fleet: ['Trieste', 'Naples'] },
+					limits: { army: 2, fleet: 1 },
+				}),
+				message: 'Import units:', data: mockData,
+				mapMode: 'select-territory', mapColor: '#c9a84c',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
+			'select-territory',
+			expect.arrayContaining(['Vienna', 'Budapest', 'Trieste', 'Naples']),
+			'#c9a84c', expect.any(Function), null, null
+		);
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('map click on army-only territory auto-fills next slot', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetImport = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setImport: mockSetImport };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
+				object: 'importunits', setThing: 'setImport',
+				getAPI: () => Promise.resolve({
+					labels: ['Import #1', 'Import #2', 'Import #3'],
+					options: { army: ['Vienna', 'Budapest'], fleet: ['Naples'] },
+					limits: { army: 2, fleet: 1 },
+				}),
+				message: 'Import units:', data: mockData,
+				mapMode: 'select-territory', mapColor: '#c9a84c',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
+		act(() => { onMapClick('Vienna'); });
+		let lastCall = mockSetImport.mock.calls[mockSetImport.mock.calls.length - 1][0];
+		expect(lastCall.types[0]).toBe('army');
+		expect(lastCall.territories[0]).toBe('Vienna');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('map click on port territory shows type picker', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetImport = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setImport: mockSetImport };
+		const div = document.createElement('div');
+		document.body.appendChild(div);
+		act(() => {
+			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
+				object: 'importunits', setThing: 'setImport',
+				getAPI: () => Promise.resolve({
+					labels: ['Import #1', 'Import #2', 'Import #3'],
+					options: { army: ['Vienna', 'Trieste'], fleet: ['Trieste'] },
+					limits: { army: 2, fleet: 1 },
+				}),
+				message: 'Import units:', data: mockData,
+				mapMode: 'select-territory', mapColor: '#c9a84c',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
+		act(() => { onMapClick('Trieste'); });
+		let picker = div.querySelector('.imp-action-picker');
+		expect(picker).not.toBeNull();
+		// Click Fleet button to fill slot
+		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		act(() => { buttons[1].click(); });
+		let lastCall = mockSetImport.mock.calls[mockSetImport.mock.calls.length - 1][0];
+		expect(lastCall.types[0]).toBe('fleet');
+		expect(lastCall.territories[0]).toBe('Trieste');
+		ReactDOM.unmountComponentAtNode(div);
+		document.body.removeChild(div);
+	});
+
+	test('multiple imports to same territory allowed', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetImport = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setImport: mockSetImport };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
+				object: 'importunits', setThing: 'setImport',
+				getAPI: () => Promise.resolve({
+					labels: ['Import #1', 'Import #2', 'Import #3'],
+					options: { army: ['Vienna'], fleet: [] },
+					limits: { army: 3, fleet: 0 },
+				}),
+				message: 'Import units:', data: mockData,
+				mapMode: 'select-territory', mapColor: '#c9a84c',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
+		act(() => { onMapClick('Vienna'); });
+		act(() => { onMapClick('Vienna'); });
+		let lastCall = mockSetImport.mock.calls[mockSetImport.mock.calls.length - 1][0];
+		expect(lastCall.types[0]).toBe('army');
+		expect(lastCall.territories[0]).toBe('Vienna');
+		expect(lastCall.types[1]).toBe('army');
+		expect(lastCall.territories[1]).toBe('Vienna');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('no more map clicks after all 3 slots filled', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetImport = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setImport: mockSetImport };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
+				object: 'importunits', setThing: 'setImport',
+				getAPI: () => Promise.resolve({
+					labels: ['Import #1', 'Import #2', 'Import #3'],
+					options: { army: ['Vienna'], fleet: [] },
+					limits: { army: 3, fleet: 0 },
+				}),
+				message: 'Import units:', data: mockData,
+				mapMode: 'select-territory', mapColor: '#c9a84c',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
+		act(() => { onMapClick('Vienna'); });
+		act(() => { onMapClick('Vienna'); });
+		act(() => { onMapClick('Vienna'); });
+		let callCountAfterFill = mockSetImport.mock.calls.length;
+		act(() => { onMapClick('Vienna'); });
+		expect(mockSetImport.mock.calls.length).toBe(callCountAfterFill);
+		ReactDOM.unmountComponentAtNode(div);
+	});
+});
+
 describe('UnifiedUnitLayer ghosted markers', () => {
 	test('renders ghosted markers with imp-unit-marker--ghosted class', async () => {
 		const mapCtx = createMockMapCtx();

@@ -6,16 +6,24 @@ import UserContext from './UserContext.js';
 import MapInteractionContext from './MapInteractionContext.js';
 import SoundManager from './SoundManager.js';
 import useMapTerritorySelect from './useMapTerritorySelect.js';
+import ImportTypePicker from './ImportTypePicker.js';
 const { Option } = Select;
 
-function ImportSelect({ object, setThing, getAPI, message, data }) {
+function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapColor }) {
 	const context = useContext(UserContext);
+	const mapInteraction = useContext(MapInteractionContext);
 	const [labels, setLabels] = useState([]);
 	const [options, setOptions] = useState({});
 	const [limits, setLimits] = useState({});
 	const [keyValues, setKeyValues] = useState([]);
 	const [values, setValues] = useState([]);
 	const [valueOptions, setValueOptions] = useState({});
+	const [pickerState, setPickerState] = useState(null);
+
+	const keyValuesRef = useRef([]);
+	const valuesRef = useRef([]);
+	const limitsRef = useRef({});
+	const optionsRef = useRef({});
 
 	useEffect(() => {
 		data('done', object);
@@ -24,8 +32,14 @@ function ImportSelect({ object, setThing, getAPI, message, data }) {
 			setLabels(res.labels);
 			setOptions(res.options);
 			setLimits(res.limits);
-			setKeyValues(new Array(res.labels.length).fill(''));
-			setValues(new Array(res.labels.length).fill(''));
+			optionsRef.current = res.options;
+			limitsRef.current = res.limits;
+			let initKV = new Array(res.labels.length).fill('');
+			let initV = new Array(res.labels.length).fill('');
+			setKeyValues(initKV);
+			setValues(initV);
+			keyValuesRef.current = initKV;
+			valuesRef.current = initV;
 			let valueOpt = {};
 			for (let key in res.options) {
 				valueOpt[key] = [];
@@ -43,6 +57,9 @@ function ImportSelect({ object, setThing, getAPI, message, data }) {
 		fetchOptions();
 		return () => {
 			context[setThing]({});
+			if (mapMode) {
+				mapInteraction.setUnitMarkers([]);
+			}
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
@@ -59,27 +76,116 @@ function ImportSelect({ object, setThing, getAPI, message, data }) {
 	}
 
 	function sendKeyValue(key, value) {
-		if (value === undefined) {
-			value = '';
-		}
+		if (value === undefined) value = '';
 		let newKV = [...keyValues];
 		newKV[key] = value;
 		let newV = [...values];
 		newV[key] = '';
 		setKeyValues(newKV);
 		setValues(newV);
+		keyValuesRef.current = newKV;
+		valuesRef.current = newV;
 		dataIfDone(newKV, newV);
 	}
 
 	function sendValue(key, value) {
-		if (value === undefined) {
-			value = '';
-		}
+		if (value === undefined) value = '';
 		let newV = [...values];
 		newV[key] = value;
 		setValues(newV);
+		valuesRef.current = newV;
 		dataIfDone(keyValues, newV);
 	}
+
+	function fillSlotFromMap(territory, unitType) {
+		let kv = [...keyValuesRef.current];
+		let v = [...valuesRef.current];
+		let slotIdx = -1;
+		for (let i = 0; i < kv.length; i++) {
+			if (!kv[i] && !v[i]) {
+				slotIdx = i;
+				break;
+			}
+		}
+		if (slotIdx === -1) return;
+		kv[slotIdx] = unitType;
+		v[slotIdx] = territory;
+		setKeyValues(kv);
+		setValues(v);
+		keyValuesRef.current = kv;
+		valuesRef.current = v;
+		dataIfDone(kv, v);
+	}
+
+	function getAvailableTypesForTerritory(territory) {
+		let opts = optionsRef.current;
+		let lim = limitsRef.current;
+		let kv = keyValuesRef.current;
+		let types = [];
+		let armyCount = kv.filter((t) => t === 'army').length;
+		let fleetCount = kv.filter((t) => t === 'fleet').length;
+		if ((opts.army || []).includes(territory) && armyCount < (lim.army || 0)) {
+			types.push('army');
+		}
+		if ((opts.fleet || []).includes(territory) && fleetCount < (lim.fleet || 0)) {
+			types.push('fleet');
+		}
+		return types;
+	}
+
+	let allTerritories = [];
+	if (mapMode && Object.keys(options).length > 0) {
+		let seen = new Set();
+		for (let key in options) {
+			for (let t of options[key]) {
+				if (!seen.has(t)) {
+					seen.add(t);
+					allTerritories.push(t);
+				}
+			}
+		}
+	}
+
+	useMapTerritorySelect(
+		mapMode && allTerritories.length > 0 ? mapMode : null,
+		allTerritories,
+		mapColor || '#c9a84c',
+		(name, event) => {
+			let kv = keyValuesRef.current;
+			let hasEmpty = kv.some((v) => !v);
+			if (!hasEmpty) return;
+			let types = getAvailableTypesForTerritory(name);
+			if (types.length === 0) return;
+			if (types.length === 1) {
+				fillSlotFromMap(name, types[0]);
+			} else {
+				let x = event && event.clientX ? event.clientX : 200;
+				let y = event && event.clientY ? event.clientY : 200;
+				setPickerState({ territory: name, position: { x, y }, availableTypes: types });
+			}
+		}
+	);
+
+	useEffect(() => {
+		if (!mapMode) return;
+		let markers = [];
+		for (let i = 0; i < keyValues.length; i++) {
+			if (keyValues[i] && values[i]) {
+				markers.push({
+					territoryName: values[i],
+					unitType: keyValues[i],
+					phase: 'ghost',
+					index: i,
+					isActive: false,
+					isPlanned: false,
+					isGhosted: true,
+					color: keyValues[i] === 'fleet' ? '#4DAADB' : '#D4A843',
+				});
+			}
+		}
+		mapInteraction.setUnitMarkers(markers);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [keyValues, values, mapMode]);
 
 	function makeOptions() {
 		let table = [];
@@ -157,7 +263,7 @@ function ImportSelect({ object, setThing, getAPI, message, data }) {
 				);
 			}
 			table.push(
-				<div style={{ display: 'flex', marginBottom: 30 }}>
+				<div key={i} style={{ display: 'flex', marginBottom: 30 }}>
 					{' '}
 					{lab} {sel} in {selVal}{' '}
 				</div>
@@ -175,6 +281,17 @@ function ImportSelect({ object, setThing, getAPI, message, data }) {
 				<label> {message} </label> <br />
 			</div>
 			{makeOptions()}
+			{pickerState && (
+				<ImportTypePicker
+					position={pickerState.position}
+					availableTypes={pickerState.availableTypes}
+					onSelect={(type) => {
+						fillSlotFromMap(pickerState.territory, type);
+						setPickerState(null);
+					}}
+					onDismiss={() => setPickerState(null)}
+				/>
+			)}
 		</div>
 	);
 }

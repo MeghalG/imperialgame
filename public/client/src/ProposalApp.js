@@ -136,6 +136,8 @@ function ImportFlow(props) {
 						getAPI={proposalAPI.getImportOptions}
 						message="Choose where to import units. Keep the field empty to not import."
 						data={innerProps.data}
+						mapMode="select-territory"
+						mapColor="#c9a84c"
 					/>
 				),
 			}}
