@@ -6,7 +6,6 @@ import {
 	ActionFlow,
 	MessageDisplay,
 	SimpleMessage,
-	CheckboxSelect,
 	ProduceSelect,
 	ImportSelect,
 	MultiOptionSelect,
