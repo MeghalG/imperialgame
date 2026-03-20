@@ -233,14 +233,14 @@ function Sidebar() {
 		let icons = [];
 		if (info.investor) {
 			icons.push(
-				<Tooltip key="inv" title="Investor Card" mouseLeaveDelay={0}>
+				<Tooltip key="inv" title="Investor Card" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 					<DollarCircleFilled style={{ fontSize: 12, color: '#CCCCCC' }} />
 				</Tooltip>
 			);
 		}
 		if (info.swiss) {
 			icons.push(
-				<Tooltip key="swiss" title="Swiss Banking" mouseLeaveDelay={0}>
+				<Tooltip key="swiss" title="Swiss Banking" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 					<DollarCircleOutlined style={{ fontSize: 12, color: '#999' }} />
 				</Tooltip>
 			);
@@ -248,14 +248,14 @@ function Sidebar() {
 		for (let c in countryInfo) {
 			if ((countryInfo[c].leadership || [])[0] === player) {
 				icons.push(
-					<Tooltip key={'l-' + c} title={c + ' Leader'} mouseLeaveDelay={0}>
+					<Tooltip key={'l-' + c} title={c + ' Leader'} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 						<FlagFilled style={{ fontSize: 11, color: brightColors[c] }} />
 					</Tooltip>
 				);
 			}
 			if ((countryInfo[c] || {}).gov === 'democracy' && (countryInfo[c].leadership || [])[1] === player) {
 				icons.push(
-					<Tooltip key={'o-' + c} title={c + ' Opposition'} mouseLeaveDelay={0}>
+					<Tooltip key={'o-' + c} title={c + ' Opposition'} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 						<FlagOutlined style={{ fontSize: 11, color: brightColors[c] }} />
 					</Tooltip>
 				);
@@ -373,18 +373,18 @@ function Sidebar() {
 					let isActive = activeTab === tab.key;
 					let showIndicator = tab.key === 'turn' && myTurn && !isDefaultTab;
 					return (
-						<Tooltip key={tab.key} title={tab.label} mouseLeaveDelay={0} placement="bottom">
-							<button
-								className={
-									'imp-sidebar__tab-btn' +
-									(isActive ? ' imp-sidebar__tab-btn--active' : '') +
-									(showIndicator ? ' imp-sidebar__tab-btn--indicator' : '')
-								}
-								onClick={() => handleTabClick(tab.key)}
-							>
-								<Icon />
-							</button>
-						</Tooltip>
+						<button
+							key={tab.key}
+							className={
+								'imp-sidebar__tab-btn' +
+								(isActive ? ' imp-sidebar__tab-btn--active' : '') +
+								(showIndicator ? ' imp-sidebar__tab-btn--indicator' : '')
+							}
+							onClick={() => handleTabClick(tab.key)}
+							aria-label={tab.label}
+						>
+							<Icon />
+						</button>
 					);
 				})}
 			</div>
