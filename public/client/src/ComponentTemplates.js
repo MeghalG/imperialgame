@@ -107,6 +107,17 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 				break;
 			}
 		}
+		console.log(
+			'[ImportSelect] fillSlotFromMap:',
+			territory,
+			unitType,
+			'slotIdx:',
+			slotIdx,
+			'before kv:',
+			JSON.stringify(kv),
+			'v:',
+			JSON.stringify(v)
+		);
 		if (slotIdx === -1) return;
 		kv[slotIdx] = unitType;
 		v[slotIdx] = territory;
@@ -114,6 +125,7 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 		setValues(v);
 		keyValuesRef.current = kv;
 		valuesRef.current = v;
+		console.log('[ImportSelect] fillSlotFromMap AFTER:', JSON.stringify(kv), JSON.stringify(v));
 		dataIfDone(kv, v);
 	}
 
@@ -155,14 +167,18 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 		(name, event) => {
 			let kv = keyValuesRef.current;
 			let hasEmpty = kv.some((v) => !v);
+			console.log('[ImportSelect] map click:', name, 'hasEmpty:', hasEmpty, 'kv:', JSON.stringify(kv));
 			if (!hasEmpty) return;
 			let types = getAvailableTypesForTerritory(name);
+			console.log('[ImportSelect] types for', name, ':', JSON.stringify(types));
 			if (types.length === 0) return;
 			if (types.length === 1) {
+				console.log('[ImportSelect] auto-filling slot with', types[0]);
 				fillSlotFromMap(name, types[0]);
 			} else {
 				let x = event && event.clientX ? event.clientX : 200;
 				let y = event && event.clientY ? event.clientY : 200;
+				console.log('[ImportSelect] showing picker at', x, y, 'types:', types);
 				setPickerState({ territory: name, position: { x, y }, availableTypes: types });
 			}
 		}
