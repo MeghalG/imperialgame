@@ -1267,3 +1267,70 @@ describe('Firebase .info path handling', () => {
 		expect(result.val()).toEqual({ turnID: 5 });
 	});
 });
+
+describe('UnifiedUnitLayer ghosted markers', () => {
+	test('renders ghosted markers with imp-unit-marker--ghosted class', async () => {
+		const mapCtx = createMockMapCtx();
+		mapCtx.unitMarkers = [
+			{
+				territoryName: 'Vienna',
+				unitType: 'army',
+				phase: 'ghost',
+				index: 0,
+				isActive: false,
+				isPlanned: false,
+				isGhosted: true,
+				color: '#D4A843',
+			},
+		];
+
+		const emptyCountry = { fleets: [], armies: [], factories: [], points: 0, money: 5, wheelSpot: 'center', leadership: [], availStock: [], lastTax: 5 };
+		mockDbData = {
+			games: {
+				testGame: {
+					setup: 'standard',
+					turnID: 1,
+					countryInfo: {
+						Austria: { fleets: [], armies: [], factories: ['Vienna'], points: 0, money: 5, wheelSpot: 'center', leadership: ['Alice'], availStock: [1], lastTax: 5 },
+						Italy: emptyCountry,
+						France: emptyCountry,
+						England: emptyCountry,
+						Germany: emptyCountry,
+						Russia: emptyCountry,
+					},
+				},
+			},
+			standard: {
+				territories: {
+					Vienna: { country: 'Austria', unitCoords: ['40%', '50%'] },
+				},
+				countries: {
+					Austria: { fleetLimit: 2, armyLimit: 3, order: 1 },
+					Italy: { fleetLimit: 2, armyLimit: 3, order: 2 },
+					France: { fleetLimit: 2, armyLimit: 3, order: 3 },
+					England: { fleetLimit: 2, armyLimit: 3, order: 4 },
+					Germany: { fleetLimit: 2, armyLimit: 3, order: 5 },
+					Russia: { fleetLimit: 2, armyLimit: 3, order: 6 },
+				},
+				wheel: ['Factory', 'L-Produce'],
+			},
+		};
+
+		const userCtx = { game: 'testGame', name: 'Alice', turnID: 1, colorblindMode: false };
+		const div = document.createElement('div');
+
+		const UnifiedUnitLayer = require('./UnifiedUnitLayer.js').default;
+
+		act(() => {
+			renderWithBothContexts(UnifiedUnitLayer, userCtx, mapCtx, div, { mapWidth: 1000 });
+		});
+		await act(async () => { await flushPromises(); });
+
+		let ghostMarker = div.querySelector('.imp-unit-marker--ghosted');
+		expect(ghostMarker).not.toBeNull();
+		// Should NOT have click handler (non-interactive)
+		expect(ghostMarker.onclick).toBeNull();
+
+		ReactDOM.unmountComponentAtNode(div);
+	});
+});

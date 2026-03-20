@@ -158,7 +158,9 @@ function UnifiedUnitLayer({ mapWidth }) {
 			}
 
 			let className = 'imp-unit-marker';
-			if (marker.isActive) {
+			if (marker.isGhosted) {
+				className += ' imp-unit-marker--ghosted';
+			} else if (marker.isActive) {
 				className += ' imp-unit-marker--active';
 			} else if (marker.isPlanned) {
 				className += ' imp-unit-marker--planned';
@@ -172,7 +174,7 @@ function UnifiedUnitLayer({ mapWidth }) {
 				<div
 					key={'marker-' + marker.phase + '-' + marker.index}
 					className={className}
-					onClick={(e) => {
+					onClick={marker.isGhosted ? undefined : (e) => {
 						e.stopPropagation();
 						mapInteraction.onUnitMarkerClicked(marker.phase, marker.index);
 					}}

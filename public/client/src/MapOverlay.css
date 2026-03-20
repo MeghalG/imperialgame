@@ -1643,6 +1643,18 @@ body {
 	opacity: 0.7;
 }
 
+.imp-unit-marker--ghosted {
+	opacity: 0.4;
+	pointer-events: none;
+	border-color: rgba(255, 255, 255, 0.2);
+	animation: imp-ghost-pulse 2s ease-in-out infinite;
+}
+
+@keyframes imp-ghost-pulse {
+	0%, 100% { opacity: 0.35; }
+	50% { opacity: 0.55; }
+}
+
 .imp-unit-marker__icon {
 	line-height: 1;
 }
@@ -1885,6 +1897,7 @@ body {
 	.imp-boundary--selectable,
 	.imp-rondel-wedge--selectable,
 	.imp-unit-marker--active,
+	.imp-unit-marker--ghosted,
 	.imp-movement-arrow {
 		animation: none !important;
 	}
