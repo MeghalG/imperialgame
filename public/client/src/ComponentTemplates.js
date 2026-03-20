@@ -5,6 +5,7 @@ import { Select, Checkbox, Divider } from 'antd';
 import UserContext from './UserContext.js';
 import MapInteractionContext from './MapInteractionContext.js';
 import SoundManager from './SoundManager.js';
+import useMapTerritorySelect from './useMapTerritorySelect.js';
 const { Option } = Select;
 
 function ImportSelect({ object, setThing, getAPI, message, data }) {
@@ -357,7 +358,6 @@ function MultiOptionSelect({ object, setThing, getAPI, peaceAPI, allGoodAPI, mes
 
 function OptionSelect({ object, setThing, getAPI, message, costs, data, mapMode, mapColor }) {
 	const context = useContext(UserContext);
-	const mapInteraction = useContext(MapInteractionContext);
 	const [choices, setChoices] = useState([]);
 	const [controlledValue, setControlledValue] = useState(undefined);
 	const sendValueRef = useRef(null);
@@ -381,35 +381,24 @@ function OptionSelect({ object, setThing, getAPI, message, costs, data, mapMode,
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	useEffect(() => {
-		if (!mapMode || choices.length === 0) return;
-		// Build a cost map keyed by choice name so the hotspot layer can show
-		// the correct dynamic cost for each position (e.g. Investor may be free
-		// or $6 depending on the country's current wheel position).
-		let costMap = null;
-		if (costs && choices.length < 8) {
-			costMap = {};
-			choices.forEach((choice, i) => {
-				if (costs[i]) costMap[choice] = costs[i];
-			});
-		}
-		mapInteraction.setInteraction(
-			mapMode,
-			choices,
-			mapColor || '#c9a84c',
-			(name) => {
-				if (sendValueRef.current) sendValueRef.current(name);
-			},
-			null,
-			costMap
-		);
-		return () => {
-			if (mapInteraction.interactionMode === mapMode) {
-				mapInteraction.clearInteraction();
-			}
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [mapMode, choices, mapColor]);
+	// Build cost map for the hook (same logic as before)
+	let costMap = null;
+	if (costs && choices.length > 0 && choices.length < 8) {
+		costMap = {};
+		choices.forEach((choice, i) => {
+			if (costs[i]) costMap[choice] = costs[i];
+		});
+	}
+
+	useMapTerritorySelect(
+		mapMode && choices.length > 0 ? mapMode : null,
+		choices,
+		mapColor || '#c9a84c',
+		(name) => {
+			if (sendValueRef.current) sendValueRef.current(name);
+		},
+		costMap
+	);
 
 	if (choices.length === 0) {
 		return <div />;
