@@ -305,12 +305,53 @@ async function seedSetupData() {
 	await dbSet('setups/standard', setupData);
 }
 
+/**
+ * Seed a game in proposal mode for a specific country.
+ * @param {Object} [options]
+ * @param {string} [options.player='Alice']
+ * @param {string} [options.country='Austria']
+ * @param {string} [options.wheelSpot='center']
+ * @param {number} [options.countryMoney=10]
+ * @param {number} [options.playerMoney=10]
+ * @param {Array} [options.factories]
+ * @param {Array} [options.fleets]
+ * @param {Array} [options.armies]
+ * @param {Object} [options.enemyUnits]
+ * @returns {Promise<string>}
+ */
+async function seedProposalGame(options = {}) {
+	const gameID = testGameID();
+	const player = options.player || 'Alice';
+	const country = options.country || 'Austria';
+	let gs = baseGameState();
+	gs.mode = 'proposal';
+	gs.countryUp = country;
+	gs.countryInfo[country].wheelSpot = options.wheelSpot || 'center';
+	gs.countryInfo[country].money = options.countryMoney != null ? options.countryMoney : 10;
+	if (options.factories) gs.countryInfo[country].factories = options.factories;
+	if (options.fleets) gs.countryInfo[country].fleets = options.fleets;
+	if (options.armies) gs.countryInfo[country].armies = options.armies;
+	gs.playerInfo[player].money = options.playerMoney != null ? options.playerMoney : 10;
+	for (let p in gs.playerInfo) {
+		gs.playerInfo[p].myTurn = p === player;
+	}
+	if (options.enemyUnits) {
+		for (let [enemyCountry, units] of Object.entries(options.enemyUnits)) {
+			if (units.armies) gs.countryInfo[enemyCountry].armies = units.armies;
+			if (units.fleets) gs.countryInfo[enemyCountry].fleets = units.fleets;
+		}
+	}
+	await dbSet(`games/${gameID}`, gs);
+	return gameID;
+}
+
 module.exports = {
 	dbSet,
 	dbDelete,
 	testGameID,
 	baseGameState,
 	seedManeuverGame,
+	seedProposalGame,
 	seedSetupData,
 	cleanupGame,
 	EMULATOR_HOST,

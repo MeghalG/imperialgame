@@ -436,6 +436,90 @@ async function waitForCascade(page) {
 	await page.waitForTimeout(200);
 }
 
+/**
+ * Wait for the proposal UI to be ready.
+ * @param {import('@playwright/test').Page} page
+ */
+async function waitForProposalReady(page) {
+	await page.waitForSelector('.ProposalApp', { timeout: LOAD_TIMEOUT });
+	await page.waitForSelector('.ant-select', { timeout: LOAD_TIMEOUT });
+}
+
+/**
+ * Select a wheel action from the first dropdown in ProposalApp.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} actionName
+ */
+async function selectWheelActionDropdown(page, actionName) {
+	let selects = page.locator('.ProposalApp .ant-select');
+	await selects.first().click();
+	await page.click(`.ant-select-item-option:has-text("${actionName}")`);
+	await page.waitForTimeout(300);
+}
+
+/**
+ * Click the proposal submit button.
+ * @param {import('@playwright/test').Page} page
+ */
+async function clickProposalSubmit(page) {
+	await page.click('.imp-submit-btn');
+	await page.waitForTimeout(1000);
+}
+
+/**
+ * Get all ghosted unit markers on the map.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<Array<{title: string}>>}
+ */
+async function getGhostedMarkers(page) {
+	return page.evaluate(() => {
+		let markers = document.querySelectorAll('.imp-unit-marker--ghosted');
+		return Array.from(markers).map((el) => ({
+			title: el.getAttribute('title') || '',
+		}));
+	});
+}
+
+/**
+ * Get all produce checkboxes from the ProduceApp.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<Array<{label: string, checked: boolean, disabled: boolean}>>}
+ */
+async function getProduceCheckboxes(page) {
+	return page.evaluate(() => {
+		let checkboxes = document.querySelectorAll('.ProduceApp .ant-checkbox-wrapper');
+		return Array.from(checkboxes).map((wrapper) => {
+			let input = wrapper.querySelector('input[type="checkbox"]');
+			return {
+				label: wrapper.textContent.trim(),
+				checked: input ? input.checked : false,
+				disabled: input ? input.disabled : true,
+			};
+		});
+	});
+}
+
+/**
+ * Get all filled import slots from the ImportApp.
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<Array<{type: string, territory: string}>>}
+ */
+async function getImportSlots(page) {
+	return page.evaluate(() => {
+		let rows = document.querySelectorAll('.ImportApp div[style*="flex"]');
+		let slots = [];
+		for (let row of rows) {
+			let selects = row.querySelectorAll('.ant-select-selection-item');
+			let type = selects[0] ? selects[0].textContent.trim() : '';
+			let territory = selects[1] ? selects[1].textContent.trim() : '';
+			if (type || territory) {
+				slots.push({ type, territory });
+			}
+		}
+		return slots;
+	});
+}
+
 module.exports = {
 	joinGame,
 	waitForPlannerReady,
@@ -466,6 +550,12 @@ module.exports = {
 	clickSubmit,
 	getArrowCount,
 	waitForCascade,
+	waitForProposalReady,
+	selectWheelActionDropdown,
+	clickProposalSubmit,
+	getGhostedMarkers,
+	getProduceCheckboxes,
+	getImportSlots,
 	RESPOND_TIMEOUT,
 	LOAD_TIMEOUT,
 };
