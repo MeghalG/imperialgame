@@ -99,32 +99,36 @@ function Sidebar() {
 	const turnRef = useRef(null);
 
 	const refreshData = useCallback(async () => {
-		let [turnState, gs, countriesData, country, player, order, myTurnData] = await Promise.all([
-			turnAPI.getTurnState(contextRef.current),
-			miscAPI.getGameState(contextRef.current),
-			helper.getCountries(contextRef.current),
-			stateAPI.getCountryInfo(contextRef.current),
-			stateAPI.getPlayerInfo(contextRef.current),
-			helper.getPlayersInOrder(contextRef.current),
-			turnAPI.getMyTurn(contextRef.current),
-		]);
+		try {
+			let [turnState, gs, countriesData, country, player, order, myTurnData] = await Promise.all([
+				turnAPI.getTurnState(contextRef.current),
+				miscAPI.getGameState(contextRef.current),
+				helper.getCountries(contextRef.current),
+				stateAPI.getCountryInfo(contextRef.current),
+				stateAPI.getPlayerInfo(contextRef.current),
+				helper.getPlayersInOrder(contextRef.current),
+				turnAPI.getMyTurn(contextRef.current),
+			]);
 
-		setTurnTitle(turnState.turnTitle);
-		if (prevModeRef.current !== null && turnState.mode !== prevModeRef.current) {
-			SoundManager.playShuffle();
+			setTurnTitle(turnState.turnTitle);
+			if (prevModeRef.current !== null && turnState.mode !== prevModeRef.current) {
+				SoundManager.playShuffle();
+			}
+			prevModeRef.current = turnState.mode;
+			setMode(turnState.mode);
+			setUndoable(turnState.undoable);
+			setTurnID(turnState.turnID);
+			if (gs && gs.countryUp) {
+				setCountryUp(gs.countryUp);
+			}
+			setMyTurn(myTurnData);
+			setCountries(countriesData || []);
+			setCountryInfo(country || {});
+			setPlayerInfo(player || {});
+			setPlayersOrdered(order || []);
+		} catch (e) {
+			console.warn('Sidebar: failed to load data, will retry on next turn change', e);
 		}
-		prevModeRef.current = turnState.mode;
-		setMode(turnState.mode);
-		setUndoable(turnState.undoable);
-		setTurnID(turnState.turnID);
-		if (gs && gs.countryUp) {
-			setCountryUp(gs.countryUp);
-		}
-		setMyTurn(myTurnData);
-		setCountries(countriesData || []);
-		setCountryInfo(country || {});
-		setPlayerInfo(player || {});
-		setPlayersOrdered(order || []);
 	}, []);
 
 	// Single turnID listener for all sidebar data

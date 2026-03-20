@@ -191,6 +191,7 @@ async function getMyTurn(context) {
 		return false;
 	}
 	let gameState = await readGameState(context);
+	if (!gameState || !gameState.playerInfo) return false;
 	let myTurn = (gameState.playerInfo[context.name] || {}).myTurn;
 	return myTurn;
 }
