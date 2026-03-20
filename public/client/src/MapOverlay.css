@@ -1651,8 +1651,13 @@ body {
 }
 
 @keyframes imp-ghost-pulse {
-	0%, 100% { opacity: 0.35; }
-	50% { opacity: 0.55; }
+	0%,
+	100% {
+		opacity: 0.35;
+	}
+	50% {
+		opacity: 0.55;
+	}
 }
 
 .imp-unit-marker__icon {

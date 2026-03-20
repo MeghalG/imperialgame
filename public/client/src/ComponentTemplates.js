@@ -612,25 +612,20 @@ function CheckboxSelect({ object, setThing, getAPI, message, type, data, mapMode
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	useMapTerritorySelect(
-		mapMode && items.length > 0 ? mapMode : null,
-		items,
-		mapColor || '#c9a84c',
-		(name) => {
-			let current = checkedRef.current;
-			let newChecked;
-			if (current.includes(name)) {
-				newChecked = current.filter((v) => v !== name);
-			} else if (current.length < limitRef.current) {
-				newChecked = [...current, name];
-			} else {
-				return;
-			}
-			setChecked(newChecked);
-			checkedRef.current = newChecked;
-			context[setThing](newChecked);
+	useMapTerritorySelect(mapMode && items.length > 0 ? mapMode : null, items, mapColor || '#c9a84c', (name) => {
+		let current = checkedRef.current;
+		let newChecked;
+		if (current.includes(name)) {
+			newChecked = current.filter((v) => v !== name);
+		} else if (current.length < limitRef.current) {
+			newChecked = [...current, name];
+		} else {
+			return;
 		}
-	);
+		setChecked(newChecked);
+		checkedRef.current = newChecked;
+		context[setThing](newChecked);
+	});
 
 	useEffect(() => {
 		if (!mapMode || !mapUnitType) return;

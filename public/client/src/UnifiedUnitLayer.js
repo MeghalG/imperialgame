@@ -174,10 +174,14 @@ function UnifiedUnitLayer({ mapWidth }) {
 				<div
 					key={'marker-' + marker.phase + '-' + marker.index}
 					className={className}
-					onClick={marker.isGhosted ? undefined : (e) => {
-						e.stopPropagation();
-						mapInteraction.onUnitMarkerClicked(marker.phase, marker.index);
-					}}
+					onClick={
+						marker.isGhosted
+							? undefined
+							: (e) => {
+									e.stopPropagation();
+									mapInteraction.onUnitMarkerClicked(marker.phase, marker.index);
+							  }
+					}
 					style={{
 						left: 'calc(' + coords[0] + ' + ' + (offsetPx - markerOffset) + 'px)',
 						top: 'calc(' + coords[1] + ' - ' + markerOffset + 'px)',

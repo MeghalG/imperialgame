@@ -269,10 +269,16 @@ describe('useMapTerritorySelect hook', () => {
 				onSelect,
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
-			'select-territory', ['Vienna', 'Trieste'], '#49aa19',
-			expect.any(Function), null, null
+			'select-territory',
+			['Vienna', 'Trieste'],
+			'#49aa19',
+			expect.any(Function),
+			null,
+			null
 		);
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -283,10 +289,15 @@ describe('useMapTerritorySelect hook', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
-				mapMode: null, items: ['Vienna'], color: '#49aa19', onSelect: jest.fn(),
+				mapMode: null,
+				items: ['Vienna'],
+				color: '#49aa19',
+				onSelect: jest.fn(),
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setInteraction).not.toHaveBeenCalled();
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -297,10 +308,15 @@ describe('useMapTerritorySelect hook', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
-				mapMode: 'select-territory', items: [], color: '#49aa19', onSelect: jest.fn(),
+				mapMode: 'select-territory',
+				items: [],
+				color: '#49aa19',
+				onSelect: jest.fn(),
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setInteraction).not.toHaveBeenCalled();
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -312,11 +328,18 @@ describe('useMapTerritorySelect hook', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
-				mapMode: 'select-territory', items: ['Vienna'], color: '#49aa19', onSelect: jest.fn(),
+				mapMode: 'select-territory',
+				items: ['Vienna'],
+				color: '#49aa19',
+				onSelect: jest.fn(),
 			});
 		});
-		await act(async () => { await flushPromises(); });
-		act(() => { ReactDOM.unmountComponentAtNode(div); });
+		await act(async () => {
+			await flushPromises();
+		});
+		act(() => {
+			ReactDOM.unmountComponentAtNode(div);
+		});
 		expect(mapCtx.clearInteraction).toHaveBeenCalled();
 	});
 
@@ -333,10 +356,16 @@ describe('useMapTerritorySelect hook', () => {
 				costs: { Import: '($2)', Taxation: '($4)' },
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
-			'select-rondel', ['Factory', 'Import', 'Taxation'], '#c9a84c',
-			expect.any(Function), null, { Import: '($2)', Taxation: '($4)' }
+			'select-rondel',
+			['Factory', 'Import', 'Taxation'],
+			'#c9a84c',
+			expect.any(Function),
+			null,
+			{ Import: '($2)', Taxation: '($4)' }
 		);
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -1277,16 +1306,26 @@ describe('CheckboxSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
-				object: 'producearmies', setThing: 'setArmyProduce',
+				object: 'producearmies',
+				setThing: 'setArmyProduce',
 				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest'], limit: 2 }),
-				type: '(Army)', data: mockData,
-				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+				type: '(Army)',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#D4A843',
+				mapUnitType: 'army',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
-			'select-territory', ['Vienna', 'Budapest'], '#D4A843',
-			expect.any(Function), null, null
+			'select-territory',
+			['Vienna', 'Budapest'],
+			'#D4A843',
+			expect.any(Function),
+			null,
+			null
 		);
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -1299,16 +1338,24 @@ describe('CheckboxSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
-				object: 'producearmies', setThing: 'setArmyProduce',
+				object: 'producearmies',
+				setThing: 'setArmyProduce',
 				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest', 'Prague'], limit: 2 }),
-				type: '(Army)', data: mockData,
-				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+				type: '(Army)',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#D4A843',
+				mapUnitType: 'army',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		// Pre-selected: Vienna, Budapest (first 2 up to limit)
 		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
-		act(() => { onMapClick('Vienna'); });
+		act(() => {
+			onMapClick('Vienna');
+		});
 		let lastCall = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
 		expect(lastCall[0]).toEqual(['Budapest']);
 		ReactDOM.unmountComponentAtNode(div);
@@ -1322,18 +1369,28 @@ describe('CheckboxSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
-				object: 'producearmies', setThing: 'setArmyProduce',
+				object: 'producearmies',
+				setThing: 'setArmyProduce',
 				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest'], limit: 2 }),
-				type: '(Army)', data: mockData,
-				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+				type: '(Army)',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#D4A843',
+				mapUnitType: 'army',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
-		act(() => { onMapClick('Vienna'); });
+		act(() => {
+			onMapClick('Vienna');
+		});
 		let call1 = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
 		expect(call1[0]).toEqual(['Budapest']);
-		act(() => { onMapClick('Vienna'); });
+		act(() => {
+			onMapClick('Vienna');
+		});
 		let call2 = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
 		expect(call2[0]).toContain('Vienna');
 		expect(call2[0]).toContain('Budapest');
@@ -1348,16 +1405,24 @@ describe('CheckboxSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
-				object: 'producearmies', setThing: 'setArmyProduce',
+				object: 'producearmies',
+				setThing: 'setArmyProduce',
 				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest', 'Prague'], limit: 2 }),
-				type: '(Army)', data: mockData,
-				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+				type: '(Army)',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#D4A843',
+				mapUnitType: 'army',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		let callCountBefore = mockSetArmyProduce.mock.calls.length;
 		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
-		act(() => { onMapClick('Prague'); });
+		act(() => {
+			onMapClick('Prague');
+		});
 		let callCountAfter = mockSetArmyProduce.mock.calls.length;
 		if (callCountAfter > callCountBefore) {
 			let lastCall = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
@@ -1375,13 +1440,19 @@ describe('CheckboxSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
-				object: 'producearmies', setThing: 'setArmyProduce',
+				object: 'producearmies',
+				setThing: 'setArmyProduce',
 				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest'], limit: 2 }),
-				type: '(Army)', data: mockData,
-				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+				type: '(Army)',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#D4A843',
+				mapUnitType: 'army',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setUnitMarkers).toHaveBeenCalled();
 		let markers = mapCtx.setUnitMarkers.mock.calls[mapCtx.setUnitMarkers.mock.calls.length - 1][0];
 		expect(markers.length).toBe(2);
@@ -1398,12 +1469,16 @@ describe('CheckboxSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
-				object: 'producearmies', setThing: 'setArmyProduce',
+				object: 'producearmies',
+				setThing: 'setArmyProduce',
 				getAPI: () => Promise.resolve({ items: ['Vienna'], limit: 1 }),
-				type: '(Army)', data: jest.fn(),
+				type: '(Army)',
+				data: jest.fn(),
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setInteraction).not.toHaveBeenCalled();
 		expect(mapCtx.setUnitMarkers).not.toHaveBeenCalled();
 		ReactDOM.unmountComponentAtNode(div);
@@ -1472,7 +1547,9 @@ describe('ImportTypePicker', () => {
 			);
 		});
 		let buttons = div.querySelectorAll('.imp-action-picker__btn');
-		act(() => { buttons[1].click(); });
+		act(() => {
+			buttons[1].click();
+		});
 		expect(onSelect).toHaveBeenCalledWith('fleet');
 		ReactDOM.unmountComponentAtNode(div);
 		document.body.removeChild(div);
@@ -1483,12 +1560,7 @@ describe('ImportTypePicker', () => {
 		const div = document.createElement('div');
 		act(() => {
 			ReactDOM.render(
-				<ImportTypePicker
-					position={null}
-					availableTypes={['army']}
-					onSelect={jest.fn()}
-					onDismiss={jest.fn()}
-				/>,
+				<ImportTypePicker position={null} availableTypes={['army']} onSelect={jest.fn()} onDismiss={jest.fn()} />,
 				div
 			);
 		});
@@ -1506,21 +1578,30 @@ describe('ImportSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
-				object: 'importunits', setThing: 'setImport',
-				getAPI: () => Promise.resolve({
-					labels: ['Import #1', 'Import #2', 'Import #3'],
-					options: { army: ['Vienna', 'Budapest', 'Trieste'], fleet: ['Trieste', 'Naples'] },
-					limits: { army: 2, fleet: 1 },
-				}),
-				message: 'Import units:', data: mockData,
-				mapMode: 'select-territory', mapColor: '#c9a84c',
+				object: 'importunits',
+				setThing: 'setImport',
+				getAPI: () =>
+					Promise.resolve({
+						labels: ['Import #1', 'Import #2', 'Import #3'],
+						options: { army: ['Vienna', 'Budapest', 'Trieste'], fleet: ['Trieste', 'Naples'] },
+						limits: { army: 2, fleet: 1 },
+					}),
+				message: 'Import units:',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#c9a84c',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
 			'select-territory',
 			expect.arrayContaining(['Vienna', 'Budapest', 'Trieste', 'Naples']),
-			'#c9a84c', expect.any(Function), null, null
+			'#c9a84c',
+			expect.any(Function),
+			null,
+			null
 		);
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -1533,19 +1614,27 @@ describe('ImportSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
-				object: 'importunits', setThing: 'setImport',
-				getAPI: () => Promise.resolve({
-					labels: ['Import #1', 'Import #2', 'Import #3'],
-					options: { army: ['Vienna', 'Budapest'], fleet: ['Naples'] },
-					limits: { army: 2, fleet: 1 },
-				}),
-				message: 'Import units:', data: mockData,
-				mapMode: 'select-territory', mapColor: '#c9a84c',
+				object: 'importunits',
+				setThing: 'setImport',
+				getAPI: () =>
+					Promise.resolve({
+						labels: ['Import #1', 'Import #2', 'Import #3'],
+						options: { army: ['Vienna', 'Budapest'], fleet: ['Naples'] },
+						limits: { army: 2, fleet: 1 },
+					}),
+				message: 'Import units:',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#c9a84c',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
-		act(() => { onMapClick('Vienna'); });
+		act(() => {
+			onMapClick('Vienna');
+		});
 		let lastCall = mockSetImport.mock.calls[mockSetImport.mock.calls.length - 1][0];
 		expect(lastCall.types[0]).toBe('army');
 		expect(lastCall.territories[0]).toBe('Vienna');
@@ -1561,24 +1650,34 @@ describe('ImportSelect with map integration', () => {
 		document.body.appendChild(div);
 		act(() => {
 			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
-				object: 'importunits', setThing: 'setImport',
-				getAPI: () => Promise.resolve({
-					labels: ['Import #1', 'Import #2', 'Import #3'],
-					options: { army: ['Vienna', 'Trieste'], fleet: ['Trieste'] },
-					limits: { army: 2, fleet: 1 },
-				}),
-				message: 'Import units:', data: mockData,
-				mapMode: 'select-territory', mapColor: '#c9a84c',
+				object: 'importunits',
+				setThing: 'setImport',
+				getAPI: () =>
+					Promise.resolve({
+						labels: ['Import #1', 'Import #2', 'Import #3'],
+						options: { army: ['Vienna', 'Trieste'], fleet: ['Trieste'] },
+						limits: { army: 2, fleet: 1 },
+					}),
+				message: 'Import units:',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#c9a84c',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
-		act(() => { onMapClick('Trieste'); });
+		act(() => {
+			onMapClick('Trieste');
+		});
 		let picker = div.querySelector('.imp-action-picker');
 		expect(picker).not.toBeNull();
 		// Click Fleet button to fill slot
 		let buttons = div.querySelectorAll('.imp-action-picker__btn');
-		act(() => { buttons[1].click(); });
+		act(() => {
+			buttons[1].click();
+		});
 		let lastCall = mockSetImport.mock.calls[mockSetImport.mock.calls.length - 1][0];
 		expect(lastCall.types[0]).toBe('fleet');
 		expect(lastCall.territories[0]).toBe('Trieste');
@@ -1594,20 +1693,30 @@ describe('ImportSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
-				object: 'importunits', setThing: 'setImport',
-				getAPI: () => Promise.resolve({
-					labels: ['Import #1', 'Import #2', 'Import #3'],
-					options: { army: ['Vienna'], fleet: [] },
-					limits: { army: 3, fleet: 0 },
-				}),
-				message: 'Import units:', data: mockData,
-				mapMode: 'select-territory', mapColor: '#c9a84c',
+				object: 'importunits',
+				setThing: 'setImport',
+				getAPI: () =>
+					Promise.resolve({
+						labels: ['Import #1', 'Import #2', 'Import #3'],
+						options: { army: ['Vienna'], fleet: [] },
+						limits: { army: 3, fleet: 0 },
+					}),
+				message: 'Import units:',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#c9a84c',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
-		act(() => { onMapClick('Vienna'); });
-		act(() => { onMapClick('Vienna'); });
+		act(() => {
+			onMapClick('Vienna');
+		});
+		act(() => {
+			onMapClick('Vienna');
+		});
 		let lastCall = mockSetImport.mock.calls[mockSetImport.mock.calls.length - 1][0];
 		expect(lastCall.types[0]).toBe('army');
 		expect(lastCall.territories[0]).toBe('Vienna');
@@ -1624,23 +1733,37 @@ describe('ImportSelect with map integration', () => {
 		const div = document.createElement('div');
 		act(() => {
 			renderWithBothContexts(ImportSelect, userCtx, mapCtx, div, {
-				object: 'importunits', setThing: 'setImport',
-				getAPI: () => Promise.resolve({
-					labels: ['Import #1', 'Import #2', 'Import #3'],
-					options: { army: ['Vienna'], fleet: [] },
-					limits: { army: 3, fleet: 0 },
-				}),
-				message: 'Import units:', data: mockData,
-				mapMode: 'select-territory', mapColor: '#c9a84c',
+				object: 'importunits',
+				setThing: 'setImport',
+				getAPI: () =>
+					Promise.resolve({
+						labels: ['Import #1', 'Import #2', 'Import #3'],
+						options: { army: ['Vienna'], fleet: [] },
+						limits: { army: 3, fleet: 0 },
+					}),
+				message: 'Import units:',
+				data: mockData,
+				mapMode: 'select-territory',
+				mapColor: '#c9a84c',
 			});
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
-		act(() => { onMapClick('Vienna'); });
-		act(() => { onMapClick('Vienna'); });
-		act(() => { onMapClick('Vienna'); });
+		act(() => {
+			onMapClick('Vienna');
+		});
+		act(() => {
+			onMapClick('Vienna');
+		});
+		act(() => {
+			onMapClick('Vienna');
+		});
 		let callCountAfterFill = mockSetImport.mock.calls.length;
-		act(() => { onMapClick('Vienna'); });
+		act(() => {
+			onMapClick('Vienna');
+		});
 		expect(mockSetImport.mock.calls.length).toBe(callCountAfterFill);
 		ReactDOM.unmountComponentAtNode(div);
 	});
@@ -1662,14 +1785,34 @@ describe('UnifiedUnitLayer ghosted markers', () => {
 			},
 		];
 
-		const emptyCountry = { fleets: [], armies: [], factories: [], points: 0, money: 5, wheelSpot: 'center', leadership: [], availStock: [], lastTax: 5 };
+		const emptyCountry = {
+			fleets: [],
+			armies: [],
+			factories: [],
+			points: 0,
+			money: 5,
+			wheelSpot: 'center',
+			leadership: [],
+			availStock: [],
+			lastTax: 5,
+		};
 		mockDbData = {
 			games: {
 				testGame: {
 					setup: 'standard',
 					turnID: 1,
 					countryInfo: {
-						Austria: { fleets: [], armies: [], factories: ['Vienna'], points: 0, money: 5, wheelSpot: 'center', leadership: ['Alice'], availStock: [1], lastTax: 5 },
+						Austria: {
+							fleets: [],
+							armies: [],
+							factories: ['Vienna'],
+							points: 0,
+							money: 5,
+							wheelSpot: 'center',
+							leadership: ['Alice'],
+							availStock: [1],
+							lastTax: 5,
+						},
 						Italy: emptyCountry,
 						France: emptyCountry,
 						England: emptyCountry,
@@ -1702,7 +1845,9 @@ describe('UnifiedUnitLayer ghosted markers', () => {
 		act(() => {
 			renderWithBothContexts(UnifiedUnitLayer, userCtx, mapCtx, div, { mapWidth: 1000 });
 		});
-		await act(async () => { await flushPromises(); });
+		await act(async () => {
+			await flushPromises();
+		});
 
 		let ghostMarker = div.querySelector('.imp-unit-marker--ghosted');
 		expect(ghostMarker).not.toBeNull();

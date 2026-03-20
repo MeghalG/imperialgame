@@ -42,3 +42,4 @@ Completed 2026-03-18. **13/14 E2E passing, 1 fixme** (fleet convoy cascade — `
 - **Keyboard navigation** — accessibility, not blocking gameplay
 - **Screen reader support** — accessibility, not blocking gameplay
 - **Drag-to-reorder** — cosmetic UX, arrow buttons work for now
+- **Territory hover infrastructure (TerritoryHoverLayer)** — Build hover detection for map territories. `hoverSignal.js` already tracks mouse position; need a component that does point-in-polygon hit testing against territory boundaries and fires hover callbacks. Enables: factory build preview icon on hover, unit info tooltips, territory name tooltips. ~150 lines. Depends on map interaction for Factory/Produce/Import being complete. P3.
