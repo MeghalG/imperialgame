@@ -28,7 +28,7 @@ test.describe('Produce — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'L-Produce');
 		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		let highlights = await getHighlightedTerritories(page);
 		expect(highlights).toContain('Trieste');
 	});
@@ -39,7 +39,7 @@ test.describe('Produce — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'L-Produce');
 		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		let checkboxes = await getProduceCheckboxes(page);
 		let fleetCheckbox = checkboxes.find((c) => c.label.includes('Trieste'));
 		if (fleetCheckbox) {
@@ -53,7 +53,7 @@ test.describe('Produce — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'L-Produce');
 		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Trieste');
 		await page.waitForTimeout(200);
 		let checkboxes = await getProduceCheckboxes(page);
@@ -69,9 +69,8 @@ test.describe('Produce — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'L-Produce');
 		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Trieste');
-		await page.waitForTimeout(200);
 		await clickTerritory(page, 'Trieste');
 		await page.waitForTimeout(200);
 		let checkboxes = await getProduceCheckboxes(page);
@@ -87,7 +86,7 @@ test.describe('Produce — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'L-Produce');
 		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		let markers = await getGhostedMarkers(page);
 		expect(markers.some((m) => m.title.includes('Trieste'))).toBe(true);
 	});
@@ -98,7 +97,7 @@ test.describe('Produce — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'L-Produce');
 		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Trieste');
 		await page.waitForTimeout(200);
 		let markers = await getGhostedMarkers(page);
@@ -126,7 +125,7 @@ test.describe('Produce — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'L-Produce');
 		await page.waitForSelector('.ProduceApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 }).catch(() => {});
 		let checkboxes = await getProduceCheckboxes(page);
 		let fleetCheckbox = checkboxes.find((c) => c.label.includes('Trieste'));
 		expect(fleetCheckbox).toBeUndefined();

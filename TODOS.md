@@ -36,6 +36,15 @@ Completed 2026-03-18. **13/14 E2E passing, 1 fixme** (fleet convoy cascade — `
 **Depends on:** Phase 1 + Phase 2
 **Added:** 2026-03-18
 
+## P2: Consolidate turnID Firebase Listeners
+**What:** Consolidate the 4+ independent `turnID` Firebase listeners (TurnApp, TopBar, FloatingPlayerPanel/Sidebar, GameApp) into a single shared listener via context or a custom hook.
+**Why:** Each component independently calls `database.ref('games/' + game + '/turnID').on('value', ...)`, creating redundant Firebase reads and parallel re-fetch cascades on every turn change. A single listener would reduce Firebase traffic and simplify the re-render flow.
+**Context:** Natural follow-up after the sidebar layout restructure, since the component tree will be reorganized anyway. Create a `useTurnListener` hook or add the listener to `UserContext`/`GameApp` and pass the turnID down. Each consumer reacts to the context value changing instead of managing its own listener.
+**Effort:** M
+**Priority:** P2
+**Depends on:** Sidebar layout restructure
+**Added:** 2026-03-19
+
 ## Deferred
 - **Democracy rejection unit-type vote** — when democracy rejects peace and has both armies+fleets at destination, stockholders should vote on which to sacrifice. Currently auto-picks fleet. Very rare scenario. Spec §5.4.
 - **Timer behavior during maneuver** — needs game design decision (auto-submit vs skip)

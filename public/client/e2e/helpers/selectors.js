@@ -202,36 +202,53 @@ async function getHighlightedTerritories(page) {
 /**
  * Click a territory on the map.
  * Uses evaluate + dispatchEvent to bypass z-order issues with SVG polygons.
+ * Retries up to RESPOND_TIMEOUT ms in case React is mid-render and the selectable
+ * boundary is temporarily absent (e.g. during useEffect cleanup/re-setup cycle).
  * @param {import('@playwright/test').Page} page
  * @param {string} territoryName
  */
 async function clickTerritory(page, territoryName) {
-	let clicked = await page.evaluate((name) => {
-		let el =
-			document.querySelector(`.imp-boundary--selectable[data-territory="${name}"]`) ||
-			document.querySelector(`.imp-hotspot--selectable[data-territory="${name}"]`);
-		if (!el) return false;
-		// Use React's onClick directly if available via React fiber
-		let reactProp = Object.keys(el).find((k) => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
-		if (reactProp) {
-			let eventProp = Object.keys(el).find((k) => k.startsWith('__reactEvents') || k.startsWith('__reactProps'));
-			if (eventProp && el[eventProp] && el[eventProp].onClick) {
-				el[eventProp].onClick({ stopPropagation: () => {}, preventDefault: () => {} });
-				return true;
+	// Use waitForFunction to both wait for the element and click it atomically,
+	// avoiding the race between waitForSelector and evaluate.
+	let clicked = false;
+	let lastError = null;
+	const deadline = Date.now() + RESPOND_TIMEOUT;
+	while (Date.now() < deadline) {
+		clicked = await page.evaluate((name) => {
+			let el =
+				document.querySelector(`.imp-boundary--selectable[data-territory="${name}"]`) ||
+				document.querySelector(`.imp-boundary--selected[data-territory="${name}"]`) ||
+				document.querySelector(`.imp-hotspot--selectable[data-territory="${name}"]`) ||
+				document.querySelector(`.imp-hotspot--selected[data-territory="${name}"]`);
+			if (!el) return false;
+			// Use React's onClick directly if available via React fiber
+			let reactProp = Object.keys(el).find(
+				(k) => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance')
+			);
+			if (reactProp) {
+				let eventProp = Object.keys(el).find(
+					(k) => k.startsWith('__reactEvents') || k.startsWith('__reactProps')
+				);
+				if (eventProp && el[eventProp] && el[eventProp].onClick) {
+					el[eventProp].onClick({ stopPropagation: () => {}, preventDefault: () => {} });
+					return true;
+				}
 			}
-		}
-		// Fallback: dispatch native click event
-		let rect = el.getBoundingClientRect();
-		let event = new MouseEvent('click', {
-			bubbles: true,
-			cancelable: true,
-			clientX: rect.left + rect.width / 2,
-			clientY: rect.top + rect.height / 2,
-		});
-		el.dispatchEvent(event);
-		return true;
-	}, territoryName);
-	if (!clicked) throw new Error('Territory not found or not selectable: ' + territoryName);
+			// Fallback: dispatch native click event
+			let rect = el.getBoundingClientRect();
+			let event = new MouseEvent('click', {
+				bubbles: true,
+				cancelable: true,
+				clientX: rect.left + rect.width / 2,
+				clientY: rect.top + rect.height / 2,
+			});
+			el.dispatchEvent(event);
+			return true;
+		}, territoryName);
+		if (clicked) return;
+		await page.waitForTimeout(50);
+	}
+	throw new Error('Territory not found or not selectable: ' + territoryName);
 }
 
 /**

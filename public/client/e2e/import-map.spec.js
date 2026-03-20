@@ -32,7 +32,7 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		let highlights = await getHighlightedTerritories(page);
 		expect(highlights).toContain('Vienna');
 		expect(highlights).toContain('Budapest');
@@ -47,7 +47,7 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Vienna');
 		await page.waitForTimeout(300);
 		let slots = await getImportSlots(page);
@@ -62,7 +62,7 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Trieste');
 		await waitForActionPicker(page);
 		let visible = await isActionPickerVisible(page);
@@ -78,7 +78,7 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Trieste');
 		await waitForActionPicker(page);
 		await pickAction(page, 'Fleet');
@@ -95,9 +95,8 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Vienna');
-		await page.waitForTimeout(300);
 		await clickTerritory(page, 'Vienna');
 		await page.waitForTimeout(300);
 		let slots = await getImportSlots(page);
@@ -112,11 +111,9 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Vienna');
-		await page.waitForTimeout(300);
 		await clickTerritory(page, 'Budapest');
-		await page.waitForTimeout(300);
 		await clickTerritory(page, 'Prague');
 		await page.waitForTimeout(300);
 		let slotsBefore = await getImportSlots(page);
@@ -133,7 +130,7 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Vienna');
 		await page.waitForTimeout(300);
 		let markers = await getGhostedMarkers(page);
@@ -153,9 +150,8 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Budapest');
-		await page.waitForTimeout(300);
 		await clickTerritory(page, 'Trieste');
 		await page.waitForTimeout(300);
 		let pickerVisible = await isActionPickerVisible(page);
@@ -176,7 +172,7 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		let highlights = await getHighlightedTerritories(page);
 		expect(highlights).not.toContain('Prague');
 		expect(highlights).toContain('Vienna');
@@ -195,7 +191,7 @@ test.describe('Import — Map Interaction', () => {
 		await waitForProposalReady(page);
 		await selectWheelActionDropdown(page, 'Import');
 		await page.waitForSelector('.ImportApp', { timeout: 5000 });
-		await page.waitForTimeout(500);
+		await page.waitForSelector('.imp-boundary--selectable[data-territory], .imp-hotspot--selectable[data-territory]', { timeout: 5000 });
 		await clickTerritory(page, 'Trieste');
 		await page.waitForTimeout(300);
 		let pickerVisible = await isActionPickerVisible(page);

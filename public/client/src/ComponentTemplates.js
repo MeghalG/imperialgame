@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useMemo } from 'react';
 import './App.css';
 import { Radio, Button } from 'antd';
 import { Select, Checkbox, Divider } from 'antd';
@@ -133,18 +133,20 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 		return types;
 	}
 
-	let allTerritories = [];
-	if (mapMode && Object.keys(options).length > 0) {
+	let allTerritories = useMemo(() => {
+		if (!mapMode || Object.keys(options).length === 0) return [];
 		let seen = new Set();
+		let result = [];
 		for (let key in options) {
 			for (let t of options[key]) {
 				if (!seen.has(t)) {
 					seen.add(t);
-					allTerritories.push(t);
+					result.push(t);
 				}
 			}
 		}
-	}
+		return result;
+	}, [mapMode, options]);
 
 	useMapTerritorySelect(
 		mapMode && allTerritories.length > 0 ? mapMode : null,
@@ -221,6 +223,7 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 					<Select
 						allowClear={true}
 						style={{ marginLeft: 20, marginRight: 10, width: '100%' }}
+						key={'type-' + i + '-' + keyValues[i]}
 						defaultValue={keyValues[i]}
 						onChange={(value) => sendKeyValue(i, value)}
 					>
@@ -233,6 +236,7 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 					<Select
 						allowClear={true}
 						style={{ marginLeft: 20, marginRight: 10, width: '100%' }}
+						key={'type-' + i + '-empty'}
 						defaultValue={keyValues[i]}
 						onChange={(value) => sendKeyValue(i, value)}
 					>
@@ -247,8 +251,8 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 					<Select
 						allowClear={true}
 						style={{ marginLeft: 10, width: '100%' }}
-						key={i + keyValues[i]}
-						defaultValue={''}
+						key={'val-' + i + '-' + keyValues[i]}
+						defaultValue={values[i] || ''}
 						onChange={(value) => sendValue(i, value)}
 					>
 						{' '}
