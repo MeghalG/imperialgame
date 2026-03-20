@@ -48,7 +48,7 @@ jest.mock('./backendFiles/proposalAPI.js', () => ({
 	computeConvoyAssignments: jest.fn(() => ({ assignments: [], usedFleetSeas: new Set() })),
 }));
 
-import { OptionSelect } from './ComponentTemplates.js';
+import { OptionSelect, CheckboxSelect, ImportSelect } from './ComponentTemplates.js';
 import ManeuverPlannerApp from './ManeuverPlannerApp.js';
 import ManeuverPlanProvider from './ManeuverPlanProvider.js';
 import SvgRondel from './SvgRondel.js';
@@ -246,6 +246,99 @@ describe('OptionSelect with mapMode', () => {
 		});
 
 		expect(mapCtx.clearInteraction).toHaveBeenCalled();
+	});
+});
+
+describe('useMapTerritorySelect hook', () => {
+	function HookTestHarness({ mapMode, items, color, onSelect, costs }) {
+		const useMapTerritorySelect = require('./useMapTerritorySelect.js').default;
+		useMapTerritorySelect(mapMode, items, color, onSelect, costs);
+		return <div data-testid="hook-harness" />;
+	}
+
+	test('calls setInteraction with correct args when items are provided', async () => {
+		const mapCtx = createMockMapCtx();
+		const userCtx = { game: 'testGame', name: 'Alice' };
+		const onSelect = jest.fn();
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
+				mapMode: 'select-territory',
+				items: ['Vienna', 'Trieste'],
+				color: '#49aa19',
+				onSelect,
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
+			'select-territory', ['Vienna', 'Trieste'], '#49aa19',
+			expect.any(Function), null, null
+		);
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('does not call setInteraction when mapMode is falsy', async () => {
+		const mapCtx = createMockMapCtx();
+		const userCtx = { game: 'testGame', name: 'Alice' };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
+				mapMode: null, items: ['Vienna'], color: '#49aa19', onSelect: jest.fn(),
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setInteraction).not.toHaveBeenCalled();
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('does not call setInteraction when items is empty', async () => {
+		const mapCtx = createMockMapCtx();
+		const userCtx = { game: 'testGame', name: 'Alice' };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
+				mapMode: 'select-territory', items: [], color: '#49aa19', onSelect: jest.fn(),
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setInteraction).not.toHaveBeenCalled();
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('calls clearInteraction on unmount', async () => {
+		const mapCtx = createMockMapCtx();
+		mapCtx.interactionMode = 'select-territory';
+		const userCtx = { game: 'testGame', name: 'Alice' };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
+				mapMode: 'select-territory', items: ['Vienna'], color: '#49aa19', onSelect: jest.fn(),
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		act(() => { ReactDOM.unmountComponentAtNode(div); });
+		expect(mapCtx.clearInteraction).toHaveBeenCalled();
+	});
+
+	test('passes cost map when costs are provided', async () => {
+		const mapCtx = createMockMapCtx();
+		const userCtx = { game: 'testGame', name: 'Alice' };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
+				mapMode: 'select-rondel',
+				items: ['Factory', 'Import', 'Taxation'],
+				color: '#c9a84c',
+				onSelect: jest.fn(),
+				costs: { Import: '($2)', Taxation: '($4)' },
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
+			'select-rondel', ['Factory', 'Import', 'Taxation'], '#c9a84c',
+			expect.any(Function), null, { Import: '($2)', Taxation: '($4)' }
+		);
+		ReactDOM.unmountComponentAtNode(div);
 	});
 });
 
