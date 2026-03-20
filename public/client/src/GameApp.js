@@ -113,6 +113,7 @@ function GameApp() {
 
 	const handleItemSelected = useCallback(
 		(name, event) => {
+			console.log('[GameApp] handleItemSelected:', name, 'has callback:', !!onItemSelectedCb);
 			setSelectedItem(name);
 			if (onItemSelectedCb) {
 				onItemSelectedCb(name, event);

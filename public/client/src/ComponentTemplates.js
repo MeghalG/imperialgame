@@ -500,6 +500,7 @@ function OptionSelect({ object, setThing, getAPI, message, costs, data, mapMode,
 	const sendValueRef = useRef(null);
 
 	function sendValue(value) {
+		console.log('[OptionSelect] sendValue called:', value, 'object:', object);
 		setControlledValue(value || undefined);
 		data(value, object);
 		context[setThing](value);
@@ -937,6 +938,7 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 	});
 
 	function update(value, object) {
+		console.log('[ActionFlow] update called:', value, object);
 		const idx = objects.indexOf(object);
 
 		// Compute new visible layers
@@ -947,6 +949,7 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 		if (!value) {
 			newVis[idx + 1] = false;
 		}
+		console.log('[ActionFlow] newVis:', JSON.stringify(newVis));
 
 		setFlowState((prev) => {
 			let newKeys = [...prev.keys];
