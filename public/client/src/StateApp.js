@@ -237,7 +237,7 @@ function PlayerCard(props) {
 						key={countries[i] + '-' + s[i][j]}
 						title={countries[i]}
 						mouseLeaveDelay={0}
-						mouseEnterDelay={0.15}
+						mouseEnterDelay={0.3}
 						destroyTooltipOnHide
 					>
 						<span className="imp-state__badge" style={{ backgroundColor: props.countryColors[i], cursor: 'default' }}>
