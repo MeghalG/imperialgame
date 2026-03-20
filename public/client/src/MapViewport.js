@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import hoverSignal from './hoverSignal.js';
 import './MapOverlay.css';
 
-function MapViewport({ children, overlays }) {
+function MapViewport({ children }) {
 	const [zoom, setZoom] = useState(1);
 	const [pan, setPan] = useState({ x: 0, y: 0 });
 	const [isDragging, setIsDragging] = useState(false);
@@ -15,7 +15,7 @@ function MapViewport({ children, overlays }) {
 		(e) => {
 			e.preventDefault();
 			const delta = e.deltaY > 0 ? 0.92 : 1.08;
-			const newZoom = Math.min(3, Math.max(0.4, zoom * delta));
+			const newZoom = Math.min(3, Math.max(1, zoom * delta));
 			const rect = viewportRef.current.getBoundingClientRect();
 			const mouseX = e.clientX - rect.left;
 			const mouseY = e.clientY - rect.top;
@@ -100,7 +100,6 @@ function MapViewport({ children, overlays }) {
 				{children}
 			</div>
 			<div id="imp-vp-track-portal" />
-			{overlays}
 		</div>
 	);
 }

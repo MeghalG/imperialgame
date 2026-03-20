@@ -1,9 +1,6 @@
 import React, { useState, useCallback, useEffect, useContext, useRef } from 'react';
 import './App.css';
 import './MapOverlay.css';
-import { StateApp } from './StateApp.js';
-import HistoryApp from './HistoryApp.js';
-import RulesApp from './RulesApp.js';
 import MainApp from './MainApp.js';
 import TopBar from './TopBar.js';
 import MapInteractionContext from './MapInteractionContext.js';
@@ -13,23 +10,6 @@ import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import { database } from './backendFiles/firebase.js';
 import { getCountryColorPalette } from './countryColors.js';
-
-function SlideDrawer({ title, open, onClose, width, children }) {
-	return (
-		<React.Fragment>
-			{open && <div className="imp-drawer__mask" onClick={onClose} />}
-			<div className={'imp-drawer' + (open ? ' imp-drawer--open' : '')} style={{ width: width }}>
-				<div className="imp-drawer__header">
-					<span>{title}</span>
-					<button className="imp-drawer__close" onClick={onClose}>
-						&times;
-					</button>
-				</div>
-				<div className="imp-drawer__body">{children}</div>
-			</div>
-		</React.Fragment>
-	);
-}
 
 function CompassRose() {
 	return (
@@ -59,9 +39,6 @@ function CompassRose() {
 
 function GameApp() {
 	const context = useContext(UserContext);
-	const [historyOpen, setHistoryOpen] = useState(false);
-	const [infoOpen, setInfoOpen] = useState(false);
-	const [rulesOpen, setRulesOpen] = useState(false);
 	const [announcement, setAnnouncement] = useState(null);
 	const turnListenerRef = useRef(null);
 	const isFirstLoadRef = useRef(true);
@@ -185,11 +162,7 @@ function GameApp() {
 	return (
 		<MapInteractionContext.Provider value={mapInteractionValue}>
 			<div style={{ background: '#0a0b0d', minHeight: '100vh' }}>
-				<TopBar
-					onToggleHistory={() => setHistoryOpen(!historyOpen)}
-					onToggleInfo={() => setInfoOpen(!infoOpen)}
-					onToggleRules={() => setRulesOpen(!rulesOpen)}
-				/>
+				<TopBar />
 				<MainApp />
 				<CompassRose />
 				{announcement && (
@@ -200,20 +173,6 @@ function GameApp() {
 						subtitle={announcement.subtitle}
 					/>
 				)}
-				<SlideDrawer title="Game History" open={historyOpen} onClose={() => setHistoryOpen(false)} width={420}>
-					<HistoryApp />
-				</SlideDrawer>
-				<SlideDrawer
-					title="Detailed Info"
-					open={infoOpen}
-					onClose={() => setInfoOpen(false)}
-					width={Math.min(window.innerWidth * 0.85, 960)}
-				>
-					<StateApp />
-				</SlideDrawer>
-				<SlideDrawer title="Game Rules" open={rulesOpen} onClose={() => setRulesOpen(false)} width={600}>
-					<RulesApp />
-				</SlideDrawer>
 			</div>
 		</MapInteractionContext.Provider>
 	);

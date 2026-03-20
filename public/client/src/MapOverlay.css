@@ -113,7 +113,7 @@ body {
 /* ---- Map Viewport ---- */
 .imp-viewport {
 	position: relative;
-	flex: 1;
+	flex: 4;
 	min-width: 0;
 	overflow: hidden;
 	background: #0a0b0d;
@@ -564,11 +564,256 @@ body {
 	color: rgba(255, 255, 255, 0.45);
 }
 
-/* Hide floating player panel on desktop when sidebar is visible */
-@media (min-width: 769px) {
-	.imp-player-panel {
+/* ---- Sidebar Layout Modes ---- */
+
+/* Desktop: inline sidebar visible, strip + drawer hidden */
+.imp-sidebar--desktop {
+	display: flex;
+}
+
+.imp-sidebar--drawer {
+	display: none;
+}
+
+.imp-sidebar-strip {
+	display: none;
+}
+
+.imp-sidebar-drawer__mask {
+	display: none;
+}
+
+/* Narrow screen: hide desktop sidebar, show strip + drawer */
+@media (max-width: 1024px) {
+	.imp-sidebar--desktop {
 		display: none;
 	}
+
+	.imp-sidebar-strip {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 2px;
+		padding: 8px 4px;
+		background: var(--imp-panel-bg);
+		border-left: 1px solid var(--imp-panel-border);
+		z-index: 90;
+	}
+
+	.imp-sidebar-strip__btn {
+		background: transparent;
+		border: none;
+		color: var(--imp-text-dim);
+		cursor: pointer;
+		padding: 8px;
+		font-size: 16px;
+		border-radius: 4px;
+		transition: color 0.15s, background 0.15s;
+		position: relative;
+	}
+
+	.imp-sidebar-strip__btn:hover {
+		color: var(--imp-text);
+		background: rgba(255, 255, 255, 0.05);
+	}
+
+	.imp-sidebar-strip__btn--active {
+		color: var(--imp-accent-gold);
+	}
+
+	.imp-sidebar-strip__btn--indicator::after {
+		content: '';
+		position: absolute;
+		top: 4px;
+		right: 4px;
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--imp-accent-gold);
+		box-shadow: 0 0 4px var(--imp-accent-gold);
+	}
+
+	.imp-sidebar--drawer {
+		display: flex;
+		position: fixed;
+		top: 40px;
+		right: -300px;
+		bottom: 0;
+		width: 300px;
+		z-index: 200;
+		transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.imp-sidebar--drawer-open {
+		right: 0;
+	}
+
+	.imp-sidebar-drawer__mask {
+		display: block;
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: 199;
+	}
+}
+
+/* ---- Sidebar Portfolio ---- */
+.imp-sidebar__portfolio {
+	padding: 10px 14px 8px;
+}
+
+.imp-sidebar__portfolio-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 4px;
+}
+
+.imp-sidebar__portfolio-name {
+	font-family: var(--imp-font-display);
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+}
+
+.imp-sidebar__portfolio-money {
+	font-family: var(--imp-font-condensed);
+	font-size: 14px;
+	color: var(--imp-accent-gold);
+	font-variant-numeric: tabular-nums;
+}
+
+.imp-sidebar__portfolio-details {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+}
+
+.imp-sidebar__portfolio-icons {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+}
+
+.imp-sidebar__portfolio-stocks {
+	display: flex;
+	gap: 2px;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+/* ---- Sidebar Tab Bar ---- */
+.imp-sidebar__tab-bar {
+	display: flex;
+	border-bottom: 1px solid var(--imp-panel-border);
+	padding: 0 6px;
+	position: relative;
+	z-index: 2;
+}
+
+.imp-sidebar__tab-btn {
+	flex: 1;
+	background: transparent;
+	border: none;
+	color: var(--imp-text-dim);
+	cursor: pointer;
+	padding: 8px 4px;
+	font-size: 15px;
+	transition: color 0.15s, background 0.15s;
+	position: relative;
+	border-bottom: 2px solid transparent;
+}
+
+.imp-sidebar__tab-btn:hover {
+	color: var(--imp-text);
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.imp-sidebar__tab-btn--active {
+	color: var(--imp-accent-gold);
+	border-bottom-color: var(--imp-accent-gold);
+}
+
+.imp-sidebar__tab-btn--indicator::after {
+	content: '';
+	position: absolute;
+	top: 4px;
+	right: calc(50% - 3px);
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--imp-accent-gold);
+	box-shadow: 0 0 4px var(--imp-accent-gold);
+	animation: imp-tab-pulse 2s ease-in-out infinite;
+}
+
+@keyframes imp-tab-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+/* ---- Sidebar Tab Header ---- */
+.imp-sidebar__tab-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 14px;
+	border-bottom: 1px solid var(--imp-panel-border);
+	font-family: var(--imp-font-display);
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: 0.5px;
+	position: relative;
+}
+
+.imp-sidebar__tab-header-accent {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 2px;
+	border-radius: 0;
+}
+
+.imp-sidebar__tab-header-title {
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---- Sidebar Content Scroll ---- */
+.imp-sidebar__content-scroll {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+	position: relative;
+	z-index: 2;
+}
+
+.imp-sidebar__content-scroll::-webkit-scrollbar {
+	width: 3px;
+}
+
+.imp-sidebar__content-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.imp-sidebar__content-scroll::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 2px;
+}
+
+.imp-sidebar__tab-content {
+	padding: 12px 14px;
+	font-size: 13px;
+	font-variant-numeric: tabular-nums;
 }
 
 /* ---- Territory Hotspot ---- */
@@ -1749,10 +1994,6 @@ body {
 		top: 36px;
 	}
 
-	.imp-sidebar {
-		display: none;
-	}
-
 	.imp-topbar {
 		padding: 0 10px;
 		height: 36px;
@@ -1761,29 +2002,6 @@ body {
 	.imp-topbar__title {
 		font-size: 15px;
 		max-width: 35%;
-	}
-
-	.imp-turn-panel {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		width: auto;
-		border-radius: 12px 12px 0 0;
-		max-height: 55vh;
-		z-index: 100;
-	}
-
-	.imp-turn-panel--collapsed {
-		max-height: 38px;
-	}
-
-	.imp-player-panel {
-		display: flex;
-		position: fixed;
-		top: 36px;
-		right: 8px;
-		width: 160px;
 	}
 
 	.imp-vp-track {
@@ -1801,10 +2019,6 @@ body {
 
 	.imp-vp-track__marker-text {
 		font-size: 6px;
-	}
-
-	.imp-drawer {
-		width: 100% !important;
 	}
 
 	/* Lobby mobile */
@@ -1844,20 +2058,16 @@ body {
 	.imp-turn-announce__subtitle {
 		font-size: 16px;
 	}
+
+	/* Narrow screen drawer adjustments */
+	.imp-sidebar--drawer {
+		top: 36px;
+	}
 }
 
 @media (max-width: 480px) {
 	.imp-topbar__right > .imp-topbar__btn:not(:last-child) {
 		display: none;
-	}
-
-	.imp-player-panel {
-		width: 140px;
-		font-size: 11px;
-	}
-
-	.imp-turn-panel .imp-panel__body {
-		max-height: 50vh;
 	}
 
 	.imp-lobby__title {

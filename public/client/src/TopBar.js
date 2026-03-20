@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './MapOverlay.css';
 import { Input, Button, Tooltip } from 'antd';
-import { HistoryOutlined, InfoCircleOutlined, ReadOutlined, SoundOutlined } from '@ant-design/icons';
+import { SoundOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as helper from './backendFiles/helper.js';
@@ -9,7 +9,7 @@ import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale } from './backendFiles/stateCache.js';
 import SoundManager from './SoundManager.js';
 
-function TopBar({ onToggleHistory, onToggleInfo, onToggleRules }) {
+function TopBar() {
 	const context = useContext(UserContext);
 	const [title, setTitle] = useState('');
 	const [validNames, setValidNames] = useState([]);
@@ -198,21 +198,6 @@ function TopBar({ onToggleHistory, onToggleInfo, onToggleRules }) {
 			<div className="imp-topbar__title">{title}</div>
 			<div className="imp-topbar__center">{buildTimer()}</div>
 			<div className="imp-topbar__right">
-				<Tooltip title="History" mouseLeaveDelay={0}>
-					<button className="imp-topbar__btn" onClick={onToggleHistory}>
-						<HistoryOutlined />
-					</button>
-				</Tooltip>
-				<Tooltip title="Detailed Info" mouseLeaveDelay={0}>
-					<button className="imp-topbar__btn" onClick={onToggleInfo}>
-						<InfoCircleOutlined />
-					</button>
-				</Tooltip>
-				<Tooltip title="Rules" mouseLeaveDelay={0}>
-					<button className="imp-topbar__btn" onClick={onToggleRules}>
-						<ReadOutlined />
-					</button>
-				</Tooltip>
 				<Tooltip title={soundMuted ? 'Unmute Sound' : 'Mute Sound'} mouseLeaveDelay={0}>
 					<button
 						className={'imp-topbar__btn' + (soundMuted ? ' imp-topbar__sound-btn--muted' : '')}
