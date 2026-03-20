@@ -155,7 +155,7 @@ function TopBar() {
 						style={{ background: '#0a0b0d', width: 120, fontSize: 12 }}
 						onPressEnter={(e) => handleEnter(e)}
 					/>
-					<Tooltip title="Colorblind Mode" mouseLeaveDelay={0}>
+					<Tooltip title="Colorblind Mode" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 						<button
 							className="imp-topbar__btn"
 							onClick={() => context.setColorblindMode(!context.colorblindMode)}
@@ -171,12 +171,12 @@ function TopBar() {
 		return (
 			<React.Fragment>
 				<span style={{ marginRight: 4 }}>{context.name}</span>
-				<Tooltip title="Logout" mouseLeaveDelay={0}>
+				<Tooltip title="Logout" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 					<button className="imp-topbar__btn" onClick={() => logout()}>
 						<i className="fas fa-sign-out-alt"></i>
 					</button>
 				</Tooltip>
-				<Tooltip title="Colorblind Mode" mouseLeaveDelay={0}>
+				<Tooltip title="Colorblind Mode" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 					<button
 						className={'imp-topbar__btn' + (context.colorblindMode ? ' imp-topbar__btn--active' : '')}
 						onClick={() => context.setColorblindMode(!context.colorblindMode)}
@@ -198,7 +198,7 @@ function TopBar() {
 			<div className="imp-topbar__title">{title}</div>
 			<div className="imp-topbar__center">{buildTimer()}</div>
 			<div className="imp-topbar__right">
-				<Tooltip title={soundMuted ? 'Unmute Sound' : 'Mute Sound'} mouseLeaveDelay={0}>
+				<Tooltip title={soundMuted ? 'Unmute Sound' : 'Mute Sound'} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
 					<button
 						className={'imp-topbar__btn' + (soundMuted ? ' imp-topbar__sound-btn--muted' : '')}
 						onClick={() => {
