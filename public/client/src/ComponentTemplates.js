@@ -986,6 +986,14 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 	}
 
 	function buildComponents() {
+		console.log(
+			'[ActionFlow] buildComponents className:',
+			className,
+			'vis:',
+			JSON.stringify(flowState.visibleLayers),
+			'comps:',
+			objects.map((o) => (flowState.currentComponents[o] ? o + '=YES' : o + '=null'))
+		);
 		let table = [];
 		for (let i = 0; i < objects.length; i++) {
 			let vis = flowState.visibleLayers[i];
