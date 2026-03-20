@@ -58,6 +58,7 @@ function ManeuverPlanProvider({ children }) {
 	const [activeUnit, setActiveUnit] = useState(null);
 	const [lockLine, setLockLine] = useState(null);
 	const [actionPickerState, setActionPickerState] = useState(null); // { phase, index, position: {x,y}, actions }
+	const [readOnly, setReadOnly] = useState(false);
 
 	// ===== Refs (for async callbacks) =====
 	const contextRef = useRef(context);
@@ -841,6 +842,8 @@ function ManeuverPlanProvider({ children }) {
 				}
 			}
 
+			let isController = cm.player === contextRef.current.name;
+
 			let priorCompletedMoves = buildCompletedMovesList(cm);
 
 			// Initialize fleet plans
@@ -886,7 +889,7 @@ function ManeuverPlanProvider({ children }) {
 			}
 
 			// If not resuming from remaining plans, try restoring from localStorage
-			if (!hasRemaining) {
+			if (!hasRemaining && isController) {
 				let draft = loadDraftFromLocalStorage(initFleetPlans, initArmyPlans);
 				if (draft) {
 					for (let i = 0; i < draft.fleetPlans.length; i++) {
@@ -901,6 +904,7 @@ function ManeuverPlanProvider({ children }) {
 			}
 
 			setLoaded(true);
+			setReadOnly(!isController);
 			setCurrentManeuver(cm);
 			setCountry(cm.country);
 			setTerritorySetup(tSetup);
@@ -916,6 +920,9 @@ function ManeuverPlanProvider({ children }) {
 			territorySetupRef.current = tSetup;
 			fleetPlansRef.current = initFleetPlans;
 			armyPlansRef.current = initArmyPlans;
+
+			// Non-controllers get read-only view — skip dest options, action options, auto-activate
+			if (!isController) return;
 
 			// Compute destination options for all units
 			let allPromises = [];
@@ -1086,8 +1093,8 @@ function ManeuverPlanProvider({ children }) {
 
 	// Push active unit's destination options to the map hotspot layer
 	useEffect(() => {
-		if (!loaded || pendingPeace) {
-			// Not active — clear any previous interaction
+		if (!loaded || pendingPeace || readOnly) {
+			// Not active or read-only — clear any previous interaction
 			mapInteractionRef.current.clearInteraction();
 			return;
 		}
@@ -1137,11 +1144,11 @@ function ManeuverPlanProvider({ children }) {
 			mapInteractionRef.current.clearInteraction();
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [activeUnit, loaded, pendingPeace, country, fleetPlans, armyPlans]);
+	}, [activeUnit, loaded, pendingPeace, readOnly, country, fleetPlans, armyPlans]);
 
 	// Right-click handler: open action picker for an already-assigned territory
 	useEffect(() => {
-		if (!loaded || !mapInteraction.setOnItemRightClickedCb) return;
+		if (!loaded || readOnly || !mapInteraction.setOnItemRightClickedCb) return;
 		mapInteraction.setOnItemRightClickedCb(() => (name, event) => {
 			// Find which plan row has this territory as destination
 			for (let i = 0; i < fleetPlansRef.current.length; i++) {
@@ -1283,7 +1290,7 @@ function ManeuverPlanProvider({ children }) {
 
 		mapInteraction.setUnitMarkers(markers);
 
-		if (mapInteraction.setOnUnitMarkerClickedCb) {
+		if (mapInteraction.setOnUnitMarkerClickedCb && !readOnly) {
 			mapInteraction.setOnUnitMarkerClickedCb(() => (phase, index) => {
 				SoundManager.playSelect();
 				setActiveUnit({ phase, index });
@@ -1325,6 +1332,7 @@ function ManeuverPlanProvider({ children }) {
 			pendingPeace,
 			priorCompleted,
 			submitting,
+			readOnly,
 			currentManeuver,
 			territorySetup,
 
@@ -1367,6 +1375,7 @@ function ManeuverPlanProvider({ children }) {
 			pendingPeace,
 			priorCompleted,
 			submitting,
+			readOnly,
 			currentManeuver,
 			territorySetup,
 			canSubmitValue,

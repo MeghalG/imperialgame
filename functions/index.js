@@ -184,6 +184,10 @@ exports.submitManeuver = onCall(async (request) => {
 			break;
 		}
 		case 'batchManeuver':
+			validation.validateTurn(gameState, params.playerName);
+			if (gameState.currentManeuver && gameState.currentManeuver.player !== params.playerName) {
+				throw new HttpsError('failed-precondition', `Only ${gameState.currentManeuver.player} can control this maneuver`);
+			}
 			await submitManeuverLogic.submitBatchManeuverLogic(
 				gameState, setup, params, executeProposalFn, countries
 			);

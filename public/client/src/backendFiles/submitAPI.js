@@ -690,6 +690,7 @@ async function _submitBatchManeuverLocal(context) {
 		(context.armyMan || []).length
 	);
 	if (!cm) return 'done';
+	if (cm.player !== context.name) return 'done';
 
 	let setup = await database.ref('games/' + context.game + '/setup').once('value');
 	setup = setup.val();

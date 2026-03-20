@@ -95,13 +95,17 @@ function validateProposal(gameState, setup, params) {
  * Validate a maneuver move.
  * @param {Object} gameState
  * @param {Object} setup - Full setup object (contains territories)
- * @param {Object} params - { destination }
+ * @param {Object} params - { playerName, destination }
  */
 function validateManeuver(gameState, setup, params) {
-	const { destination } = params;
+	const { playerName, destination } = params;
+	validateTurn(gameState, playerName);
 	const cm = gameState.currentManeuver;
 	if (!cm) {
 		throw new HttpsError('failed-precondition', 'No active maneuver');
+	}
+	if (cm.player !== playerName) {
+		throw new HttpsError('failed-precondition', `Only ${cm.player} can control this maneuver`);
 	}
 	const territorySetup = setup.territories || {};
 	// Armies can't move to sea

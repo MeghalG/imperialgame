@@ -189,7 +189,7 @@ describe('ManeuverPlannerApp', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('non-dictator sees plan list when pendingPeace exists', async () => {
+	test('non-controller sees read-only plan list when pendingPeace exists', async () => {
 		const gs = buildManeuverGameState();
 		gs.currentManeuver.pendingPeace = {
 			targetCountry: 'Austria',
@@ -197,7 +197,7 @@ describe('ManeuverPlannerApp', () => {
 			origin: 'Adriatic Sea',
 			destination: 'Trieste',
 		};
-		// Bob is not the dictator of Austria
+		// Bob is not the dictator of Austria and not the maneuver controller
 		gs.playerInfo.Bob = {
 			money: 10,
 			stock: [],
@@ -217,8 +217,7 @@ describe('ManeuverPlannerApp', () => {
 		renderWithContext(ctx, div);
 		await flushPromises();
 
-		// Bob is not the dictator — provider loads normal plan state
-		// Plan list should contain unit territory names
+		// Bob sees the unit origins (read-only view) but cannot interact
 		expect(div.textContent).toContain('Trieste');
 		ReactDOM.unmountComponentAtNode(div);
 	});
