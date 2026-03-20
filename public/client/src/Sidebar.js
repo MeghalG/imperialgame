@@ -255,7 +255,13 @@ function Sidebar() {
 			}
 			if ((countryInfo[c] || {}).gov === 'democracy' && (countryInfo[c].leadership || [])[1] === player) {
 				icons.push(
-					<Tooltip key={'o-' + c} title={c + ' Opposition'} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
+					<Tooltip
+						key={'o-' + c}
+						title={c + ' Opposition'}
+						mouseLeaveDelay={0}
+						mouseEnterDelay={0.3}
+						destroyTooltipOnHide
+					>
 						<FlagOutlined style={{ fontSize: 11, color: brightColors[c] }} />
 					</Tooltip>
 				);

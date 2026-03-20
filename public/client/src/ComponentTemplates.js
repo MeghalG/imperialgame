@@ -912,6 +912,7 @@ function Display(props) {
 
 function ActionFlow({ className, submitMethod, objects, components, submit, triggers, type, data }) {
 	const context = useContext(UserContext);
+	const containerRef = useRef(null);
 	const [flowState, setFlowState] = useState({
 		objectValues: {},
 		visibleLayers: objects.map((_, i) => i === 0).concat([false]),
@@ -998,7 +999,25 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 		return table;
 	}
 
-	return <div className={className}>{buildComponents()}</div>;
+	// Auto-scroll to show newly visible layers (e.g. after rondel click)
+	useEffect(() => {
+		if (!containerRef.current) return;
+		let layers = containerRef.current.querySelectorAll('.imp-action-layer');
+		if (layers.length > 0) {
+			let last = layers[layers.length - 1];
+			// Small delay to let the new component render
+			let timer = setTimeout(() => {
+				last.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			}, 100);
+			return () => clearTimeout(timer);
+		}
+	}, [flowState.visibleLayers]);
+
+	return (
+		<div className={className} ref={containerRef}>
+			{buildComponents()}
+		</div>
+	);
 }
 
 export {

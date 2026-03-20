@@ -198,7 +198,12 @@ function TopBar() {
 			<div className="imp-topbar__title">{title}</div>
 			<div className="imp-topbar__center">{buildTimer()}</div>
 			<div className="imp-topbar__right">
-				<Tooltip title={soundMuted ? 'Unmute Sound' : 'Mute Sound'} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
+				<Tooltip
+					title={soundMuted ? 'Unmute Sound' : 'Mute Sound'}
+					mouseLeaveDelay={0}
+					mouseEnterDelay={0.3}
+					destroyTooltipOnHide
+				>
 					<button
 						className={'imp-topbar__btn' + (soundMuted ? ' imp-topbar__sound-btn--muted' : '')}
 						onClick={() => {
