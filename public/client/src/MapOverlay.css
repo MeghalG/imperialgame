@@ -1014,7 +1014,7 @@ body {
 }
 
 .imp-vp-track__number {
-	font-size: 9px;
+	font-size: 11px;
 	color: var(--imp-text-dim);
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
@@ -1070,7 +1070,7 @@ body {
 
 .imp-vp-track__marker-text {
 	font-family: var(--imp-font-condensed);
-	font-size: 8px;
+	font-size: 10px;
 	font-weight: 700;
 	color: #fff;
 	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
