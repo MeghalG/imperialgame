@@ -2291,9 +2291,9 @@ html {
 }
 .ant-btn:hover,
 .ant-btn:focus {
-	color: #137474;
-	background: transparent;
-	border-color: #137474;
+	color: #13a8a8;
+	background: rgba(19, 168, 168, 0.08);
+	border-color: #13a8a8;
 }
 .ant-btn:hover > a:only-child,
 .ant-btn:focus > a:only-child {
