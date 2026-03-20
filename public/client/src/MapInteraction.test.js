@@ -1268,6 +1268,235 @@ describe('Firebase .info path handling', () => {
 	});
 });
 
+describe('CheckboxSelect with map integration', () => {
+	test('calls setInteraction when mapMode is provided', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetArmyProduce = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setArmyProduce: mockSetArmyProduce };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
+				object: 'producearmies', setThing: 'setArmyProduce',
+				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest'], limit: 2 }),
+				type: '(Army)', data: mockData,
+				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
+			'select-territory', ['Vienna', 'Budapest'], '#D4A843',
+			expect.any(Function), null, null
+		);
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('map click toggles checkbox OFF and updates context', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetArmyProduce = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setArmyProduce: mockSetArmyProduce };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
+				object: 'producearmies', setThing: 'setArmyProduce',
+				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest', 'Prague'], limit: 2 }),
+				type: '(Army)', data: mockData,
+				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		// Pre-selected: Vienna, Budapest (first 2 up to limit)
+		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
+		act(() => { onMapClick('Vienna'); });
+		let lastCall = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
+		expect(lastCall[0]).toEqual(['Budapest']);
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('map click toggles checkbox OFF then ON', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetArmyProduce = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setArmyProduce: mockSetArmyProduce };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
+				object: 'producearmies', setThing: 'setArmyProduce',
+				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest'], limit: 2 }),
+				type: '(Army)', data: mockData,
+				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
+		act(() => { onMapClick('Vienna'); });
+		let call1 = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
+		expect(call1[0]).toEqual(['Budapest']);
+		act(() => { onMapClick('Vienna'); });
+		let call2 = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
+		expect(call2[0]).toContain('Vienna');
+		expect(call2[0]).toContain('Budapest');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('map click respects limit — cannot toggle ON past limit', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetArmyProduce = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setArmyProduce: mockSetArmyProduce };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
+				object: 'producearmies', setThing: 'setArmyProduce',
+				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest', 'Prague'], limit: 2 }),
+				type: '(Army)', data: mockData,
+				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		let callCountBefore = mockSetArmyProduce.mock.calls.length;
+		let onMapClick = mapCtx.setInteraction.mock.calls[0][3];
+		act(() => { onMapClick('Prague'); });
+		let callCountAfter = mockSetArmyProduce.mock.calls.length;
+		if (callCountAfter > callCountBefore) {
+			let lastCall = mockSetArmyProduce.mock.calls[mockSetArmyProduce.mock.calls.length - 1];
+			expect(lastCall[0].length).toBeLessThanOrEqual(2);
+			expect(lastCall[0]).not.toContain('Prague');
+		}
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('sets ghosted unit markers for selected items', async () => {
+		const mapCtx = createMockMapCtx();
+		const mockSetArmyProduce = jest.fn();
+		const mockData = jest.fn();
+		const userCtx = { game: 'testGame', name: 'Alice', setArmyProduce: mockSetArmyProduce };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
+				object: 'producearmies', setThing: 'setArmyProduce',
+				getAPI: () => Promise.resolve({ items: ['Vienna', 'Budapest'], limit: 2 }),
+				type: '(Army)', data: mockData,
+				mapMode: 'select-territory', mapColor: '#D4A843', mapUnitType: 'army',
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setUnitMarkers).toHaveBeenCalled();
+		let markers = mapCtx.setUnitMarkers.mock.calls[mapCtx.setUnitMarkers.mock.calls.length - 1][0];
+		expect(markers.length).toBe(2);
+		expect(markers[0].isGhosted).toBe(true);
+		expect(markers[0].unitType).toBe('army');
+		expect(markers[0].territoryName).toBe('Vienna');
+		expect(markers[1].territoryName).toBe('Budapest');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('does not set map interaction when mapMode is absent', async () => {
+		const mapCtx = createMockMapCtx();
+		const userCtx = { game: 'testGame', name: 'Alice', setArmyProduce: jest.fn() };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(CheckboxSelect, userCtx, mapCtx, div, {
+				object: 'producearmies', setThing: 'setArmyProduce',
+				getAPI: () => Promise.resolve({ items: ['Vienna'], limit: 1 }),
+				type: '(Army)', data: jest.fn(),
+			});
+		});
+		await act(async () => { await flushPromises(); });
+		expect(mapCtx.setInteraction).not.toHaveBeenCalled();
+		expect(mapCtx.setUnitMarkers).not.toHaveBeenCalled();
+		ReactDOM.unmountComponentAtNode(div);
+	});
+});
+
+describe('ImportTypePicker', () => {
+	test('renders Army and Fleet buttons when both available', () => {
+		const ImportTypePicker = require('./ImportTypePicker.js').default;
+		const onSelect = jest.fn();
+		const onDismiss = jest.fn();
+		const div = document.createElement('div');
+		act(() => {
+			ReactDOM.render(
+				<ImportTypePicker
+					position={{ x: 100, y: 200 }}
+					availableTypes={['army', 'fleet']}
+					onSelect={onSelect}
+					onDismiss={onDismiss}
+				/>,
+				div
+			);
+		});
+		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		expect(buttons.length).toBe(2);
+		expect(buttons[0].textContent.trim()).toBe('Army');
+		expect(buttons[1].textContent.trim()).toBe('Fleet');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('renders only one button when one type available', () => {
+		const ImportTypePicker = require('./ImportTypePicker.js').default;
+		const onSelect = jest.fn();
+		const div = document.createElement('div');
+		act(() => {
+			ReactDOM.render(
+				<ImportTypePicker
+					position={{ x: 100, y: 200 }}
+					availableTypes={['army']}
+					onSelect={onSelect}
+					onDismiss={jest.fn()}
+				/>,
+				div
+			);
+		});
+		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		expect(buttons.length).toBe(1);
+		expect(buttons[0].textContent.trim()).toBe('Army');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('clicking a button calls onSelect with the type', () => {
+		const ImportTypePicker = require('./ImportTypePicker.js').default;
+		const onSelect = jest.fn();
+		const div = document.createElement('div');
+		document.body.appendChild(div);
+		act(() => {
+			ReactDOM.render(
+				<ImportTypePicker
+					position={{ x: 100, y: 200 }}
+					availableTypes={['army', 'fleet']}
+					onSelect={onSelect}
+					onDismiss={jest.fn()}
+				/>,
+				div
+			);
+		});
+		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		act(() => { buttons[1].click(); });
+		expect(onSelect).toHaveBeenCalledWith('fleet');
+		ReactDOM.unmountComponentAtNode(div);
+		document.body.removeChild(div);
+	});
+
+	test('returns null when position is null', () => {
+		const ImportTypePicker = require('./ImportTypePicker.js').default;
+		const div = document.createElement('div');
+		act(() => {
+			ReactDOM.render(
+				<ImportTypePicker
+					position={null}
+					availableTypes={['army']}
+					onSelect={jest.fn()}
+					onDismiss={jest.fn()}
+				/>,
+				div
+			);
+		});
+		expect(div.innerHTML).toBe('');
+		ReactDOM.unmountComponentAtNode(div);
+	});
+});
+
 describe('UnifiedUnitLayer ghosted markers', () => {
 	test('renders ghosted markers with imp-unit-marker--ghosted class', async () => {
 		const mapCtx = createMockMapCtx();
