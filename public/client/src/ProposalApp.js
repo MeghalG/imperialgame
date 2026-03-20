@@ -59,6 +59,9 @@ function ProduceFlow(props) {
 						getAPI={proposalAPI.getFleetProduceOptions}
 						type="(Fleet)"
 						data={innerProps.data}
+						mapMode="select-territory"
+						mapColor="#4DAADB"
+						mapUnitType="fleet"
 					/>
 				),
 				producearmies: (innerProps) => (

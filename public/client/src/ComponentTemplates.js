@@ -464,11 +464,14 @@ function RadioSelect({ object, setThing, getAPI, message, data }) {
 	);
 }
 
-function CheckboxSelect({ object, setThing, getAPI, message, type, data }) {
+function CheckboxSelect({ object, setThing, getAPI, message, type, data, mapMode, mapColor, mapUnitType }) {
 	const context = useContext(UserContext);
+	const mapInteraction = useContext(MapInteractionContext);
 	const [items, setItems] = useState([]);
 	const [limit, setLimit] = useState(0);
 	const [checked, setChecked] = useState([]);
+	const checkedRef = useRef([]);
+	const limitRef = useRef(0);
 
 	useEffect(() => {
 		data('done', object);
@@ -478,14 +481,55 @@ function CheckboxSelect({ object, setThing, getAPI, message, type, data }) {
 			setItems(res.items);
 			setLimit(res.limit);
 			setChecked(initialChecked);
+			checkedRef.current = initialChecked;
+			limitRef.current = res.limit;
 			context[setThing](initialChecked);
 		}
 		fetchChoices();
 		return () => {
 			context[setThing]([]);
+			if (mapMode) {
+				mapInteraction.setUnitMarkers([]);
+			}
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
+
+	useMapTerritorySelect(
+		mapMode && items.length > 0 ? mapMode : null,
+		items,
+		mapColor || '#c9a84c',
+		(name) => {
+			let current = checkedRef.current;
+			let newChecked;
+			if (current.includes(name)) {
+				newChecked = current.filter((v) => v !== name);
+			} else if (current.length < limitRef.current) {
+				newChecked = [...current, name];
+			} else {
+				return;
+			}
+			setChecked(newChecked);
+			checkedRef.current = newChecked;
+			context[setThing](newChecked);
+		}
+	);
+
+	useEffect(() => {
+		if (!mapMode || !mapUnitType) return;
+		let markers = checked.map((territory, i) => ({
+			territoryName: territory,
+			unitType: mapUnitType,
+			phase: 'ghost',
+			index: i,
+			isActive: false,
+			isPlanned: false,
+			isGhosted: true,
+			color: mapColor || '#c9a84c',
+		}));
+		mapInteraction.setUnitMarkers(markers);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [checked, mapMode, mapUnitType]);
 
 	function isDisabled(opt) {
 		return checked.length > limit - 1 && checked.indexOf(opt) === -1;
@@ -493,6 +537,7 @@ function CheckboxSelect({ object, setThing, getAPI, message, type, data }) {
 
 	function sendValue(checkedValues) {
 		setChecked(checkedValues);
+		checkedRef.current = checkedValues;
 		context[setThing](checkedValues);
 	}
 
