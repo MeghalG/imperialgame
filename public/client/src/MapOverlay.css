@@ -727,7 +727,12 @@ body {
 
 .imp-sidebar__tab-btn:hover {
 	color: var(--imp-text);
-	background: rgba(255, 255, 255, 0.03);
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.imp-sidebar__tab-btn:focus-visible {
+	outline: 2px solid #13a8a8;
+	outline-offset: -2px;
 }
 
 .imp-sidebar__tab-btn--active {
