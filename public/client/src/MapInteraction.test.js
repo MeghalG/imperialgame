@@ -1491,6 +1491,7 @@ describe('ImportTypePicker', () => {
 		const onSelect = jest.fn();
 		const onDismiss = jest.fn();
 		const div = document.createElement('div');
+		document.body.appendChild(div);
 		act(() => {
 			ReactDOM.render(
 				<ImportTypePicker
@@ -1502,17 +1503,19 @@ describe('ImportTypePicker', () => {
 				div
 			);
 		});
-		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		let buttons = document.body.querySelectorAll('.imp-action-picker__btn');
 		expect(buttons.length).toBe(2);
 		expect(buttons[0].textContent.trim()).toBe('Army');
 		expect(buttons[1].textContent.trim()).toBe('Fleet');
 		ReactDOM.unmountComponentAtNode(div);
+		document.body.removeChild(div);
 	});
 
 	test('renders only one button when one type available', () => {
 		const ImportTypePicker = require('./ImportTypePicker.js').default;
 		const onSelect = jest.fn();
 		const div = document.createElement('div');
+		document.body.appendChild(div);
 		act(() => {
 			ReactDOM.render(
 				<ImportTypePicker
@@ -1524,10 +1527,11 @@ describe('ImportTypePicker', () => {
 				div
 			);
 		});
-		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		let buttons = document.body.querySelectorAll('.imp-action-picker__btn');
 		expect(buttons.length).toBe(1);
 		expect(buttons[0].textContent.trim()).toBe('Army');
 		ReactDOM.unmountComponentAtNode(div);
+		document.body.removeChild(div);
 	});
 
 	test('clicking a button calls onSelect with the type', () => {
@@ -1546,7 +1550,7 @@ describe('ImportTypePicker', () => {
 				div
 			);
 		});
-		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		let buttons = document.body.querySelectorAll('.imp-action-picker__btn');
 		act(() => {
 			buttons[1].click();
 		});
@@ -1671,10 +1675,10 @@ describe('ImportSelect with map integration', () => {
 		act(() => {
 			onMapClick('Trieste');
 		});
-		let picker = div.querySelector('.imp-action-picker');
+		let picker = document.body.querySelector('.imp-action-picker');
 		expect(picker).not.toBeNull();
 		// Click Fleet button to fill slot
-		let buttons = div.querySelectorAll('.imp-action-picker__btn');
+		let buttons = document.body.querySelectorAll('.imp-action-picker__btn');
 		act(() => {
 			buttons[1].click();
 		});

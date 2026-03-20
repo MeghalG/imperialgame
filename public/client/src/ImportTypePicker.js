@@ -1,10 +1,13 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 /**
  * ImportTypePicker — Army/Fleet popup for Import map interaction.
  *
  * Shown when clicking a port territory that can receive either unit type.
  * Reuses .imp-action-picker CSS from maneuver action picker.
+ * Rendered via portal to document.body so it appears over the map regardless
+ * of where ImportSelect lives in the DOM (sidebar, drawer, etc.).
  *
  * @param {{ x: number, y: number } | null} position - Screen coords. Null hides.
  * @param {string[]} availableTypes - ['army'], ['fleet'], or ['army', 'fleet']
@@ -17,7 +20,7 @@ function ImportTypePicker({ position, availableTypes, onSelect, onDismiss }) {
 	const labels = { army: 'Army', fleet: 'Fleet' };
 	const colors = { army: '#D4A843', fleet: '#4DAADB' };
 
-	return (
+	return ReactDOM.createPortal(
 		<React.Fragment>
 			<div className="imp-action-picker__backdrop" onClick={onDismiss} />
 			<div
@@ -36,7 +39,8 @@ function ImportTypePicker({ position, availableTypes, onSelect, onDismiss }) {
 					</button>
 				))}
 			</div>
-		</React.Fragment>
+		</React.Fragment>,
+		document.body
 	);
 }
 
