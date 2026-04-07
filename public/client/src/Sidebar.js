@@ -19,8 +19,7 @@ import * as helper from './backendFiles/helper.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
-import { database } from './backendFiles/firebase.js';
-import { invalidateIfStale } from './backendFiles/stateCache.js';
+import useGameState from './useGameState.js';
 import { getCountryColorPalette } from './countryColors.js';
 import { CountryCard, PlayerCard } from './StateApp.js';
 import HistoryApp from './HistoryApp.js';
@@ -96,7 +95,8 @@ function Sidebar() {
 	// Narrow screen drawer state
 	const [drawerOpen, setDrawerOpen] = useState(false);
 
-	const turnRef = useRef(null);
+	// Subscribe to centralized game state (driven by GameApp's single listener)
+	const { gameState } = useGameState();
 
 	const refreshData = useCallback(async () => {
 		try {
@@ -131,25 +131,12 @@ function Sidebar() {
 		}
 	}, []);
 
-	// Single turnID listener for all sidebar data
+	// Refresh display data whenever the centralized game state changes.
+	// Replaces the old independent turnID listener.
+	// Also re-fetch on player name changes.
 	useEffect(() => {
 		refreshData();
-		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
-		turnRef.current.on('value', (dataSnapshot) => {
-			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
-			refreshData();
-		});
-		return () => {
-			if (turnRef.current) turnRef.current.off();
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
-
-	// Re-fetch when player name changes
-	useEffect(() => {
-		refreshData();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [context.name]);
+	}, [gameState, context.name, refreshData]);
 
 	// Auto-switch to Turn tab when it's the player's turn (only if on default tab)
 	useEffect(() => {

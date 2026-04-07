@@ -36,14 +36,17 @@ Completed 2026-03-18. **13/14 E2E passing, 1 fixme** (fleet convoy cascade — `
 **Depends on:** Phase 1 + Phase 2
 **Added:** 2026-03-18
 
-## P2: Consolidate turnID Firebase Listeners
-**What:** Consolidate the 4+ independent `turnID` Firebase listeners (TurnApp, TopBar, FloatingPlayerPanel/Sidebar, GameApp) into a single shared listener via context or a custom hook.
-**Why:** Each component independently calls `database.ref('games/' + game + '/turnID').on('value', ...)`, creating redundant Firebase reads and parallel re-fetch cascades on every turn change. A single listener would reduce Firebase traffic and simplify the re-render flow.
-**Context:** Natural follow-up after the sidebar layout restructure, since the component tree will be reorganized anyway. Create a `useTurnListener` hook or add the listener to `UserContext`/`GameApp` and pass the turnID down. Each consumer reacts to the context value changing instead of managing its own listener.
-**Effort:** M
-**Priority:** P2
-**Depends on:** Sidebar layout restructure
-**Added:** 2026-03-19
+## ~~P2: Consolidate turnID Firebase Listeners~~ → Superseded
+Superseded by "Local State Store + Bulletproof Turn Flow" design (2026-04-06). The new design replaces all 9 Firebase listeners with a local state store + single Firebase sync listener. See `~/.gstack/projects/MeghalG-imperialgame/aok-main-design-20260406-155200.md`.
+
+## P1: Firebase Auth Token Expiry Handling
+**What:** Detect and handle Firebase auth token expiry during gameplay. Tokens expire after ~1 hour. A long game session silently loses the Firebase connection.
+**Why:** Silent failure. Players in a long game will see the UI freeze with no error message. Identified as CRITICAL GAP in CEO review.
+**Context:** Firebase Auth tokens auto-refresh in most cases, but the Realtime Database listener may silently stop receiving updates if the token refresh fails (network blip during refresh window). Need to: (1) detect when the onValue listener stops firing (heartbeat check), (2) detect auth state changes via `firebase.auth().onAuthStateChanged()`, (3) re-authenticate or prompt the user.
+**Effort:** S (human: ~2 hours / CC: ~15 min)
+**Priority:** P1
+**Depends on:** None
+**Added:** 2026-04-07
 
 ## Deferred
 - **Democracy rejection unit-type vote** — when democracy rejects peace and has both armies+fleets at destination, stockholders should vote on which to sacrifice. Currently auto-picks fleet. Very rare scenario. Spec §5.4.

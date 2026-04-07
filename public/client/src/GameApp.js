@@ -9,6 +9,7 @@ import SoundManager from './SoundManager.js';
 import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import { database } from './backendFiles/firebase.js';
+import { invalidateIfStale, readGameState } from './backendFiles/stateCache.js';
 import { getCountryColorPalette } from './countryColors.js';
 
 function CompassRose() {
@@ -44,6 +45,23 @@ function GameApp() {
 	const isFirstLoadRef = useRef(true);
 	const contextRef = useRef(context);
 	contextRef.current = context;
+
+	// Centralized turnID listener — drives stateCache for all subscribers.
+	// When turnID changes: invalidate stale cache → readGameState (triggers
+	// notifySubscribers on resolve) → all useGameState() consumers re-render.
+	const centralListenerRef = useRef(null);
+	useEffect(() => {
+		if (!context.game) return;
+		centralListenerRef.current = database.ref('games/' + context.game + '/turnID');
+		centralListenerRef.current.on('value', (snap) => {
+			invalidateIfStale(context.game, snap.val());
+			readGameState({ game: context.game });
+		});
+		return () => {
+			if (centralListenerRef.current) centralListenerRef.current.off();
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [context.game]);
 
 	// Listen for turn changes to show announcement
 	useEffect(() => {
