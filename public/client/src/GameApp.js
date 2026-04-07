@@ -48,22 +48,30 @@ function GameApp() {
 	// Single centralized turnID listener — drives stateCache for all subscribers
 	// AND handles "Your Turn" announcements. One listener, not two.
 	const centralListenerRef = useRef(null);
+	const lastAnnouncedTurnRef = useRef(null);
 	useEffect(() => {
 		if (!context.game) return;
 		centralListenerRef.current = database.ref('games/' + context.game + '/turnID');
 		centralListenerRef.current.on('value', async (snap) => {
-			invalidateIfStale(context.game, snap.val());
-			let gs = await readGameState({ game: context.game });
+			let newTurnID = snap.val();
+			invalidateIfStale(context.game, newTurnID);
+			readGameState({ game: context.game });
 
-			// "Your Turn" announcement (skip initial fire)
+			// "Your Turn" announcement — skip initial fire, and only announce
+			// each turnID once (prevents re-announcing on duplicate onValue fires
+			// from optimistic writes).
 			if (isFirstLoadRef.current) {
 				isFirstLoadRef.current = false;
+				lastAnnouncedTurnRef.current = newTurnID;
 				return;
 			}
+			if (lastAnnouncedTurnRef.current === newTurnID) {
+				return; // Already processed this turnID
+			}
+			lastAnnouncedTurnRef.current = newTurnID;
 			try {
-				// Check myTurn from the freshly loaded state, not from a separate read
-				let playerInfo = gs && gs.playerInfo && gs.playerInfo[contextRef.current.name];
-				if (playerInfo && playerInfo.myTurn) {
+				let myTurn = await turnAPI.getMyTurn(contextRef.current);
+				if (myTurn) {
 					let title = await turnAPI.getTitle(contextRef.current);
 					let country = (title || '').split(' ')[0];
 					let colors = getCountryColorPalette(contextRef.current.colorblindMode).bright;

@@ -719,48 +719,30 @@ describe('subscribe and notify', () => {
 		expect(subscriber).toHaveBeenCalledWith({ mode: 'vote', turnID: 6 });
 	});
 
-	test('setCachedState with same turnID does NOT notify (deduplication)', () => {
+	test('setCachedState always notifies (even same turnID) so authoritative state is seen', () => {
 		setCachedState('game1', 5, { mode: 'bid' });
 
 		const subscriber = jest.fn();
 		subscribe(subscriber);
 
-		// Same gameID + turnID → no notification
-		setCachedState('game1', 5, { mode: 'bid-updated' });
-		expect(subscriber).toHaveBeenCalledTimes(0);
-	});
-
-	test('setCachedState with different turnID DOES notify', () => {
-		setCachedState('game1', 5, { mode: 'bid' });
-
-		const subscriber = jest.fn();
-		subscribe(subscriber);
-
-		// Different turnID → notifies
-		setCachedState('game1', 6, { mode: 'buy' });
+		// Same turnID but different data (e.g. callCF returning authoritative state)
+		setCachedState('game1', 5, { mode: 'bid-authoritative' });
 		expect(subscriber).toHaveBeenCalledTimes(1);
 	});
 
-	test('optimistic submit + CF confirm + listener = exactly 1 notification', async () => {
-		// Simulate the full submit cycle for the submitting player:
-		// 1. finalizeSubmit → setCachedState(game, 10, optimisticState)  → NOTIFY (new turnID)
-		// 2. callCF returns  → setCachedState(game, 10, authState)      → NO NOTIFY (same turnID)
-		// 3. onValue fires   → invalidateIfStale(game, 10) [cache matches, no-op]
-		//                    → readGameState [cache hit, no Firebase read, no notify]
+	test('readGameState cache hit does NOT double-notify after setCachedState', async () => {
+		// Simulate submitting player: finalizeSubmit caches, then onValue fires
 		const subscriber = jest.fn();
 		subscribe(subscriber);
 
-		// Step 1: finalizeSubmit caches optimistic state
+		// Step 1: finalizeSubmit caches optimistic state → notifies
 		setCachedState('game1', 10, { mode: 'buy', turnID: 10 });
-		expect(subscriber).toHaveBeenCalledTimes(1); // First notification
+		expect(subscriber).toHaveBeenCalledTimes(1);
 
-		// Step 2: callCF returns authoritative state with same turnID
-		setCachedState('game1', 10, { mode: 'buy', turnID: 10, authoritative: true });
-		expect(subscriber).toHaveBeenCalledTimes(1); // NO second notification (same turnID)
-
-		// Step 3: onValue listener fires, cache matches
+		// Step 2: onValue fires → invalidateIfStale (cache matches, no-op) → readGameState (cache hit)
 		invalidateIfStale('game1', 10);
-		await readGameState({ game: 'game1' }); // Cache hit
-		expect(subscriber).toHaveBeenCalledTimes(1); // Still just 1
+		await readGameState({ game: 'game1' });
+		// readGameState cache hit does NOT notify (no Firebase read happened)
+		expect(subscriber).toHaveBeenCalledTimes(1);
 	});
 });

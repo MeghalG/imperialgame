@@ -81,12 +81,11 @@ function getCachedState() {
  * @param {Object} gameState - The full game state object (countryInfo, playerInfo, etc.)
  */
 function setCachedState(gameID, turnID, gameState) {
-	let changed = cachedTurnID !== turnID || cachedGameID !== gameID;
 	cachedGameID = gameID;
 	cachedTurnID = turnID;
 	cachedState = gameState;
 	pendingRead = null;
-	if (gameState && changed) {
+	if (gameState) {
 		notifySubscribers();
 	}
 }
