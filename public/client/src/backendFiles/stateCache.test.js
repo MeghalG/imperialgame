@@ -618,14 +618,15 @@ describe('subscribe and notify', () => {
 		expect(sub2).toHaveBeenCalledTimes(1);
 	});
 
-	test('clearCache removes all subscribers', () => {
+	test('clearCache does NOT remove subscribers (they survive cache clears)', () => {
 		const subscriber = jest.fn();
 		subscribe(subscriber);
 
 		clearCache();
 
+		// Subscriber should still be active after clearCache
 		setCachedState('game1', 5, { mode: 'bid' });
-		expect(subscriber).toHaveBeenCalledTimes(0);
+		expect(subscriber).toHaveBeenCalledTimes(1);
 	});
 
 	test('re-entrancy guard: subscriber that calls setCachedState does not cause infinite loop', () => {
