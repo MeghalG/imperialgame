@@ -10,6 +10,7 @@ import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import { database } from './backendFiles/firebase.js';
 import { invalidateIfStale, readGameState } from './backendFiles/stateCache.js';
+import useGameState from './useGameState.js';
 import { getCountryColorPalette } from './countryColors.js';
 
 function CompassRose() {
@@ -41,37 +42,40 @@ function CompassRose() {
 function GameApp() {
 	const context = useContext(UserContext);
 	const [announcement, setAnnouncement] = useState(null);
-	const isFirstLoadRef = useRef(true);
 	const contextRef = useRef(context);
 	contextRef.current = context;
 
-	// Single centralized turnID listener — drives stateCache for all subscribers
-	// AND handles "Your Turn" announcements. One listener, not two.
+	// Centralized turnID listener — drives stateCache for all subscribers.
+	// Pure data: no side effects besides cache management.
 	const centralListenerRef = useRef(null);
-	const lastAnnouncedTurnRef = useRef(null);
 	useEffect(() => {
 		if (!context.game) return;
 		centralListenerRef.current = database.ref('games/' + context.game + '/turnID');
-		centralListenerRef.current.on('value', async (snap) => {
-			let newTurnID = snap.val();
-			invalidateIfStale(context.game, newTurnID);
+		centralListenerRef.current.on('value', (snap) => {
+			invalidateIfStale(context.game, snap.val());
 			readGameState({ game: context.game });
+		});
+		return () => {
+			if (centralListenerRef.current) centralListenerRef.current.off();
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [context.game]);
 
-			// "Your Turn" announcement — skip initial fire, and only announce
-			// each turnID once (prevents re-announcing on duplicate onValue fires
-			// from optimistic writes).
-			if (isFirstLoadRef.current) {
-				isFirstLoadRef.current = false;
-				lastAnnouncedTurnRef.current = newTurnID;
-				return;
-			}
-			if (lastAnnouncedTurnRef.current === newTurnID) {
-				return; // Already processed this turnID
-			}
-			lastAnnouncedTurnRef.current = newTurnID;
-			try {
-				let myTurn = await turnAPI.getMyTurn(contextRef.current);
-				if (myTurn) {
+	// "Your Turn" announcement — triggered by myTurn transitioning from false → true.
+	// Uses the centralized gameState so it sees authoritative data, not optimistic.
+	const { gameState } = useGameState();
+	const prevMyTurnRef = useRef(null);
+	useEffect(() => {
+		if (!gameState || !context.name) return;
+		let playerInfo = gameState.playerInfo && gameState.playerInfo[context.name];
+		let myTurn = playerInfo && playerInfo.myTurn;
+		let wasMyTurn = prevMyTurnRef.current;
+		prevMyTurnRef.current = myTurn;
+
+		// Only announce on false → true transition (not on initial load)
+		if (myTurn && wasMyTurn === false) {
+			(async () => {
+				try {
 					let title = await turnAPI.getTitle(contextRef.current);
 					let country = (title || '').split(' ')[0];
 					let colors = getCountryColorPalette(contextRef.current.colorblindMode).bright;
@@ -82,16 +86,13 @@ function GameApp() {
 						color: colors[country] || '#c9a84c',
 						subtitle: 'Your Turn',
 					});
+				} catch (e) {
+					/* ignore */
 				}
-			} catch (e) {
-				/* ignore */
-			}
-		});
-		return () => {
-			if (centralListenerRef.current) centralListenerRef.current.off();
-		};
+			})();
+		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [context.game]);
+	}, [gameState]);
 
 	// Map interaction state
 	const [interactionMode, setInteractionMode] = useState(null);
