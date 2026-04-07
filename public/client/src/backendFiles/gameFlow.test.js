@@ -100,7 +100,7 @@ import {
 	incrementCountry,
 	changeLeadership,
 } from './submitAPI.js';
-import { clearCache, setCachedState } from './stateCache.js';
+import { clearCache, setCachedState, getCachedState } from './stateCache.js';
 import * as helper from './helper.js';
 
 // ---- Helpers --------------------------------------------------------------
@@ -342,7 +342,7 @@ describe('Bidding phase flow', () => {
 		await flushPromises();
 
 		// After Alice bids, Bob and Charlie still need to bid -> mode stays bid
-		let written = mockSetData['games/testGame'];
+		let written = getCachedState();
 		expect(written.mode).toBe('bid');
 		expect(written.playerInfo.Alice.myTurn).toBe(false);
 
@@ -355,7 +355,7 @@ describe('Bidding phase flow', () => {
 		await bid(context);
 		await flushPromises();
 
-		written = mockSetData['games/testGame'];
+		written = getCachedState();
 		expect(written.mode).toBe('bid');
 		mockDbData.games.testGame = JSON.parse(JSON.stringify(written));
 		clearCache();
@@ -365,7 +365,7 @@ describe('Bidding phase flow', () => {
 		await bid(context);
 		await flushPromises();
 
-		written = mockSetData['games/testGame'];
+		written = getCachedState();
 		expect(written.mode).toBe('buy-bid');
 		expect(written.bidBuyOrder).toBeDefined();
 		expect(written.bidBuyOrder.length).toBeGreaterThan(0);
@@ -389,7 +389,7 @@ describe('Bidding phase flow', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		let written = mockSetData['games/testGame'];
+		let written = getCachedState();
 		// Alice bought stock 3 (from getStockBelow mock)
 		expect(written.playerInfo.Alice.stock.length).toBe(1);
 		expect(written.playerInfo.Alice.stock[0]).toEqual({ country: 'Austria', stock: 3 });
@@ -426,7 +426,7 @@ describe('Dictatorship proposal -> execute -> next country', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Factory was built
 		expect(written.countryInfo.Austria.factories).toContain('Budapest');
 		// Country money decreased by 5 (FACTORY_COST)
@@ -459,7 +459,7 @@ describe('Dictatorship proposal -> execute -> next country', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Taxation adds points (mocked: 3 points) and money
 		expect(written.countryInfo.Austria.points).toBe(3);
 		expect(written.countryInfo.Austria.money).toBe(2);
@@ -498,7 +498,7 @@ describe('Democracy proposal flow', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Mode should be proposal-opp
 		expect(written.mode).toBe('proposal-opp');
 		// Proposal 1 should be stored
@@ -534,7 +534,7 @@ describe('Democracy proposal flow', () => {
 		await submitNoCounter(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Factory should have been built
 		expect(written.countryInfo.France.factories).toContain('Lyon');
 		// Mode advances to proposal for the next country (England)
@@ -573,7 +573,7 @@ describe('Democracy proposal flow', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Mode should now be vote
 		expect(written.mode).toBe('vote');
 		// Proposal 2 should be stored
@@ -627,7 +627,7 @@ describe('Democracy proposal flow', () => {
 		await submitVote(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Proposal 1 (Factory) should have been executed since Alice's 5 votes > threshold ((5+3+0.01)/2 = 4.005)
 		// Actually the tiebreak bonus of 0.1 is given to index 0 (Alice), so votes = 5 + 0.1 = 5.1 > 4.005
 		expect(written.countryInfo.France.factories).toContain('Lyon');
@@ -671,7 +671,7 @@ describe('Investor round (BUY mode)', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Mode should be buy (investor was passed)
 		expect(written.mode).toBe('buy');
 		// Bob holds the investor card -> gets $2 bonus
@@ -702,7 +702,7 @@ describe('Investor round (BUY mode)', () => {
 		await submitBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Bob bought Italy 3 stock
 		expect(written.playerInfo.Bob.stock.length).toBe(1);
 		expect(written.playerInfo.Bob.stock[0]).toEqual({ country: 'Italy', stock: 3 });
@@ -740,7 +740,7 @@ describe('Democracy with no opposition', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Factory should be built directly (no proposal-opp phase)
 		expect(written.countryInfo.France.factories).toContain('Lyon');
 		// Should NOT be in proposal-opp or vote mode
@@ -788,7 +788,7 @@ describe('Game over detection', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Points should be capped at 25 (WIN_POINTS)
 		expect(written.countryInfo.Austria.points).toBe(25);
 		// Mode should be game-over
@@ -827,7 +827,7 @@ describe('Game over detection', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.points).toBe(25);
 		expect(written.mode).toBe('game-over');
 	});
@@ -861,7 +861,7 @@ describe('Game over detection', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.points).toBe(13);
 		expect(written.mode).toBe('proposal');
 		expect(written.countryUp).toBe('Italy');

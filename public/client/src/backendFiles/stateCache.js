@@ -112,6 +112,18 @@ function setCachedState(gameID, turnID, gameState) {
  * @param {string} gameID - The Firebase game ID
  * @param {number} newTurnID - The turnID value from the turnID listener snapshot
  */
+/**
+ * Force-clear cached data so the next readGameState goes to Firebase.
+ * Unlike invalidateIfStale, this ignores turnID ordering. Use sparingly —
+ * only for retry logic when the cache might hold incomplete data.
+ * Does NOT clear subscribers.
+ */
+function forceInvalidate() {
+	cachedState = null;
+	cachedTurnID = null;
+	pendingRead = null;
+}
+
 function invalidateIfStale(gameID, newTurnID) {
 	if (cachedGameID !== gameID || cachedTurnID !== newTurnID) {
 		cachedState = null;
@@ -223,4 +235,13 @@ function clearCache() {
 	subscribers = [];
 }
 
-export { setCachedState, readGameState, invalidateIfStale, clearCache, readSetup, subscribe, getCachedState };
+export {
+	setCachedState,
+	readGameState,
+	invalidateIfStale,
+	forceInvalidate,
+	clearCache,
+	readSetup,
+	subscribe,
+	getCachedState,
+};

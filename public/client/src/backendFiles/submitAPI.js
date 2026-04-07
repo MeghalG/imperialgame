@@ -73,16 +73,10 @@ async function finalizeSubmit(gameState, gameID, context) {
 	for (let country in gameState.countryInfo) {
 		gameState.countryInfo[country].money = parseFloat(gameState.countryInfo[country].money.toFixed(2));
 	}
-	// Increment turnID for local cache
+	// Increment turnID for local cache — this is the optimistic UI update.
+	// The Cloud Function (called after this) is the authoritative write.
 	gameState.turnID = gameState.turnID + 1;
 	setCachedState(gameID, gameState.turnID, gameState);
-	// Best-effort write — CF is authoritative; this is for optimistic UI only.
-	// With .write:false rules this will fail silently; the CF write is the real one.
-	try {
-		await database.ref('games/' + gameID).set(gameState);
-	} catch (e) {
-		// Expected when database rules are locked down
-	}
 }
 
 /**

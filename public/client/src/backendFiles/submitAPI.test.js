@@ -112,7 +112,7 @@ import {
 	completeManeuver,
 	executeProposal,
 } from './submitAPI.js';
-import { clearCache } from './stateCache.js';
+import { clearCache, getCachedState } from './stateCache.js';
 
 // ---- Realistic territory setup for maneuver tests -------------------------
 const realisticTerritorySetup = {
@@ -352,7 +352,7 @@ describe('bid', () => {
 		expect(result).toBe('done');
 
 		// The finalizeSubmit writes the game state; inspect what was set on the game ref
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written).toBeDefined();
 		expect(written.playerInfo.Alice.bid).toBe(5);
 	});
@@ -365,7 +365,7 @@ describe('bid', () => {
 		await bid(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.playerInfo.Alice.myTurn).toBe(false);
 	});
 
@@ -377,7 +377,7 @@ describe('bid', () => {
 		await bid(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.history.length).toBeGreaterThan(0);
 		const lastHistory = written.history[written.history.length - 1];
 		expect(lastHistory).toContain('Alice');
@@ -396,7 +396,7 @@ describe('bid', () => {
 		await bid(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.mode).toBe('buy-bid');
 	});
 
@@ -409,7 +409,7 @@ describe('bid', () => {
 		await bid(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Mode should stay bid because Bob still has myTurn = true
 		expect(written.mode).toBe('bid');
 	});
@@ -422,7 +422,7 @@ describe('bid', () => {
 		await bid(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.sameTurn).toBe(true);
 	});
 
@@ -434,7 +434,7 @@ describe('bid', () => {
 		await bid(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.undo).toBe('Alice');
 	});
 });
@@ -460,7 +460,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Alice should have a stock entry now (buyStock adds {country:'Austria', stock:3})
 		// helper.getStockBelow mock returns 3
 		expect(written.playerInfo.Alice.stock.length).toBe(1);
@@ -483,7 +483,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// buyStock deducts bid (6) from money (20) => 14
 		expect(written.playerInfo.Alice.money).toBe(14);
 	});
@@ -505,7 +505,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// buyStock adds bid (6) to country money (10) => 16
 		expect(written.countryInfo.Austria.money).toBe(16);
 	});
@@ -527,7 +527,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// stock denomination 3 (from mock getStockBelow) should be removed
 		expect(written.countryInfo.Austria.availStock).not.toContain(3);
 		expect(written.countryInfo.Austria.availStock).toEqual([1, 2, 4, 5]);
@@ -549,7 +549,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// No stock should have been added
 		expect(written.playerInfo.Alice.stock.length).toBe(0);
 		// Money should remain unchanged
@@ -572,7 +572,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		const histEntry = written.history.find((h) => h.includes('declines'));
 		expect(histEntry).toBeDefined();
 		expect(histEntry).toContain('Alice');
@@ -595,7 +595,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.bidBuyOrder).not.toContain('Alice');
 	});
 
@@ -615,7 +615,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// After buying (20-6=14), Alice can afford $2, so doneBuying sets myTurn=true
 		// for the next bid round. Mode advances to 'bid' for the next country.
 		expect(written.playerInfo.Alice.myTurn).toBe(true);
@@ -638,7 +638,7 @@ describe('bidBuy', () => {
 		await bidBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		const histEntry = written.history.find((h) => h.includes('buys'));
 		expect(histEntry).toBeDefined();
 		expect(histEntry).toContain('Alice');
@@ -971,7 +971,7 @@ describe('undo', () => {
 		await undo(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written).toBeDefined();
 		expect(written.mode).toBe('proposal');
 	});
@@ -996,7 +996,7 @@ describe('undo', () => {
 		await undo(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.sameTurn).toBe(false);
 	});
 });
@@ -1030,7 +1030,7 @@ describe('submitBuy', () => {
 		await flushPromises();
 		expect(result).toBe('done');
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.playerInfo.Alice.stock).toEqual(expect.arrayContaining([{ country: 'Austria', stock: 3 }]));
 	});
 
@@ -1059,7 +1059,7 @@ describe('submitBuy', () => {
 		await flushPromises();
 		expect(result).toBe('done');
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Stock should remain empty (no purchase happened)
 		expect(written.playerInfo.Alice.stock).toEqual([]);
 		// Since Alice was the last swiss buyer (lastBuy=true), the round ends:
@@ -1093,7 +1093,7 @@ describe('submitBuy', () => {
 		await submitBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.playerInfo.Alice.myTurn).toBe(false);
 		expect(written.playerInfo.Alice.swiss).toBe(false);
 	});
@@ -1123,7 +1123,7 @@ describe('submitBuy', () => {
 		await submitBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.offLimits).toBe(true);
 	});
 
@@ -1151,7 +1151,7 @@ describe('submitBuy', () => {
 		await submitBuy(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		const buyHistory = written.history.find((h) => h.includes('bought'));
 		expect(buyHistory).toBeDefined();
 		expect(buyHistory).toContain('Alice');
@@ -1186,7 +1186,7 @@ describe('submitProposal', () => {
 		await flushPromises();
 		expect(result).toBe('done');
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// After executeProposal, the mode should have moved to 'proposal' (for next country)
 		// since investorPassed mock returns false and incrementCountry runs
 		expect(written.mode).toBe('proposal');
@@ -1213,7 +1213,7 @@ describe('submitProposal', () => {
 		await flushPromises();
 		expect(result).toBe('done');
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.mode).toBe('proposal-opp');
 		expect(written.playerInfo.Bob.myTurn).toBe(true);
 		expect(written['proposal 1']).toBeDefined();
@@ -1242,7 +1242,7 @@ describe('submitProposal', () => {
 		await flushPromises();
 		expect(result).toBe('done');
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.mode).toBe('vote');
 		expect(written.voting).toBeDefined();
 		expect(written.voting.country).toBe('Austria');
@@ -1304,7 +1304,7 @@ describe('submitVote', () => {
 		await submitVote(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Check that Alice was added as a voter on proposal 1
 		// The voting might be null if the proposal was executed (votes exceeded threshold)
 		// With 5 votes + possible 0.1 bonus vs threshold of 4.005, it should execute
@@ -1337,7 +1337,7 @@ describe('submitVote', () => {
 		await submitVote(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.playerInfo.Alice.myTurn).toBe(false);
 	});
 });
@@ -1370,7 +1370,7 @@ describe('submitNoCounter', () => {
 		await flushPromises();
 		expect(result).toBe('done');
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// After execution, mode should advance to proposal (for next country)
 		expect(written.mode).toBe('proposal');
 	});
@@ -1398,7 +1398,7 @@ describe('submitNoCounter', () => {
 		await submitNoCounter(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		const agreeHistory = written.history.find((h) => h.includes('agreed'));
 		expect(agreeHistory).toBeDefined();
 		expect(agreeHistory).toContain('Bob');
@@ -1430,7 +1430,7 @@ describe('executeProposal — Factory', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.factories).toContain('Budapest');
 		expect(written.countryInfo.Austria.factories).toContain('Vienna');
 	});
@@ -1455,7 +1455,7 @@ describe('executeProposal — Factory', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.money).toBe(5);
 	});
 
@@ -1480,7 +1480,7 @@ describe('executeProposal — Factory', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Country: 3 - 5 = -2, shortfall = -2
 		// Country set to 0, player pays 2: 20 + (-2) = 18
 		expect(written.countryInfo.Austria.money).toBe(0);
@@ -1508,7 +1508,7 @@ describe('executeProposal — Factory', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.money).toBe(15);
 		expect(written.playerInfo.Alice.money).toBe(10);
 	});
@@ -1539,7 +1539,7 @@ describe('executeProposal — L-Produce / R-Produce', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.armies).toEqual([
 			{ territory: 'Vienna', hostile: true },
 			{ territory: 'Budapest', hostile: true },
@@ -1567,7 +1567,7 @@ describe('executeProposal — L-Produce / R-Produce', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.fleets).toEqual([{ territory: 'Trieste', hostile: true }]);
 	});
 
@@ -1592,7 +1592,7 @@ describe('executeProposal — L-Produce / R-Produce', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.fleets).toEqual([{ territory: 'Ionian Sea', hostile: true }]);
 	});
 
@@ -1618,7 +1618,7 @@ describe('executeProposal — L-Produce / R-Produce', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Existing army should remain
 		expect(written.countryInfo.Austria.armies).toEqual([{ territory: 'Vienna', hostile: true }]);
 	});
@@ -1648,7 +1648,7 @@ describe('executeProposal — Taxation', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// getTaxInfo mock returns { points: 3, money: 2, 'tax split': [['Alice', 1]] }
 		expect(written.countryInfo.Austria.points).toBe(8); // 5 + 3
 	});
@@ -1672,7 +1672,7 @@ describe('executeProposal — Taxation', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.money).toBe(12); // 10 + 2
 	});
 
@@ -1695,7 +1695,7 @@ describe('executeProposal — Taxation', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// 'tax split': [['Alice', 1]] → Alice gets $1
 		expect(written.playerInfo.Alice.money).toBe(21);
 	});
@@ -1718,7 +1718,7 @@ describe('executeProposal — Taxation', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// lastTax = min(points + 5, 15) = min(3 + 5, 15) = 8
 		expect(written.countryInfo.Austria.lastTax).toBe(8);
 	});
@@ -1742,7 +1742,7 @@ describe('executeProposal — Taxation', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// getTaxInfo mock returns points: 3 → 23 + 3 = 26, capped at 25
 		expect(written.countryInfo.Austria.points).toBe(25);
 		// Fixed: executeProposal now returns early when game-over is set,
@@ -1776,7 +1776,7 @@ describe('executeProposal — Investor', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// getInvestorPayout mock returns [['Alice', 2], ['Bob', 1]] → total = 3
 		expect(written.playerInfo.Alice.money).toBe(12); // 10 + 2
 		expect(written.playerInfo.Bob.money).toBe(6); // 5 + 1
@@ -1814,7 +1814,7 @@ describe('executeProposal — Import', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.fleets).toEqual([
 			{ territory: 'Ionian Sea', hostile: true },
 			{ territory: 'Western Med', hostile: true },
@@ -1846,7 +1846,7 @@ describe('executeProposal — Import', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.money).toBe(8); // 10 - 2
 	});
 
@@ -1874,7 +1874,7 @@ describe('executeProposal — Import', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Country has $1, first unit costs $1 from country (→ $0)
 		// Units 2 and 3 cost $1 each from player (20 - 2 = 18)
 		expect(written.countryInfo.Austria.money).toBe(0);
@@ -1907,7 +1907,7 @@ describe('executeProposal — rondel spin cost', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Taxation adds $1 to Alice (tax split mock), so money = 21
 		// No spin cost (diff=3, not > 3)
 		expect(written.playerInfo.Alice.money).toBe(21);
@@ -1933,7 +1933,7 @@ describe('executeProposal — rondel spin cost', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Investor pays: Alice gets $2, Bob gets $1 → Alice money = 22
 		// Spin cost: 5 - 3 = 2 extra steps × $2 = $4 → 22 - 4 = 18
 		expect(written.playerInfo.Alice.money).toBe(18);
@@ -1962,7 +1962,7 @@ describe('executeProposal — rondel spin cost', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// From center, diff=0 (guarded by wheelSpot !== 'center' check), so no cost
 		// With no units, maneuver completes immediately and executes
 		expect(written.playerInfo.Alice.money).toBe(20);
@@ -2165,7 +2165,7 @@ describe('executeProposal — investor passed', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.mode).toBe('buy');
 		// Bob (investor) gets $2 bonus
 		expect(written.playerInfo.Bob.money).toBe(12);
@@ -2197,7 +2197,7 @@ describe('executeProposal — proposal cleanup', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written['proposal 1']).toBeNull();
 		expect(written['proposal 2']).toBeNull();
 	});
@@ -2220,7 +2220,7 @@ describe('executeProposal — proposal cleanup', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.countryInfo.Austria.wheelSpot).toBe('Taxation');
 	});
 
@@ -2243,7 +2243,7 @@ describe('executeProposal — proposal cleanup', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.currentManeuver).toBeNull();
 	});
 });
@@ -2278,7 +2278,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.mode).toBe('continue-man');
 		expect(written.currentManeuver).not.toBeNull();
 		expect(written.currentManeuver.country).toBe('Austria');
@@ -2312,7 +2312,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Should complete immediately, not stay in continue-man
 		expect(written.currentManeuver).toBeNull();
 		expect(written.mode).not.toBe('continue-man');
@@ -2339,7 +2339,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.mode).toBe('continue-man');
 		expect(written.currentManeuver.phase).toBe('army');
 	});
@@ -2365,7 +2365,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.currentManeuver.returnMode).toBe('proposal-opp');
 		expect(written.currentManeuver.proposalSlot).toBe(1);
 	});
@@ -2393,7 +2393,7 @@ describe('enterManeuver (via submitProposal)', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Spin cost and wheelSpot update are deferred to executeProposal (after maneuver completes).
 		// During the maneuver, the old wheelSpot is preserved so investorPassed check works correctly.
 		expect(written.playerInfo.Alice.money).toBe(20);
@@ -2456,7 +2456,7 @@ describe('submitDictatorPeaceVote', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Maneuver still in progress (second army remains)
 		expect(written.currentManeuver.completedArmyMoves).toEqual([['Vienna', 'Rome', 'peace']]);
 		expect(written.currentManeuver.pendingPeace).toBeNull();
@@ -2514,7 +2514,7 @@ describe('submitDictatorPeaceVote', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Should become a war action, maneuver still in progress
 		expect(written.currentManeuver.completedArmyMoves[0][2]).toContain('war');
 		expect(written.currentManeuver.pendingPeace).toBeNull();
@@ -2574,7 +2574,7 @@ describe('submitPeaceVote', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Bob has stock 5, leader bonus 0.1 → 5.1 > threshold (7.01/2 = 3.505)
 		expect(written.peaceVote).toBeNull();
 		expect(written.mode).toBe('continue-man');
@@ -2633,7 +2633,7 @@ describe('submitPeaceVote', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.peaceVote).toBeNull();
 		expect(written.currentManeuver.completedArmyMoves[0][2]).toContain('war');
 		expect(written.currentManeuver.unitIndex).toBe(1);
@@ -2686,7 +2686,7 @@ describe('submitPeaceVote', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Bob has stock 2 + leader bonus 0.1 = 2.1. Threshold = (7.01)/2 = 3.505. Not resolved.
 		expect(written.mode).toBe('peace-vote');
 		expect(written.peaceVote).not.toBeNull();
@@ -2737,7 +2737,7 @@ describe('completeManeuver — democracy proposal storage', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.mode).toBe('proposal-opp');
 		expect(written['proposal 1']).not.toBeNull();
 		expect(written.currentManeuver).toBeNull();
@@ -2759,7 +2759,7 @@ describe('finalizeSubmit — via bid', () => {
 		await flushPromises();
 
 		// The game state should be written at the games path
-		expect(mockSetData['games/testGame']).toBeDefined();
+		expect(getCachedState()).toBeDefined();
 	});
 
 	test('saves old state to game histories (now handled by CF)', async () => {
@@ -3379,7 +3379,7 @@ describe('submitProposal — maneuver wheel cost', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const saved = mockSetData['games/testGame'];
+		const saved = getCachedState();
 		// wheelSpot stays at Factory during the maneuver (deferred to executeProposal)
 		expect(saved.countryInfo.Austria.wheelSpot).toBe('Factory');
 		// Money should NOT have been deducted for spin cost
@@ -3414,7 +3414,7 @@ describe('submitProposal — maneuver wheel cost', () => {
 		await submitProposal(context);
 		await flushPromises();
 
-		const saved = mockSetData['games/testGame'];
+		const saved = getCachedState();
 		// Money should NOT be deducted yet (deferred to executeProposal)
 		expect(saved.playerInfo.Alice.money).toBe(20);
 	});
@@ -3481,7 +3481,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Maneuver should be completed (no peace interruption)
 		expect(written.currentManeuver).toBeNull();
 		expect(written.mode).not.toBe('continue-man');
@@ -3530,7 +3530,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.currentManeuver).toBeNull();
 		expect(written.mode).not.toBe('continue-man');
 	});
@@ -3587,7 +3587,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Fleet 0 committed, Fleet 1 triggers peace, Fleet 2 + Army remain
 		expect(written.currentManeuver.completedFleetMoves).toEqual([['Ionian Sea', 'Western Med', '']]);
 		expect(written.currentManeuver.pendingPeace).not.toBeNull();
@@ -3649,7 +3649,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Fleet committed, army 0 triggers peace vote
 		expect(written.currentManeuver.completedFleetMoves).toEqual([['Ionian Sea', 'Ionian Sea', '']]);
 		expect(written.currentManeuver.completedArmyMoves || []).toEqual([]);
@@ -3701,7 +3701,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// No peace vote — maneuver completed
 		expect(written.currentManeuver).toBeNull();
 		expect(written.mode).not.toBe('peace-vote');
@@ -3755,7 +3755,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Fleet 0 declares war and destroys Italian fleet.
 		// Fleet 1 enters peacefully — no peace vote because the enemy was already destroyed.
 		expect(written.currentManeuver).toBeNull();
@@ -3797,7 +3797,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Maneuver completed with no moves
 		expect(written.currentManeuver).toBeNull();
 		expect(written.mode).not.toBe('continue-man');
@@ -3837,7 +3837,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Both fleet and army move executed, maneuver completed
 		expect(written.currentManeuver).toBeNull();
 		expect(written.mode).not.toBe('continue-man');
@@ -3880,7 +3880,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// The invalid move was caught (convoy violation or sea territory check), maneuver completed
 		expect(written.currentManeuver).toBeNull();
 		expect(errorSpy).toHaveBeenCalled();
@@ -3924,7 +3924,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Should NOT have triggered a peace vote — coexisting units auto-accept
 		expect(written.mode).not.toBe('peace-vote');
 		expect(written.peaceVote).toBeUndefined();
@@ -3973,7 +3973,7 @@ describe('submitBatchManeuver', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// SHOULD trigger peace vote — hostile enemy present
 		expect(written.currentManeuver.pendingPeace).not.toBeNull();
 		expect(written.currentManeuver.pendingPeace.targetCountry).toBe('Italy');
@@ -4670,7 +4670,7 @@ describe('Swiss Banking — Punt Buy adds player to swissSet', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Alice did not buy any stock
 		expect(written.playerInfo.Alice.stock).toEqual([]);
 		// Alice's swiss flag cleared (she just acted)
@@ -4699,7 +4699,7 @@ describe('Swiss Banking — Punt Buy adds player to swissSet', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Alice should not get stock
 		expect(written.playerInfo.Alice.stock).toEqual([]);
 	});
@@ -4723,7 +4723,7 @@ describe('Swiss Banking — Punt Buy adds player to swissSet', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// offLimits should not be changed (no stock purchased)
 		expect(written.countryInfo.Austria.offLimits).toBe(false);
 		// Leadership unchanged
@@ -4751,7 +4751,7 @@ describe('Swiss Banking — next swiss buyer selection', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		expect(written.playerInfo.Alice.myTurn).toBe(false);
 		expect(written.playerInfo.Alice.swiss).toBe(false);
 		expect(written.playerInfo.Bob.myTurn).toBe(true);
@@ -4778,7 +4778,7 @@ describe('Swiss Banking — next swiss buyer selection', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// No more swiss buyers: this is lastBuy=true, round ends
 		expect(written.playerInfo.Alice.myTurn).toBe(false);
 		// offLimits reset (lastBuy path)
@@ -4830,7 +4830,7 @@ describe('Swiss Banking — end of investor round activates swiss players', () =
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// lastBuy path: swissSet and permSwiss both get swiss=true
 		expect(written.playerInfo.Bob.swiss).toBe(true); // from swissSet
 		expect(written.playerInfo.Charlie.swiss).toBe(true); // from permSwiss
@@ -4858,7 +4858,7 @@ describe('Swiss Banking — end of investor round activates swiss players', () =
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Investor card should move from Alice (order 1) to Bob (order 2)
 		expect(written.playerInfo.Alice.investor).toBe(false);
 		expect(written.playerInfo.Bob.investor).toBe(true);
@@ -4886,7 +4886,7 @@ describe('Swiss Banking — end of investor round activates swiss players', () =
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// All offLimits flags should be reset
 		expect(written.countryInfo.Austria.offLimits).toBe(false);
 		expect(written.countryInfo.Italy.offLimits).toBe(false);
@@ -4919,7 +4919,7 @@ describe('Swiss Banking — permanent swiss (getPermSwiss)', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Bob is permanent swiss -> gets swiss=true
 		expect(written.playerInfo.Bob.swiss).toBe(true);
 		// Alice was not in permSwiss, and didn't punt, so swiss stays false
@@ -4949,7 +4949,7 @@ describe('Swiss Banking — permanent swiss (getPermSwiss)', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Both Alice and Bob are permSwiss -> both get swiss=true
 		expect(written.playerInfo.Alice.swiss).toBe(true);
 		expect(written.playerInfo.Bob.swiss).toBe(true);
@@ -4982,7 +4982,7 @@ describe('Swiss Banking — temporary swiss (punt this round)', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Bob was in swissSet from punting -> gets swiss=true
 		expect(written.playerInfo.Bob.swiss).toBe(true);
 		expect(written.swissSet).toBeNull();
@@ -5027,7 +5027,7 @@ describe('Swiss Banking — temporary swiss (punt this round)', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Alice was in swissSet (punted) -> gets swiss=true
 		expect(written.playerInfo.Alice.swiss).toBe(true);
 		// Charlie is permSwiss -> gets swiss=true
@@ -5067,7 +5067,7 @@ describe('Swiss Banking — investor passed triggers buy mode with swiss setup',
 		await submitProposal(context);
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Mode transitions to buy
 		expect(written.mode).toBe('buy');
 		// Investor holder (Bob) gets $2 investor bonus + $1 from the mocked investor payout
@@ -5116,7 +5116,7 @@ describe('Swiss Banking — swissSet tracking across multiple punts', () => {
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Bob punted, so he does not get stock
 		expect(written.playerInfo.Bob.stock).toEqual([]);
 		// Charlie's swiss flag means he's the next buyer
@@ -5168,7 +5168,7 @@ describe('Swiss Banking — doneBuying sets up swiss for initial bid rounds', ()
 		});
 		await flushPromises();
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// After doneBuying on Russia, permSwiss should have been processed
 		// The game should have moved past buy mode
 		expect(written.mode).toBe('proposal');
@@ -5323,7 +5323,7 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 		};
 		await submitBatchManeuver(context);
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// Should enter peace-vote mode
 		expect(written.mode).toBe('peace-vote');
 		// Both Bob and Carol should have myTurn = true (both hold Italy stock)
@@ -5346,7 +5346,7 @@ describe('§5.1-5.2 Peace vote — multi-country and voter pool', () => {
 		};
 		await submitBatchManeuver(context);
 
-		const written = mockSetData['games/testGame'];
+		const written = getCachedState();
 		// First country triggers a peace vote
 		expect(written.peaceVote || written.currentManeuver.pendingPeace).toBeTruthy();
 		// Remaining targets should be stored
