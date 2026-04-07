@@ -45,7 +45,7 @@ const TABS = [
 	{ key: 'rules', icon: ReadOutlined, label: 'Rules' },
 ];
 
-function DisplayMode({ mode, turnID }) {
+function DisplayMode({ mode, turnID, gameState }) {
 	switch (mode) {
 		case 'bid':
 			return <BidApp />;
@@ -59,8 +59,13 @@ function DisplayMode({ mode, turnID }) {
 			return <ProposalAppOpp />;
 		case 'vote':
 			return <VoteApp />;
-		case 'continue-man':
-			return <ManeuverPlannerApp key={turnID} />;
+		case 'continue-man': {
+			// Composite key: preserve state within a maneuver (same country),
+			// but remount when a new maneuver starts for a different country.
+			let manCountry = gameState && gameState.currentManeuver ? gameState.currentManeuver.country : '';
+			let manKey = 'man-' + manCountry;
+			return <ManeuverPlannerApp key={manKey} />;
+		}
 		case 'peace-vote':
 			return <PeaceVoteApp />;
 		default:
@@ -113,6 +118,8 @@ function Sidebar() {
 			setTurnTitle(turnState.turnTitle);
 			if (prevModeRef.current !== null && turnState.mode !== prevModeRef.current) {
 				SoundManager.playShuffle();
+				// Clear stale form values from the previous mode
+				contextRef.current.resetValues();
 			}
 			prevModeRef.current = turnState.mode;
 			setMode(turnState.mode);
@@ -287,7 +294,7 @@ function Sidebar() {
 				return (
 					<div className="imp-sidebar__tab-content">
 						<StaticTurnApp key={turnID} />
-						<DisplayMode mode={mode} turnID={turnID} />
+						<DisplayMode mode={mode} turnID={turnID} gameState={gameState} />
 					</div>
 				);
 			case 'players':
