@@ -206,12 +206,12 @@ function readSetup(path) {
 }
 
 /**
- * Clear the cache entirely. Called when switching games, logging out,
- * or when ManeuverPlanProvider retries stale data.
+ * Full reset — clear cache AND subscribers. Called when switching games
+ * or logging out. Components will re-subscribe when they remount.
  *
- * Does NOT clear subscribers — they are tied to component lifecycle
- * (mount/unmount), not cache state. Clearing them here would silently
- * break all useGameState() hooks.
+ * Do NOT call this to force a re-read during normal gameplay.
+ * Use invalidateIfStale() instead, which clears cached data
+ * without destroying the subscription mechanism.
  */
 function clearCache() {
 	cachedGameID = null;
@@ -220,6 +220,7 @@ function clearCache() {
 	pendingRead = null;
 	setupCache = {};
 	pendingSetupReads = {};
+	subscribers = [];
 }
 
 export { setCachedState, readGameState, invalidateIfStale, clearCache, readSetup, subscribe, getCachedState };

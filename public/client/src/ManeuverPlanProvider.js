@@ -4,7 +4,7 @@ import MapInteractionContext from './MapInteractionContext.js';
 import ManeuverPlanContext from './ManeuverPlanContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
-import { readGameState, readSetup, clearCache } from './backendFiles/stateCache.js';
+import { readGameState, readSetup, invalidateIfStale } from './backendFiles/stateCache.js';
 import useGameState from './useGameState.js';
 import { MODES } from './gameConstants.js';
 import { getCountryColorPalette } from './countryColors.js';
@@ -818,9 +818,9 @@ function ManeuverPlanProvider({ children }) {
 			}
 			let cm = gameState.currentManeuver;
 			if (!cm) {
-				// Cache may be stale — invalidate and retry up to 3 times
+				// Cache may be stale — invalidate so next read goes to Firebase
 				if (retryCount < 3) {
-					clearCache();
+					invalidateIfStale(contextRef.current.game, -1); // force invalidation
 					await new Promise((r) => setTimeout(r, 300));
 					return loadData(retryCount + 1);
 				}
