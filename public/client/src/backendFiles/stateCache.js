@@ -49,10 +49,14 @@ function subscribe(callback) {
  * Per-subscriber try/catch ensures one failing subscriber doesn't block others.
  */
 function notifySubscribers() {
-	if (isNotifying) return;
+	if (isNotifying) {
+		console.log('[stateCache] notifySubscribers SKIPPED (re-entrancy)');
+		return;
+	}
 	isNotifying = true;
 	try {
 		let state = cachedState;
+		console.log('[stateCache] notifying ' + subscribers.length + ' subscribers');
 		for (let i = 0; i < subscribers.length; i++) {
 			try {
 				subscribers[i](state);
@@ -86,6 +90,14 @@ function setCachedState(gameID, turnID, gameState) {
 	cachedState = gameState;
 	pendingRead = null;
 	if (gameState) {
+		console.log(
+			'[stateCache] setCachedState turnID=' +
+				turnID +
+				' mode=' +
+				(gameState.mode || '?') +
+				' subs=' +
+				subscribers.length
+		);
 		notifySubscribers();
 	}
 }
@@ -136,6 +148,14 @@ function readGameState(context) {
 			let state = snap.val();
 			if (state) {
 				let changed = cachedTurnID !== state.turnID;
+				console.log(
+					'[stateCache] readGameState resolve: cachedTurnID=' +
+						cachedTurnID +
+						' state.turnID=' +
+						state.turnID +
+						' changed=' +
+						changed
+				);
 				cachedTurnID = state.turnID;
 				cachedState = state;
 				if (changed) {

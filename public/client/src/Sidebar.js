@@ -104,6 +104,7 @@ function Sidebar() {
 	const { gameState } = useGameState();
 
 	const refreshData = useCallback(async () => {
+		console.log('[Sidebar] refreshData called');
 		try {
 			let [turnState, gs, countriesData, country, player, order, myTurnData] = await Promise.all([
 				turnAPI.getTurnState(contextRef.current),

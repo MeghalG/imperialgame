@@ -170,6 +170,8 @@ import GameApp from './GameApp.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
+import { invalidateIfStale, readGameState } from './backendFiles/stateCache.js';
+import { database } from './backendFiles/firebase.js';
 
 // ---- Test helpers ---------------------------------------------------------
 
@@ -810,5 +812,103 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 
 		// Bob should now see the updated state
 		expect(screen.getByText('England proposal — Charlie leads')).toBeInTheDocument();
+	});
+});
+
+// ===========================================================================
+// Listener-path tests — simulate what GameApp's onValue listener actually does:
+// invalidateIfStale → readGameState (which may read from Firebase on cache miss)
+// This exercises the readGameState dedup that setCachedState-only tests miss.
+// ===========================================================================
+describe('listener path: invalidateIfStale → readGameState → sidebar updates', () => {
+	test('non-submitting player: sidebar updates via listener path', async () => {
+		// Start: cached state from previous turn
+		setCachedState('testGame', 5, { mode: 'bid', turnID: 5 });
+
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'Bidding on Austria',
+			mode: 'bid',
+			turnID: 5,
+			undoable: false,
+		});
+
+		renderSidebar({ name: 'Bob' });
+		await flushAll();
+		expect(screen.getByTestId('mode-bid')).toBeInTheDocument();
+
+		// Another player submits. Firebase mock returns new state.
+		database.ref.mockImplementation((path) => ({
+			once: jest.fn(() =>
+				Promise.resolve({
+					val: () =>
+						path === 'games/testGame'
+							? { mode: 'proposal', turnID: 6, countryUp: 'Austria', playerInfo: {}, countryInfo: {} }
+							: null,
+				})
+			),
+			on: jest.fn(),
+			off: jest.fn(),
+			set: jest.fn(() => Promise.resolve()),
+		}));
+
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'Austria proposal',
+			mode: 'proposal',
+			turnID: 6,
+			undoable: false,
+		});
+
+		// This is exactly what GameApp's onValue listener does:
+		await act(async () => {
+			invalidateIfStale('testGame', 6);
+			await readGameState({ game: 'testGame' });
+		});
+		await flushAll();
+
+		// Sidebar should have updated to proposal mode
+		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
+		expect(screen.queryByTestId('mode-bid')).not.toBeInTheDocument();
+	});
+
+	test('submitting player: optimistic + listener path = sidebar shows new state', async () => {
+		// Start: Alice is in proposal mode
+		setCachedState('testGame', 10, { mode: 'proposal', turnID: 10 });
+
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'France proposal',
+			mode: 'proposal',
+			turnID: 10,
+			undoable: false,
+		});
+
+		renderSidebar({ name: 'Alice' });
+		await flushAll();
+		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
+
+		// Step 1: Alice submits. finalizeSubmit caches optimistic state.
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'England proposal',
+			mode: 'proposal',
+			turnID: 11,
+			undoable: true,
+		});
+
+		act(() => {
+			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England' });
+		});
+		await flushAll();
+		expect(screen.getByText('England proposal')).toBeInTheDocument();
+
+		// Step 2: database.set() triggers onValue. Cache matches (turnID 11), so
+		// invalidateIfStale is a no-op and readGameState is a cache hit.
+		await act(async () => {
+			invalidateIfStale('testGame', 11); // no-op: cachedTurnID === 11
+			await readGameState({ game: 'testGame' }); // cache hit: returns immediately
+		});
+		await flushAll();
+
+		// Sidebar should still show the updated state (not reverted, not blank)
+		expect(screen.getByText('England proposal')).toBeInTheDocument();
+		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
 	});
 });
