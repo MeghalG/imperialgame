@@ -43,7 +43,14 @@ jest.mock('./firebase.js', () => ({
 	},
 }));
 
-import { setCachedState, readGameState, invalidateIfStale, clearCache } from './stateCache.js';
+import {
+	setCachedState,
+	readGameState,
+	invalidateIfStale,
+	clearCache,
+	subscribe,
+	getCachedState,
+} from './stateCache.js';
 import { database } from './firebase.js';
 
 beforeEach(() => {
@@ -530,5 +537,185 @@ describe('edge cases', () => {
 		const result = await readGameState({ game: 'game1' });
 		expect(result.mode).toBe('proposal');
 		expect(result.turnID).toBe(6);
+	});
+});
+
+// ===========================================================================
+// Subscribe / Notify mechanism
+// ===========================================================================
+describe('subscribe and notify', () => {
+	test('subscriber is called exactly once per setCachedState', () => {
+		const subscriber = jest.fn();
+		subscribe(subscriber);
+
+		setCachedState('game1', 5, { mode: 'bid', turnID: 5 });
+
+		expect(subscriber).toHaveBeenCalledTimes(1);
+		expect(subscriber).toHaveBeenCalledWith({ mode: 'bid', turnID: 5 });
+	});
+
+	test('subscriber is NOT called when setCachedState receives null state', () => {
+		const subscriber = jest.fn();
+		subscribe(subscriber);
+
+		setCachedState('game1', null, null);
+
+		expect(subscriber).toHaveBeenCalledTimes(0);
+	});
+
+	test('multiple setCachedState calls → subscriber called once per call', () => {
+		const subscriber = jest.fn();
+		subscribe(subscriber);
+
+		setCachedState('game1', 5, { mode: 'bid' });
+		setCachedState('game1', 6, { mode: 'buy' });
+		setCachedState('game1', 7, { mode: 'proposal' });
+
+		expect(subscriber).toHaveBeenCalledTimes(3);
+		expect(subscriber.mock.calls[0][0]).toEqual({ mode: 'bid' });
+		expect(subscriber.mock.calls[1][0]).toEqual({ mode: 'buy' });
+		expect(subscriber.mock.calls[2][0]).toEqual({ mode: 'proposal' });
+	});
+
+	test('multiple subscribers all receive notifications', () => {
+		const sub1 = jest.fn();
+		const sub2 = jest.fn();
+		const sub3 = jest.fn();
+		subscribe(sub1);
+		subscribe(sub2);
+		subscribe(sub3);
+
+		setCachedState('game1', 5, { mode: 'bid' });
+
+		expect(sub1).toHaveBeenCalledTimes(1);
+		expect(sub2).toHaveBeenCalledTimes(1);
+		expect(sub3).toHaveBeenCalledTimes(1);
+	});
+
+	test('unsubscribe stops notifications', () => {
+		const subscriber = jest.fn();
+		const unsub = subscribe(subscriber);
+
+		setCachedState('game1', 5, { mode: 'bid' });
+		expect(subscriber).toHaveBeenCalledTimes(1);
+
+		unsub();
+
+		setCachedState('game1', 6, { mode: 'buy' });
+		expect(subscriber).toHaveBeenCalledTimes(1); // Still 1, not 2
+	});
+
+	test('unsubscribe only removes the target subscriber', () => {
+		const sub1 = jest.fn();
+		const sub2 = jest.fn();
+		const unsub1 = subscribe(sub1);
+		subscribe(sub2);
+
+		unsub1();
+
+		setCachedState('game1', 5, { mode: 'bid' });
+		expect(sub1).toHaveBeenCalledTimes(0);
+		expect(sub2).toHaveBeenCalledTimes(1);
+	});
+
+	test('clearCache removes all subscribers', () => {
+		const subscriber = jest.fn();
+		subscribe(subscriber);
+
+		clearCache();
+
+		setCachedState('game1', 5, { mode: 'bid' });
+		expect(subscriber).toHaveBeenCalledTimes(0);
+	});
+
+	test('re-entrancy guard: subscriber that calls setCachedState does not cause infinite loop', () => {
+		let callCount = 0;
+		const reentrantSub = jest.fn((state) => {
+			callCount++;
+			if (callCount <= 1) {
+				// This would cause infinite recursion without the re-entrancy guard
+				setCachedState('game1', 99, { mode: 'reentrant' });
+			}
+		});
+		subscribe(reentrantSub);
+
+		setCachedState('game1', 5, { mode: 'bid' });
+
+		// Should be called once (the re-entrant setCachedState is silently skipped)
+		expect(reentrantSub).toHaveBeenCalledTimes(1);
+	});
+
+	test('subscriber exception does not prevent other subscribers from being notified', () => {
+		const badSub = jest.fn(() => {
+			throw new Error('subscriber blew up');
+		});
+		const goodSub = jest.fn();
+
+		subscribe(badSub);
+		subscribe(goodSub);
+
+		// Should not throw
+		setCachedState('game1', 5, { mode: 'bid' });
+
+		expect(badSub).toHaveBeenCalledTimes(1);
+		expect(goodSub).toHaveBeenCalledTimes(1);
+	});
+
+	test('readGameState from Firebase notifies subscribers on cache miss', async () => {
+		const subscriber = jest.fn();
+		subscribe(subscriber);
+
+		mockDbData = {
+			games: {
+				game1: { mode: 'proposal', turnID: 7 },
+			},
+		};
+
+		await readGameState({ game: 'game1' });
+
+		expect(subscriber).toHaveBeenCalledTimes(1);
+		expect(subscriber).toHaveBeenCalledWith({ mode: 'proposal', turnID: 7 });
+	});
+
+	test('readGameState cache hit does NOT notify subscribers (no change)', async () => {
+		const state = { mode: 'bid', turnID: 5 };
+		setCachedState('game1', 5, state);
+
+		const subscriber = jest.fn();
+		subscribe(subscriber);
+
+		// This should be a cache hit — no notification
+		await readGameState({ game: 'game1' });
+
+		expect(subscriber).toHaveBeenCalledTimes(0);
+	});
+
+	test('getCachedState returns current state synchronously', () => {
+		expect(getCachedState()).toBeNull();
+
+		setCachedState('game1', 5, { mode: 'bid' });
+
+		expect(getCachedState()).toEqual({ mode: 'bid' });
+	});
+
+	test('invalidateIfStale + readGameState = exactly 1 subscriber notification', async () => {
+		setCachedState('game1', 5, { mode: 'bid' });
+
+		const subscriber = jest.fn();
+		subscribe(subscriber);
+
+		mockDbData = {
+			games: {
+				game1: { mode: 'vote', turnID: 6 },
+			},
+		};
+
+		// Simulate the centralized listener flow
+		invalidateIfStale('game1', 6);
+		await readGameState({ game: 'game1' });
+
+		// Exactly 1 notification (from readGameState's Firebase resolve)
+		expect(subscriber).toHaveBeenCalledTimes(1);
+		expect(subscriber).toHaveBeenCalledWith({ mode: 'vote', turnID: 6 });
 	});
 });

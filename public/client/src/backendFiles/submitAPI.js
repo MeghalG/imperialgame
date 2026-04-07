@@ -592,15 +592,20 @@ async function completeManeuver(gameState, context) {
 	} else if (cm.returnMode === MODES.PROPOSAL_OPP) {
 		// Democracy leader: store as proposal 1
 		let history = await makeHistory(gameState, fullContext);
-		gameState.history.push(cm.player + ' proposes as the leader: ' + history);
-		gameState['proposal 1'] = helper.stringifyFunctions(fullContext);
-		gameState.mode = MODES.PROPOSAL_OPP;
 		let country = cm.country;
 		let opposition = gameState.countryInfo[country].leadership[1];
-		for (let key in gameState.playerInfo) {
-			gameState.playerInfo[key].myTurn = false;
+		if (!opposition) {
+			// No opposition — execute directly (only one stockholder in democracy)
+			await executeProposal(gameState, fullContext);
+		} else {
+			gameState.history.push(cm.player + ' proposes as the leader: ' + history);
+			gameState['proposal 1'] = helper.stringifyFunctions(fullContext);
+			gameState.mode = MODES.PROPOSAL_OPP;
+			for (let key in gameState.playerInfo) {
+				gameState.playerInfo[key].myTurn = false;
+			}
+			gameState.playerInfo[opposition].myTurn = true;
 		}
-		gameState.playerInfo[opposition].myTurn = true;
 	} else if (cm.returnMode === MODES.VOTE) {
 		// Democracy opposition: store as proposal 2
 		let history = await makeHistory(gameState, fullContext);
@@ -1804,6 +1809,9 @@ async function _submitProposalLocal(context) {
 
 	let history = await makeHistory(gameState, context);
 	if (gameState.countryInfo[country].gov === GOV_TYPES.DICTATORSHIP) {
+		await executeProposal(gameState, context);
+	} else if (!leadership[1]) {
+		// Democracy but only one stockholder — no opposition exists, execute directly
 		await executeProposal(gameState, context);
 	} else {
 		if (context.name === leadership[0]) {

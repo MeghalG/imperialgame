@@ -23,6 +23,56 @@ let cachedTurnID = null;
 let cachedState = null;
 let pendingRead = null;
 
+// ---------------------------------------------------------------------------
+// Subscription mechanism — lets React components react to cache changes.
+// ---------------------------------------------------------------------------
+let subscribers = [];
+let isNotifying = false;
+
+/**
+ * Register a callback that fires whenever the cached state changes.
+ * Returns an unsubscribe function.
+ *
+ * @param {Function} callback - Called with (gameState) on every cache change
+ * @returns {Function} Unsubscribe function
+ */
+function subscribe(callback) {
+	subscribers.push(callback);
+	return () => {
+		subscribers = subscribers.filter((cb) => cb !== callback);
+	};
+}
+
+/**
+ * Notify all subscribers with the current cached state.
+ * Re-entrancy guard prevents nested calls (e.g. if a subscriber triggers a submit).
+ * Per-subscriber try/catch ensures one failing subscriber doesn't block others.
+ */
+function notifySubscribers() {
+	if (isNotifying) return;
+	isNotifying = true;
+	try {
+		let state = cachedState;
+		for (let i = 0; i < subscribers.length; i++) {
+			try {
+				subscribers[i](state);
+			} catch (e) {
+				console.error('stateCache subscriber error:', e);
+			}
+		}
+	} finally {
+		isNotifying = false;
+	}
+}
+
+/**
+ * Get the current cached state synchronously (for initial mount).
+ * Returns null if no state is cached.
+ */
+function getCachedState() {
+	return cachedState;
+}
+
 /**
  * Store a gameState in the cache. Called by finalizeSubmit after writing to Firebase.
  *
@@ -35,6 +85,9 @@ function setCachedState(gameID, turnID, gameState) {
 	cachedTurnID = turnID;
 	cachedState = gameState;
 	pendingRead = null;
+	if (gameState) {
+		notifySubscribers();
+	}
 }
 
 /**
@@ -84,6 +137,7 @@ function readGameState(context) {
 			if (state) {
 				cachedTurnID = state.turnID;
 				cachedState = state;
+				notifySubscribers();
 			}
 			pendingRead = null;
 			return state;
@@ -138,6 +192,7 @@ function clearCache() {
 	pendingRead = null;
 	setupCache = {};
 	pendingSetupReads = {};
+	subscribers = [];
 }
 
-export { setCachedState, readGameState, invalidateIfStale, clearCache, readSetup };
+export { setCachedState, readGameState, invalidateIfStale, clearCache, readSetup, subscribe, getCachedState };

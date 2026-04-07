@@ -6,8 +6,7 @@ import { DollarCircleFilled, DollarCircleOutlined, FlagFilled, FlagOutlined } fr
 import UserContext from './UserContext.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
 import * as helper from './backendFiles/helper.js';
-import { database } from './backendFiles/firebase.js';
-import { invalidateIfStale } from './backendFiles/stateCache.js';
+import useGameState from './useGameState.js';
 import { getCountryColorPalette } from './countryColors.js';
 
 function PlayerApp() {
@@ -16,9 +15,10 @@ function PlayerApp() {
 	const [countryInfo, setCountryInfo] = useState({});
 	const [playerInfo, setPlayerInfo] = useState({});
 	const [playersOrdered, setPlayersOrdered] = useState([]);
-	const turnRef = useRef(null);
 	const contextRef = useRef(context);
 	contextRef.current = context;
+
+	const { gameState } = useGameState();
 
 	const reinitialize = useCallback(async () => {
 		let [countriesData, country, player, order] = await Promise.all([
@@ -33,20 +33,10 @@ function PlayerApp() {
 		setPlayersOrdered(order);
 	}, []);
 
+	// Refresh on centralized game state changes
 	useEffect(() => {
 		reinitialize();
-		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
-		turnRef.current.on('value', (dataSnapshot) => {
-			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
-			reinitialize();
-		});
-		return () => {
-			if (turnRef.current) {
-				turnRef.current.off();
-			}
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [gameState, reinitialize]);
 
 	let darkColors = getCountryColorPalette(context.colorblindMode).dark;
 	return (
