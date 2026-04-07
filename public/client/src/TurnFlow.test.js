@@ -138,9 +138,35 @@ jest.mock('./backendFiles/helper.js', () => ({
 	getTimer: jest.fn(() => Promise.resolve(null)),
 }));
 
+// ---- Mock GameApp's children so we can test it in isolation ---------------
+jest.mock('./TopBar.js', () => {
+	return function MockTopBar() {
+		return <div data-testid="topbar">TopBar</div>;
+	};
+});
+jest.mock('./MainApp.js', () => {
+	return function MockMainApp() {
+		return <div data-testid="mainapp">MainApp</div>;
+	};
+});
+jest.mock('./TurnAnnouncement.js', () => {
+	return function MockTurnAnnouncement({ countryName, subtitle }) {
+		return (
+			<div data-testid="announcement">
+				{countryName} — {subtitle}
+			</div>
+		);
+	};
+});
+jest.mock('./MapInteractionContext.js', () => {
+	const React = require('react');
+	return React.createContext({});
+});
+
 // ---- Imports (AFTER mocks) ------------------------------------------------
 import UserContext from './UserContext.js';
 import Sidebar from './Sidebar.js';
+import GameApp from './GameApp.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
@@ -172,6 +198,16 @@ function createContext(overrides = {}) {
 		setColorblindMode: jest.fn(),
 		...overrides,
 	};
+}
+
+function renderGameApp(contextOverrides = {}) {
+	let ctx = createContext(contextOverrides);
+	let result = render(
+		<UserContext.Provider value={ctx}>
+			<GameApp />
+		</UserContext.Provider>
+	);
+	return { ...result, ctx };
 }
 
 function renderSidebar(contextOverrides = {}) {
@@ -522,5 +558,257 @@ describe('portfolio display', () => {
 		await flushAll();
 
 		expect(screen.getByText('$30.00')).toBeInTheDocument();
+	});
+});
+
+// ===========================================================================
+// "Your Turn" announcement — test the exact bugs reported:
+// 1. Submitting player should NOT see "Your Turn" flash after their own submit
+// 2. Other player SHOULD see "Your Turn" when it becomes their turn
+// 3. Player with consecutive turns should see announcement each time
+// ===========================================================================
+describe('"Your Turn" announcement', () => {
+	test('no announcement on initial load (even if myTurn=true)', async () => {
+		// Alice loads the game and it's already her turn — no announcement
+		setCachedState('testGame', 5, {
+			turnID: 5,
+			playerInfo: { Alice: { myTurn: true } },
+		});
+
+		renderGameApp({ name: 'Alice' });
+		await flushAll();
+
+		expect(screen.queryByTestId('announcement')).not.toBeInTheDocument();
+	});
+
+	test('announcement shows when myTurn transitions false → true', async () => {
+		// Start: not Alice's turn
+		setCachedState('testGame', 5, {
+			turnID: 5,
+			playerInfo: { Alice: { myTurn: false }, Bob: { myTurn: true } },
+		});
+
+		turnAPI.getTitle.mockResolvedValue('France up with proposal');
+
+		renderGameApp({ name: 'Alice' });
+		await flushAll();
+
+		// Now it becomes Alice's turn
+		act(() => {
+			setCachedState('testGame', 6, {
+				turnID: 6,
+				playerInfo: { Alice: { myTurn: true }, Bob: { myTurn: false } },
+			});
+		});
+		await flushAll();
+
+		expect(screen.getByTestId('announcement')).toBeInTheDocument();
+		expect(screen.getByTestId('announcement').textContent).toContain('Your Turn');
+	});
+
+	test('NO announcement when myTurn stays true (same player, state update)', async () => {
+		// Alice's turn — she's looking at the UI, state refreshes but it's still her turn
+		setCachedState('testGame', 5, {
+			turnID: 5,
+			playerInfo: { Alice: { myTurn: true } },
+		});
+
+		renderGameApp({ name: 'Alice' });
+		await flushAll();
+
+		// State updates but myTurn stays true (e.g. authoritative update from CF)
+		act(() => {
+			setCachedState('testGame', 5, {
+				turnID: 5,
+				playerInfo: { Alice: { myTurn: true } },
+				authoritative: true,
+			});
+		});
+		await flushAll();
+
+		expect(screen.queryByTestId('announcement')).not.toBeInTheDocument();
+	});
+
+	test('NO announcement when submitting player transitions true → false', async () => {
+		// Alice submits her turn — myTurn goes from true to false
+		setCachedState('testGame', 5, {
+			turnID: 5,
+			playerInfo: { Alice: { myTurn: true }, Bob: { myTurn: false } },
+		});
+
+		renderGameApp({ name: 'Alice' });
+		await flushAll();
+
+		// Alice submits, now it's Bob's turn
+		act(() => {
+			setCachedState('testGame', 6, {
+				turnID: 6,
+				playerInfo: { Alice: { myTurn: false }, Bob: { myTurn: true } },
+			});
+		});
+		await flushAll();
+
+		// Alice should NOT see "Your Turn" — she just submitted
+		expect(screen.queryByTestId('announcement')).not.toBeInTheDocument();
+	});
+
+	test('announcement fires on consecutive turns for same player', async () => {
+		// Start: Alice's turn is false
+		setCachedState('testGame', 5, {
+			turnID: 5,
+			playerInfo: { Alice: { myTurn: false } },
+		});
+
+		turnAPI.getTitle.mockResolvedValue('Austria up');
+
+		renderGameApp({ name: 'Alice' });
+		await flushAll();
+
+		// Turn 1: becomes Alice's turn
+		act(() => {
+			setCachedState('testGame', 6, {
+				turnID: 6,
+				playerInfo: { Alice: { myTurn: true } },
+			});
+		});
+		await flushAll();
+		expect(screen.getByTestId('announcement')).toBeInTheDocument();
+
+		// Alice submits — no longer her turn
+		act(() => {
+			setCachedState('testGame', 7, {
+				turnID: 7,
+				playerInfo: { Alice: { myTurn: false } },
+			});
+		});
+		await flushAll();
+
+		// Turn 2: Alice's turn again (e.g. she leads another country)
+		turnAPI.getTitle.mockResolvedValue('France up');
+		act(() => {
+			setCachedState('testGame', 8, {
+				turnID: 8,
+				playerInfo: { Alice: { myTurn: true } },
+			});
+		});
+		await flushAll();
+
+		// Should see announcement again (second consecutive turn)
+		expect(screen.getByTestId('announcement')).toBeInTheDocument();
+	});
+});
+
+// ===========================================================================
+// Full submit cycle — simulate what happens when a player submits a turn.
+// This is the exact scenario that was broken: optimistic → authoritative → listener
+// ===========================================================================
+describe('full submit cycle (optimistic → authoritative → listener)', () => {
+	test('sidebar updates after optimistic setCachedState from finalizeSubmit', async () => {
+		// Start: bid mode, Alice's turn
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'Bidding on Austria',
+			mode: 'bid',
+			turnID: 5,
+			undoable: false,
+		});
+
+		renderSidebar({ name: 'Alice' });
+		await flushAll();
+		expect(screen.getByTestId('mode-bid')).toBeInTheDocument();
+		expect(screen.getByText('Bidding on Austria')).toBeInTheDocument();
+
+		// Alice submits her bid. finalizeSubmit calls setCachedState with optimistic state.
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'Bob buying Austria stock',
+			mode: 'buy-bid',
+			turnID: 6,
+			undoable: true,
+		});
+
+		act(() => {
+			// This is what finalizeSubmit does
+			setCachedState('testGame', 6, { mode: 'buy-bid', turnID: 6 });
+		});
+		await flushAll();
+
+		// Sidebar should now show buy-bid mode
+		expect(screen.getByTestId('mode-buy-bid')).toBeInTheDocument();
+		expect(screen.queryByTestId('mode-bid')).not.toBeInTheDocument();
+		expect(screen.getByText('Bob buying Austria stock')).toBeInTheDocument();
+	});
+
+	test('sidebar still works after full optimistic + authoritative + listener cycle', async () => {
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'France proposal',
+			mode: 'proposal',
+			turnID: 10,
+			undoable: false,
+		});
+
+		renderSidebar({ name: 'Alice' });
+		await flushAll();
+		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
+
+		// Step 1: finalizeSubmit — optimistic state (dictatorship executes, moves to next country)
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'England proposal',
+			mode: 'proposal',
+			turnID: 11,
+			undoable: true,
+		});
+
+		act(() => {
+			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England' });
+		});
+		await flushAll();
+		expect(screen.getByText('England proposal')).toBeInTheDocument();
+
+		// Step 2: callCF returns — authoritative state (same turnID, possibly adjusted data)
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'England proposal',
+			mode: 'proposal',
+			turnID: 11,
+			undoable: true,
+		});
+
+		act(() => {
+			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England', authoritative: true });
+		});
+		await flushAll();
+
+		// Sidebar should still show the correct state (not blank, not stale)
+		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
+		expect(screen.getByText('England proposal')).toBeInTheDocument();
+	});
+
+	test('sidebar updates for non-submitting player when state arrives', async () => {
+		// Bob is watching. It was Alice's turn (France proposal).
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'France proposal — Alice leads',
+			mode: 'proposal',
+			turnID: 10,
+			undoable: false,
+		});
+
+		renderSidebar({ name: 'Bob' });
+		await flushAll();
+		expect(screen.getByText('France proposal — Alice leads')).toBeInTheDocument();
+
+		// Alice submits. Firebase listener fires on Bob's client.
+		// Bob's stateCache is invalidated and reads fresh data.
+		turnAPI.getTurnState.mockResolvedValue({
+			turnTitle: 'England proposal — Charlie leads',
+			mode: 'proposal',
+			turnID: 11,
+			undoable: false,
+		});
+
+		act(() => {
+			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England' });
+		});
+		await flushAll();
+
+		// Bob should now see the updated state
+		expect(screen.getByText('England proposal — Charlie leads')).toBeInTheDocument();
 	});
 });
