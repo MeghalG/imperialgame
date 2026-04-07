@@ -81,11 +81,12 @@ function getCachedState() {
  * @param {Object} gameState - The full game state object (countryInfo, playerInfo, etc.)
  */
 function setCachedState(gameID, turnID, gameState) {
+	let changed = cachedTurnID !== turnID || cachedGameID !== gameID;
 	cachedGameID = gameID;
 	cachedTurnID = turnID;
 	cachedState = gameState;
 	pendingRead = null;
-	if (gameState) {
+	if (gameState && changed) {
 		notifySubscribers();
 	}
 }
@@ -135,9 +136,12 @@ function readGameState(context) {
 		.then((snap) => {
 			let state = snap.val();
 			if (state) {
+				let changed = cachedTurnID !== state.turnID;
 				cachedTurnID = state.turnID;
 				cachedState = state;
-				notifySubscribers();
+				if (changed) {
+					notifySubscribers();
+				}
 			}
 			pendingRead = null;
 			return state;

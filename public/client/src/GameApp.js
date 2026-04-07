@@ -41,40 +41,29 @@ function CompassRose() {
 function GameApp() {
 	const context = useContext(UserContext);
 	const [announcement, setAnnouncement] = useState(null);
-	const turnListenerRef = useRef(null);
 	const isFirstLoadRef = useRef(true);
 	const contextRef = useRef(context);
 	contextRef.current = context;
 
-	// Centralized turnID listener — drives stateCache for all subscribers.
-	// When turnID changes: invalidate stale cache → readGameState (triggers
-	// notifySubscribers on resolve) → all useGameState() consumers re-render.
+	// Single centralized turnID listener — drives stateCache for all subscribers
+	// AND handles "Your Turn" announcements. One listener, not two.
 	const centralListenerRef = useRef(null);
 	useEffect(() => {
 		if (!context.game) return;
 		centralListenerRef.current = database.ref('games/' + context.game + '/turnID');
-		centralListenerRef.current.on('value', (snap) => {
+		centralListenerRef.current.on('value', async (snap) => {
 			invalidateIfStale(context.game, snap.val());
-			readGameState({ game: context.game });
-		});
-		return () => {
-			if (centralListenerRef.current) centralListenerRef.current.off();
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [context.game]);
+			let gs = await readGameState({ game: context.game });
 
-	// Listen for turn changes to show announcement
-	useEffect(() => {
-		if (!context.game) return;
-		turnListenerRef.current = database.ref('games/' + context.game + '/turnID');
-		turnListenerRef.current.on('value', async () => {
+			// "Your Turn" announcement (skip initial fire)
 			if (isFirstLoadRef.current) {
 				isFirstLoadRef.current = false;
 				return;
 			}
 			try {
-				let myTurn = await turnAPI.getMyTurn(contextRef.current);
-				if (myTurn) {
+				// Check myTurn from the freshly loaded state, not from a separate read
+				let playerInfo = gs && gs.playerInfo && gs.playerInfo[contextRef.current.name];
+				if (playerInfo && playerInfo.myTurn) {
 					let title = await turnAPI.getTitle(contextRef.current);
 					let country = (title || '').split(' ')[0];
 					let colors = getCountryColorPalette(contextRef.current.colorblindMode).bright;
@@ -91,7 +80,7 @@ function GameApp() {
 			}
 		});
 		return () => {
-			if (turnListenerRef.current) turnListenerRef.current.off();
+			if (centralListenerRef.current) centralListenerRef.current.off();
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [context.game]);
