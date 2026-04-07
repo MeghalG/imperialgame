@@ -4,8 +4,8 @@ import MapInteractionContext from './MapInteractionContext.js';
 import ManeuverPlanContext from './ManeuverPlanContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
-import { readGameState, readSetup, clearCache, invalidateIfStale } from './backendFiles/stateCache.js';
-import { database } from './backendFiles/firebase.js';
+import { readGameState, readSetup, clearCache } from './backendFiles/stateCache.js';
+import useGameState from './useGameState.js';
 import { MODES } from './gameConstants.js';
 import { getCountryColorPalette } from './countryColors.js';
 import { normalizeAction, denormalizeAction, isPeaceAction, formatCompletedAction } from './maneuverActionUtils.js';
@@ -44,6 +44,7 @@ function ensureMapVisible(color) {
 function ManeuverPlanProvider({ children }) {
 	const context = useContext(UserContext);
 	const mapInteraction = useContext(MapInteractionContext);
+	const { gameState: centralGameState } = useGameState();
 
 	// ===== State =====
 	const [loaded, setLoaded] = useState(false);
@@ -1052,42 +1053,35 @@ function ManeuverPlanProvider({ children }) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Watch for turnID changes — reload if still in maneuver mode, reset if not
+	// React to centralized game state changes — reload if still in maneuver, reset if not
+	const isFirstCentralRef = useRef(true);
 	useEffect(() => {
-		if (!contextRef.current.game) return;
-		let turnRef = database.ref('games/' + contextRef.current.game + '/turnID');
-		let isFirst = true;
-		turnRef.on('value', async (snap) => {
-			if (isFirst) {
-				isFirst = false;
-				return; // skip initial fire (loadData already handles mount)
+		if (!centralGameState) return;
+		if (isFirstCentralRef.current) {
+			isFirstCentralRef.current = false;
+			return; // skip initial (loadData already handles mount)
+		}
+		if (centralGameState.mode === MODES.CONTINUE_MAN && centralGameState.currentManeuver) {
+			// Still in maneuver — reload (e.g. after peace vote resolves)
+			loadData();
+		} else {
+			// No longer in maneuver — reset all state so map clears
+			setLoaded(false);
+			setFleetPlans([]);
+			setArmyPlans([]);
+			setActiveUnit(null);
+			setActionPickerState(null);
+			setPendingPeace(null);
+			mapInteractionRef.current.clearInteraction();
+			if (mapInteractionRef.current.setPlannedMoves) {
+				mapInteractionRef.current.setPlannedMoves([]);
 			}
-			invalidateIfStale(contextRef.current.game, snap.val());
-			// Check if we're still in maneuver mode
-			let gs = await readGameState(contextRef.current);
-			if (gs && gs.mode === MODES.CONTINUE_MAN && gs.currentManeuver) {
-				// Still in maneuver — reload (e.g. after peace vote resolves)
-				loadData();
-			} else {
-				// No longer in maneuver — reset all state so map clears
-				setLoaded(false);
-				setFleetPlans([]);
-				setArmyPlans([]);
-				setActiveUnit(null);
-				setActionPickerState(null);
-				setPendingPeace(null);
-				mapInteractionRef.current.clearInteraction();
-				if (mapInteractionRef.current.setPlannedMoves) {
-					mapInteractionRef.current.setPlannedMoves([]);
-				}
-				if (mapInteractionRef.current.setUnitMarkers) {
-					mapInteractionRef.current.setUnitMarkers([]);
-				}
+			if (mapInteractionRef.current.setUnitMarkers) {
+				mapInteractionRef.current.setUnitMarkers([]);
 			}
-		});
-		return () => turnRef.off();
+		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [centralGameState]);
 
 	// ===== Map interaction effects =====
 

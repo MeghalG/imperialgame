@@ -6,7 +6,7 @@ import UserContext from './UserContext.js';
 import * as turnAPI from './backendFiles/turnAPI.js';
 import * as helper from './backendFiles/helper.js';
 import { database } from './backendFiles/firebase.js';
-import { invalidateIfStale } from './backendFiles/stateCache.js';
+import useGameState from './useGameState.js';
 import SoundManager from './SoundManager.js';
 
 function TopBar() {
@@ -17,7 +17,7 @@ function TopBar() {
 	const [time, setTime] = useState(0);
 	const [myTurn, setMyTurn] = useState(false);
 	const [soundMuted, setSoundMuted] = useState(SoundManager.isMuted());
-	const turnRef = useRef(null);
+	const { gameState } = useGameState();
 	const timerRef = useRef(null);
 	const intervalRef = useRef(null);
 	const contextRef = useRef(context);
@@ -36,13 +36,13 @@ function TopBar() {
 		setMyTurn(myTurnData);
 	}, []);
 
+	// Refresh on centralized game state changes
 	useEffect(() => {
 		doStuff();
-		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
-		turnRef.current.on('value', (dataSnapshot) => {
-			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
-			doStuff();
-		});
+	}, [gameState, doStuff]);
+
+	// Timer listener (watches timer path, stays independent) + server time polling
+	useEffect(() => {
 		timerRef.current = database.ref('games/' + contextRef.current.game + '/timer');
 		timerRef.current.on('child_changed', () => {
 			doStuff();
@@ -55,7 +55,6 @@ function TopBar() {
 			});
 		}, 500);
 		return () => {
-			if (turnRef.current) turnRef.current.off();
 			if (timerRef.current) timerRef.current.off();
 			if (intervalRef.current) clearInterval(intervalRef.current);
 		};

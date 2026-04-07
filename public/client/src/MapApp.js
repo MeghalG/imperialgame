@@ -6,8 +6,7 @@ import map from './map.jpg';
 import UserContext from './UserContext.js';
 import * as mapAPI from './backendFiles/mapAPI.js';
 import * as helper from './backendFiles/helper.js';
-import { database } from './backendFiles/firebase.js';
-import { invalidateIfStale } from './backendFiles/stateCache.js';
+import useGameState from './useGameState.js';
 import { Popover } from 'antd';
 import { getCountryColorPalette } from './countryColors.js';
 import TerritoryHotspotLayer from './TerritoryHotspotLayer.js';
@@ -44,9 +43,10 @@ function MapApp() {
 	});
 	const [mapWidth, setMapWidth] = useState(0);
 	const imgRef = useRef(null);
-	const turnRef = useRef(null);
 	const contextRef = useRef(context);
 	contextRef.current = context;
+
+	const { gameState } = useGameState();
 
 	useEffect(() => {
 		const el = imgRef.current;
@@ -88,25 +88,15 @@ function MapApp() {
 		setCurrentTax(currentTaxData);
 	}, []);
 
+	// Refresh map data whenever centralized game state changes
 	useEffect(() => {
 		async function init() {
 			let countriesData = await helper.getCountries(contextRef.current);
 			setCountries(countriesData);
 			getMapItems();
-			turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
-			turnRef.current.on('value', (dataSnapshot) => {
-				invalidateIfStale(contextRef.current.game, dataSnapshot.val());
-				getMapItems();
-			});
 		}
 		init();
-		return () => {
-			if (turnRef.current) {
-				turnRef.current.off();
-			}
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [gameState, getMapItems]);
 
 	function buildComponents() {
 		let { countryColors } = getColors();

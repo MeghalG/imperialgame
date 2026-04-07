@@ -6,8 +6,7 @@ import { Tooltip } from 'antd';
 import UserContext from './UserContext.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
 import * as helper from './backendFiles/helper.js';
-import { database } from './backendFiles/firebase.js';
-import { invalidateIfStale } from './backendFiles/stateCache.js';
+import useGameState from './useGameState.js';
 import { getCountryColorPalette } from './countryColors.js';
 
 // note this file hardcodes countries + ordering
@@ -18,9 +17,10 @@ function StateApp() {
 	const [countryInfo, setCountryInfo] = useState({});
 	const [playerInfo, setPlayerInfo] = useState({});
 	const [playersOrdered, setPlayersOrdered] = useState([]);
-	const turnRef = useRef(null);
 	const contextRef = useRef(context);
 	contextRef.current = context;
+
+	const { gameState } = useGameState();
 
 	const reinitialize = useCallback(async () => {
 		try {
@@ -35,41 +35,14 @@ function StateApp() {
 			setPlayerInfo(playerInfoData || {});
 			setPlayersOrdered(playersOrderedData || []);
 		} catch (e) {
-			console.warn('StateApp: failed to load game info, retrying...', e);
-			// Retry once after a short delay (handles race conditions on initial load)
-			setTimeout(async () => {
-				try {
-					let [countriesData, countryInfoData, playerInfoData, playersOrderedData] = await Promise.all([
-						helper.getCountries(contextRef.current),
-						stateAPI.getCountryInfo(contextRef.current),
-						stateAPI.getPlayerInfo(contextRef.current),
-						helper.getPlayersInOrder(contextRef.current),
-					]);
-					setCountries(countriesData || []);
-					setCountryInfo(countryInfoData || {});
-					setPlayerInfo(playerInfoData || {});
-					setPlayersOrdered(playersOrderedData || []);
-				} catch (retryErr) {
-					console.warn('StateApp: retry also failed', retryErr);
-				}
-			}, 1000);
+			console.warn('StateApp: failed to load game info', e);
 		}
 	}, []);
 
+	// Refresh on centralized game state changes
 	useEffect(() => {
 		reinitialize();
-		turnRef.current = database.ref('games/' + contextRef.current.game + '/turnID');
-		turnRef.current.on('value', (dataSnapshot) => {
-			invalidateIfStale(contextRef.current.game, dataSnapshot.val());
-			reinitialize();
-		});
-		return () => {
-			if (turnRef.current) {
-				turnRef.current.off();
-			}
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [gameState, reinitialize]);
 
 	function order(d) {
 		return countries.map((x) => d[x]);
