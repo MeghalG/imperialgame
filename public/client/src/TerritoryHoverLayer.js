@@ -84,8 +84,17 @@ function TerritoryHoverLayer() {
 			let pctX = ((hoverSignal.clientX - canvasRect.left) / canvasRect.width) * 100;
 			let pctY = ((hoverSignal.clientY - canvasRect.top) / canvasRect.height) * 100;
 
-			// Suppress hover when over the rondel area (top-left corner)
-			let overRondel = pctX < 20 && pctY < 27;
+			// Suppress hover when over the rondel SVG
+			let rondel = document.querySelector('.imp-rondel-svg');
+			let overRondel = false;
+			if (rondel) {
+				let rr = rondel.getBoundingClientRect();
+				overRondel =
+					hoverSignal.clientX >= rr.left &&
+					hoverSignal.clientX <= rr.right &&
+					hoverSignal.clientY >= rr.top &&
+					hoverSignal.clientY <= rr.bottom;
+			}
 
 			let name = overRondel ? null : hitTest(pctX, pctY);
 
