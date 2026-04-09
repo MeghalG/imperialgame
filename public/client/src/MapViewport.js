@@ -47,24 +47,33 @@ function MapViewport({ children }) {
 		return { vw, vh, cw, ch };
 	}
 
-	// Center map on initial render and when viewport resizes
+	// Center map once content has real dimensions, and re-center on resize
 	useEffect(() => {
 		function recenter() {
 			let { vw, vh, cw, ch } = getDimensions();
 			if (cw > 0 && ch > 0) {
-				setPan(clampPan(0, 0, 1, vw, vh, cw, ch));
+				setPan((prev) => clampPan(prev.x, prev.y, 1, vw, vh, cw, ch));
 			}
 		}
-		// Delay to let image load and size
-		let timer = setTimeout(recenter, 100);
-		let obs;
+
+		let observers = [];
+
+		// Watch viewport for resize (e.g. window resize, sidebar toggle)
 		if (viewportRef.current) {
-			obs = new ResizeObserver(recenter);
-			obs.observe(viewportRef.current);
+			let vpObs = new ResizeObserver(recenter);
+			vpObs.observe(viewportRef.current);
+			observers.push(vpObs);
 		}
+
+		// Watch canvas for resize (triggers when the image inside loads and gets dimensions)
+		if (canvasRef.current) {
+			let cvObs = new ResizeObserver(recenter);
+			cvObs.observe(canvasRef.current);
+			observers.push(cvObs);
+		}
+
 		return () => {
-			clearTimeout(timer);
-			if (obs) obs.disconnect();
+			observers.forEach((obs) => obs.disconnect());
 		};
 	}, []);
 
