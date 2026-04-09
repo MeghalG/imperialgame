@@ -17,13 +17,17 @@ import MapInteractionContext from './MapInteractionContext.js';
  * @param {string|null} mapMode - Interaction mode ('select-territory', 'select-rondel'), or null to skip
  * @param {string[]} items - Selectable item names (territory or rondel positions)
  * @param {string} color - Highlight color for selectable items
- * @param {Function} onSelect - Callback(name, event) when an item is clicked on the map
+ * @param {Function} onSelect - Callback(name, event) when an item is left-clicked on the map
  * @param {Object|null} [costs] - Optional { itemName: costLabel } map for display
+ * @param {Object|null} [highlights] - Optional { territoryName: color } for passive highlights
+ * @param {Function|null} [onRightClick] - Optional callback(name, event) when an item is right-clicked
  */
-function useMapTerritorySelect(mapMode, items, color, onSelect, costs) {
+function useMapTerritorySelect(mapMode, items, color, onSelect, costs, highlights, onRightClick) {
 	const mapInteraction = useContext(MapInteractionContext);
 	const onSelectRef = useRef(onSelect);
 	onSelectRef.current = onSelect;
+	const onRightClickRef = useRef(onRightClick);
+	onRightClickRef.current = onRightClick;
 	const mapModeRef = useRef(mapMode);
 	mapModeRef.current = mapMode;
 
@@ -41,15 +45,31 @@ function useMapTerritorySelect(mapMode, items, color, onSelect, costs) {
 			};
 		}
 
-		mapInteraction.setInteraction(mapMode, items, color || '#c9a84c', callback, null, costs != null ? costs : null);
+		mapInteraction.setInteraction(
+			mapMode,
+			items,
+			color || '#c9a84c',
+			callback,
+			highlights || null,
+			costs != null ? costs : null
+		);
+
+		if (onRightClickRef.current) {
+			mapInteraction.setOnItemRightClickedCb(() => (name, event) => {
+				if (onRightClickRef.current) onRightClickRef.current(name, event);
+			});
+		}
 
 		return () => {
 			if (mapInteraction.interactionMode === mapModeRef.current) {
 				mapInteraction.clearInteraction();
 			}
+			if (onRightClickRef.current) {
+				mapInteraction.setOnItemRightClickedCb(null);
+			}
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [mapMode, items, color]);
+	}, [mapMode, items, color, highlights]);
 }
 
 export default useMapTerritorySelect;

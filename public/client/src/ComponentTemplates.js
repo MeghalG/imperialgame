@@ -148,6 +148,17 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 		return result;
 	}, [mapMode, options]);
 
+	// Highlight filled territories so they look distinct from unfilled ones
+	let filledHighlights = useMemo(() => {
+		let h = {};
+		for (let i = 0; i < keyValues.length; i++) {
+			if (keyValues[i] && values[i]) {
+				h[values[i]] = keyValues[i] === 'fleet' ? '#4DAADB' : '#D4A843';
+			}
+		}
+		return h;
+	}, [keyValues, values]);
+
 	useMapTerritorySelect(
 		mapMode && allTerritories.length > 0 ? mapMode : null,
 		allTerritories,
@@ -165,6 +176,25 @@ function ImportSelect({ object, setThing, getAPI, message, data, mapMode, mapCol
 				let y = event && event.clientY ? event.clientY : 200;
 				setPickerState({ territory: name, position: { x, y }, availableTypes: types });
 			}
+		},
+		null,
+		filledHighlights,
+		(name) => {
+			// Right-click: clear the slot that has this territory
+			let kv = [...keyValuesRef.current];
+			let v = [...valuesRef.current];
+			for (let i = 0; i < v.length; i++) {
+				if (v[i] === name) {
+					kv[i] = '';
+					v[i] = '';
+					break;
+				}
+			}
+			setKeyValues(kv);
+			setValues(v);
+			keyValuesRef.current = kv;
+			valuesRef.current = v;
+			dataIfDone(kv, v);
 		}
 	);
 
@@ -741,23 +771,49 @@ function ProduceSelect({ object, data, getFleetAPI, getArmyAPI, mapMode, mapColo
 		context.setArmyProduce(armies);
 	}
 
-	useMapTerritorySelect(mapMode && allItems.length > 0 ? mapMode : null, allItems, mapColor || '#c9a84c', (name) => {
-		let current = checkedRef.current;
-		let types = itemTypesRef.current;
-		let unitType = types[name];
-		let newChecked;
-		if (current.includes(name)) {
-			newChecked = current.filter((v) => v !== name);
-		} else {
+	// Only unchecked territories are selectable (left-click to add)
+	let uncheckedItems = useMemo(() => {
+		return allItems.filter((t) => !checked.includes(t));
+	}, [allItems, checked]);
+
+	// Checked territories shown as highlights (right-click to remove)
+	let checkedHighlights = useMemo(() => {
+		let h = {};
+		for (let t of checked) {
+			let types = itemTypesRef.current;
+			h[t] = types[t] === 'fleet' ? '#4DAADB' : '#D4A843';
+		}
+		return h;
+	}, [checked]);
+
+	useMapTerritorySelect(
+		mapMode && allItems.length > 0 ? mapMode : null,
+		uncheckedItems,
+		mapColor || '#c9a84c',
+		(name) => {
+			let current = checkedRef.current;
+			let types = itemTypesRef.current;
+			let unitType = types[name];
+			if (current.includes(name)) return;
 			let sameTypeCount = current.filter((t) => types[t] === unitType).length;
 			let limit = unitType === 'fleet' ? fleetLimitRef.current : armyLimitRef.current;
 			if (sameTypeCount >= limit) return;
-			newChecked = [...current, name];
+			let newChecked = [...current, name];
+			setChecked(newChecked);
+			checkedRef.current = newChecked;
+			syncContext(newChecked);
+		},
+		null,
+		checkedHighlights,
+		(name) => {
+			let current = checkedRef.current;
+			if (!current.includes(name)) return;
+			let newChecked = current.filter((v) => v !== name);
+			setChecked(newChecked);
+			checkedRef.current = newChecked;
+			syncContext(newChecked);
 		}
-		setChecked(newChecked);
-		checkedRef.current = newChecked;
-		syncContext(newChecked);
-	});
+	);
 
 	useEffect(() => {
 		if (!mapMode) return;

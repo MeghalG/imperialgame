@@ -79,6 +79,8 @@ function createMockMapCtx() {
 		setUnitMarkers: jest.fn(),
 		onUnitMarkerClicked: jest.fn(),
 		setOnUnitMarkerClickedCb: jest.fn(),
+		onItemRightClicked: null,
+		setOnItemRightClickedCb: jest.fn(),
 		rondelSelectableItems: [],
 		rondelSelectedItem: null,
 		rondelCosts: {},
@@ -1572,7 +1574,7 @@ describe('ImportSelect with map integration', () => {
 			expect.arrayContaining(['Vienna', 'Budapest', 'Trieste', 'Naples']),
 			'#c9a84c',
 			expect.any(Function),
-			null,
+			expect.any(Object),
 			null
 		);
 		ReactDOM.unmountComponentAtNode(div);

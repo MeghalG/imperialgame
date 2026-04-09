@@ -2045,9 +2045,11 @@ body {
 }
 
 .imp-boundary--highlighted {
-	fill-opacity: 0.1;
-	stroke-opacity: 0.3;
-	stroke-width: 0.15;
+	pointer-events: auto;
+	cursor: pointer;
+	fill-opacity: 0.25;
+	stroke-opacity: 0.6;
+	stroke-width: 0.3;
 }
 
 @keyframes imp-boundary-pulse {
