@@ -771,41 +771,33 @@ function ProduceSelect({ object, data, getFleetAPI, getArmyAPI, mapMode, mapColo
 		context.setArmyProduce(armies);
 	}
 
-	// Only unchecked territories are selectable (left-click to add)
-	let uncheckedItems = useMemo(() => {
-		return allItems.filter((t) => !checked.includes(t));
-	}, [allItems, checked]);
-
-	// Checked territories shown as highlights (right-click to remove)
-	let checkedHighlights = useMemo(() => {
-		let h = {};
-		for (let t of checked) {
-			let types = itemTypesRef.current;
-			h[t] = types[t] === 'fleet' ? '#4DAADB' : '#D4A843';
-		}
-		return h;
-	}, [checked]);
-
+	// All territories are selectable; checked ones shown via ghost unit markers
 	useMapTerritorySelect(
 		mapMode && allItems.length > 0 ? mapMode : null,
-		uncheckedItems,
+		allItems,
 		mapColor || '#c9a84c',
 		(name) => {
+			// Left-click: toggle production
 			let current = checkedRef.current;
 			let types = itemTypesRef.current;
 			let unitType = types[name];
-			if (current.includes(name)) return;
-			let sameTypeCount = current.filter((t) => types[t] === unitType).length;
-			let limit = unitType === 'fleet' ? fleetLimitRef.current : armyLimitRef.current;
-			if (sameTypeCount >= limit) return;
-			let newChecked = [...current, name];
+			let newChecked;
+			if (current.includes(name)) {
+				newChecked = current.filter((v) => v !== name);
+			} else {
+				let sameTypeCount = current.filter((t) => types[t] === unitType).length;
+				let limit = unitType === 'fleet' ? fleetLimitRef.current : armyLimitRef.current;
+				if (sameTypeCount >= limit) return;
+				newChecked = [...current, name];
+			}
 			setChecked(newChecked);
 			checkedRef.current = newChecked;
 			syncContext(newChecked);
 		},
 		null,
-		checkedHighlights,
+		null,
 		(name) => {
+			// Right-click: remove from production
 			let current = checkedRef.current;
 			if (!current.includes(name)) return;
 			let newChecked = current.filter((v) => v !== name);

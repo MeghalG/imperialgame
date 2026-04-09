@@ -59,7 +59,7 @@ function ProduceFlow(props) {
 						getFleetAPI={proposalAPI.getFleetProduceOptions}
 						getArmyAPI={proposalAPI.getArmyProduceOptions}
 						mapMode="select-territory"
-						mapColor="#c9a84c"
+						mapColor="rgba(255,255,255,0.35)"
 					/>
 				),
 			}}
