@@ -946,6 +946,65 @@ body {
 	}
 }
 
+/* ---- Territory Hover Tooltip ---- */
+.imp-territory-hover {
+	position: absolute;
+	z-index: 80;
+	pointer-events: none;
+	background: rgba(14, 15, 18, 0.92);
+	border: 1px solid rgba(201, 168, 76, 0.3);
+	border-radius: 6px;
+	padding: 6px 10px;
+	font-family: var(--imp-font-body);
+	font-size: 12px;
+	color: var(--imp-text);
+	white-space: nowrap;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+	max-width: 220px;
+}
+
+.imp-territory-hover__name {
+	font-weight: 700;
+	font-size: 13px;
+	margin-bottom: 2px;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.imp-territory-hover__tag {
+	font-size: 10px;
+	font-weight: 600;
+	color: rgba(255, 255, 255, 0.5);
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 3px;
+	padding: 1px 4px;
+	margin-left: 4px;
+}
+
+.imp-territory-hover__dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.imp-territory-hover__row {
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.75);
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	line-height: 1.5;
+}
+
+.imp-territory-hover__units {
+	margin-top: 2px;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	padding-top: 2px;
+}
+
 .imp-rondel-wedge--occupied {
 	stroke: rgba(255, 255, 255, 0.35);
 	stroke-width: 0.6;

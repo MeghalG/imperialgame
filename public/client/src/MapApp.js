@@ -17,6 +17,7 @@ import ManeuverSubmitFAB from './ManeuverSubmitFAB.js';
 import ManeuverActionPicker from './ManeuverActionPicker.js';
 import ManeuverPlanContext from './ManeuverPlanContext.js';
 import TransportRouteLayer from './TransportRouteLayer.js';
+import TerritoryHoverLayer from './TerritoryHoverLayer.js';
 
 const COUNTRY_ABBREV = { Austria: 'AT', Italy: 'IT', France: 'FR', England: 'EN', Germany: 'DE', Russia: 'RU' };
 
@@ -287,6 +288,7 @@ function MapApp() {
 				)}
 			</div>
 			{vpTrackPortal ? ReactDOM.createPortal(vpTrack, vpTrackPortal) : vpTrack}
+			{vpTrackPortal ? ReactDOM.createPortal(<TerritoryHoverLayer />, vpTrackPortal) : <TerritoryHoverLayer />}
 		</React.Fragment>
 	);
 }
