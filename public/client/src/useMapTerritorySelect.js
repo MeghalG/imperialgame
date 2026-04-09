@@ -10,6 +10,10 @@ import MapInteractionContext from './MapInteractionContext.js';
  *   unmount ──────────────────▶ clearInteraction()
  *   items/color change ───────▶ re-call setInteraction()
  *
+ * For rondel interactions (mapMode === 'select-rondel'), uses a separate
+ * rondel-specific channel so rondel stays clickable even when a territory
+ * selection is also active.
+ *
  * @param {string|null} mapMode - Interaction mode ('select-territory', 'select-rondel'), or null to skip
  * @param {string[]} items - Selectable item names (territory or rondel positions)
  * @param {string} color - Highlight color for selectable items
@@ -26,16 +30,18 @@ function useMapTerritorySelect(mapMode, items, color, onSelect, costs) {
 	useEffect(() => {
 		if (!mapMode || !items || items.length === 0) return;
 
-		mapInteraction.setInteraction(
-			mapMode,
-			items,
-			color || '#c9a84c',
-			(name, event) => {
-				if (onSelectRef.current) onSelectRef.current(name, event);
-			},
-			null,
-			costs != null ? costs : null
-		);
+		let callback = (name, event) => {
+			if (onSelectRef.current) onSelectRef.current(name, event);
+		};
+
+		if (mapMode === 'select-rondel') {
+			mapInteraction.setRondelInteraction(items, callback, costs != null ? costs : null);
+			return () => {
+				mapInteraction.clearRondelInteraction();
+			};
+		}
+
+		mapInteraction.setInteraction(mapMode, items, color || '#c9a84c', callback, null, costs != null ? costs : null);
 
 		return () => {
 			if (mapInteraction.interactionMode === mapModeRef.current) {

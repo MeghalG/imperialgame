@@ -79,6 +79,12 @@ function createMockMapCtx() {
 		setUnitMarkers: jest.fn(),
 		onUnitMarkerClicked: jest.fn(),
 		setOnUnitMarkerClickedCb: jest.fn(),
+		rondelSelectableItems: [],
+		rondelSelectedItem: null,
+		rondelCosts: {},
+		onRondelItemSelected: jest.fn(),
+		setRondelInteraction: jest.fn(),
+		clearRondelInteraction: jest.fn(),
 	};
 }
 
@@ -130,7 +136,7 @@ beforeEach(() => {
 });
 
 describe('OptionSelect with mapMode', () => {
-	test('calls setInteraction when mapMode is provided and choices load', async () => {
+	test('calls setRondelInteraction when mapMode is select-rondel and choices load', async () => {
 		const mapCtx = createMockMapCtx();
 		const mockSetWheelSpot = jest.fn();
 		const mockData = jest.fn();
@@ -152,19 +158,16 @@ describe('OptionSelect with mapMode', () => {
 			await flushPromises();
 		});
 
-		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
-			'select-rondel',
+		expect(mapCtx.setRondelInteraction).toHaveBeenCalledWith(
 			['Factory', 'Import', 'Taxation'],
-			'#c9a84c',
 			expect.any(Function),
-			null,
 			null
 		);
 
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('does not call setInteraction when mapMode is absent', async () => {
+	test('does not call setInteraction or setRondelInteraction when mapMode is absent', async () => {
 		const mapCtx = createMockMapCtx();
 		const mockData = jest.fn();
 		const userCtx = { game: 'testGame', name: 'Alice', setWheelSpot: jest.fn() };
@@ -184,11 +187,12 @@ describe('OptionSelect with mapMode', () => {
 		});
 
 		expect(mapCtx.setInteraction).not.toHaveBeenCalled();
+		expect(mapCtx.setRondelInteraction).not.toHaveBeenCalled();
 
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('map click callback triggers sendValue', async () => {
+	test('rondel click callback triggers sendValue', async () => {
 		const mapCtx = createMockMapCtx();
 		const mockSetWheelSpot = jest.fn();
 		const mockData = jest.fn();
@@ -209,8 +213,8 @@ describe('OptionSelect with mapMode', () => {
 			await flushPromises();
 		});
 
-		// Extract the callback passed to setInteraction and call it
-		let onItemCallback = mapCtx.setInteraction.mock.calls[0][3];
+		// Extract the callback passed to setRondelInteraction and call it
+		let onItemCallback = mapCtx.setRondelInteraction.mock.calls[0][1];
 		act(() => {
 			onItemCallback('Factory');
 		});
@@ -221,9 +225,8 @@ describe('OptionSelect with mapMode', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('calls clearInteraction on unmount when mode matches', async () => {
+	test('calls clearRondelInteraction on unmount for select-rondel mode', async () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = 'select-rondel';
 		const userCtx = { game: 'testGame', name: 'Alice', setWheelSpot: jest.fn() };
 
 		const div = document.createElement('div');
@@ -245,7 +248,7 @@ describe('OptionSelect with mapMode', () => {
 			ReactDOM.unmountComponentAtNode(div);
 		});
 
-		expect(mapCtx.clearInteraction).toHaveBeenCalled();
+		expect(mapCtx.clearRondelInteraction).toHaveBeenCalled();
 	});
 });
 
@@ -343,7 +346,7 @@ describe('useMapTerritorySelect hook', () => {
 		expect(mapCtx.clearInteraction).toHaveBeenCalled();
 	});
 
-	test('passes cost map when costs are provided', async () => {
+	test('passes cost map to setRondelInteraction when costs are provided for select-rondel', async () => {
 		const mapCtx = createMockMapCtx();
 		const userCtx = { game: 'testGame', name: 'Alice' };
 		const div = document.createElement('div');
@@ -359,15 +362,32 @@ describe('useMapTerritorySelect hook', () => {
 		await act(async () => {
 			await flushPromises();
 		});
-		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
-			'select-rondel',
-			['Factory', 'Import', 'Taxation'],
-			'#c9a84c',
-			expect.any(Function),
-			null,
-			{ Import: '($2)', Taxation: '($4)' }
-		);
+		expect(mapCtx.setRondelInteraction).toHaveBeenCalledWith(['Factory', 'Import', 'Taxation'], expect.any(Function), {
+			Import: '($2)',
+			Taxation: '($4)',
+		});
 		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('calls clearRondelInteraction on unmount for select-rondel', async () => {
+		const mapCtx = createMockMapCtx();
+		const userCtx = { game: 'testGame', name: 'Alice' };
+		const div = document.createElement('div');
+		act(() => {
+			renderWithBothContexts(HookTestHarness, userCtx, mapCtx, div, {
+				mapMode: 'select-rondel',
+				items: ['Factory', 'Import'],
+				color: '#c9a84c',
+				onSelect: jest.fn(),
+			});
+		});
+		await act(async () => {
+			await flushPromises();
+		});
+		act(() => {
+			ReactDOM.unmountComponentAtNode(div);
+		});
+		expect(mapCtx.clearRondelInteraction).toHaveBeenCalled();
 	});
 });
 
@@ -493,8 +513,8 @@ describe('ManeuverPlannerApp with MapInteractionContext', () => {
 	});
 });
 
-describe('OptionSelect passes dynamic costs through setInteraction', () => {
-	test('passes cost map when costs prop is provided', async () => {
+describe('OptionSelect passes dynamic costs through setRondelInteraction', () => {
+	test('passes cost map when costs prop is provided for rondel', async () => {
 		const mapCtx = createMockMapCtx();
 		const userCtx = { game: 'testGame', name: 'Alice', setWheelSpot: jest.fn() };
 
@@ -515,20 +535,17 @@ describe('OptionSelect passes dynamic costs through setInteraction', () => {
 			await flushPromises();
 		});
 
-		// setInteraction should be called with a cost map as the 6th arg
-		expect(mapCtx.setInteraction).toHaveBeenCalledWith(
-			'select-rondel',
+		// setRondelInteraction should be called with a cost map as the 3rd arg
+		expect(mapCtx.setRondelInteraction).toHaveBeenCalledWith(
 			['Factory', 'Import', 'Taxation', 'Investor', 'L-Produce', 'L-Maneuver'],
-			'#c9a84c',
 			expect.any(Function),
-			null,
 			{ Investor: '($2)', 'L-Produce': '($4)', 'L-Maneuver': '($6)' }
 		);
 
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('passes null cost map when no costs prop is provided', async () => {
+	test('passes null cost map when no costs prop is provided for rondel', async () => {
 		const mapCtx = createMockMapCtx();
 		const userCtx = { game: 'testGame', name: 'Alice', setWheelSpot: jest.fn() };
 
@@ -547,8 +564,8 @@ describe('OptionSelect passes dynamic costs through setInteraction', () => {
 			await flushPromises();
 		});
 
-		// 6th arg should be null when no costs provided
-		let costArg = mapCtx.setInteraction.mock.calls[0][5];
+		// 3rd arg should be null when no costs provided
+		let costArg = mapCtx.setRondelInteraction.mock.calls[0][2];
 		expect(costArg).toBeNull();
 
 		ReactDOM.unmountComponentAtNode(div);
@@ -556,19 +573,24 @@ describe('OptionSelect passes dynamic costs through setInteraction', () => {
 });
 
 describe('SvgRondel', () => {
-	test('always renders 8 wedges regardless of interactionMode', () => {
-		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = null;
-		const div = document.createElement('div');
-
+	function renderRondel(mapCtx, div, rondelData, userCtx) {
+		let userContext = { country: null, ...(userCtx || {}) };
 		act(() => {
 			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
+				<UserContext.Provider value={userContext}>
+					<MapInteractionContext.Provider value={mapCtx}>
+						<SvgRondel rondelData={rondelData || {}} colorblindMode={false} />
+					</MapInteractionContext.Provider>
+				</UserContext.Provider>,
 				div
 			);
 		});
+	}
+
+	test('always renders 8 wedges regardless of rondel interaction', () => {
+		const mapCtx = createMockMapCtx();
+		const div = document.createElement('div');
+		renderRondel(mapCtx, div);
 
 		let wedges = div.querySelectorAll('.imp-rondel-wedge');
 		expect(wedges.length).toBe(8);
@@ -576,19 +598,10 @@ describe('SvgRondel', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('no wedges have selectable class when interactionMode is not select-rondel', () => {
+	test('no wedges have selectable class when rondelSelectableItems is empty', () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = null;
 		const div = document.createElement('div');
-
-		act(() => {
-			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
-				div
-			);
-		});
+		renderRondel(mapCtx, div);
 
 		let selectable = div.querySelectorAll('.imp-rondel-wedge--selectable');
 		expect(selectable.length).toBe(0);
@@ -596,20 +609,11 @@ describe('SvgRondel', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('marks selectable wedges when interactionMode is select-rondel', () => {
+	test('marks selectable wedges when rondelSelectableItems is set', () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = 'select-rondel';
-		mapCtx.selectableItems = ['Factory', 'Import'];
+		mapCtx.rondelSelectableItems = ['Factory', 'Import'];
 		const div = document.createElement('div');
-
-		act(() => {
-			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
-				div
-			);
-		});
+		renderRondel(mapCtx, div);
 
 		let selectable = div.querySelectorAll('.imp-rondel-wedge--selectable');
 		expect(selectable.length).toBe(2);
@@ -619,19 +623,10 @@ describe('SvgRondel', () => {
 
 	test('marks selected wedge with imp-rondel-wedge--selected class', () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = 'select-rondel';
-		mapCtx.selectableItems = ['Factory', 'Import'];
-		mapCtx.selectedItem = 'Factory';
+		mapCtx.rondelSelectableItems = ['Factory', 'Import'];
+		mapCtx.rondelSelectedItem = 'Factory';
 		const div = document.createElement('div');
-
-		act(() => {
-			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
-				div
-			);
-		});
+		renderRondel(mapCtx, div);
 
 		let selected = div.querySelectorAll('.imp-rondel-wedge--selected');
 		expect(selected.length).toBe(1);
@@ -643,21 +638,12 @@ describe('SvgRondel', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('click on selectable wedge calls onItemSelected', () => {
+	test('click on selectable wedge calls onRondelItemSelected', () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = 'select-rondel';
-		mapCtx.selectableItems = ['Factory', 'Import'];
+		mapCtx.rondelSelectableItems = ['Factory', 'Import'];
 		const div = document.createElement('div');
 		document.body.appendChild(div);
-
-		act(() => {
-			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
-				div
-			);
-		});
+		renderRondel(mapCtx, div);
 
 		// Click the first selectable wedge
 		let selectableWedge = div.querySelector('.imp-rondel-wedge--selectable');
@@ -666,27 +652,18 @@ describe('SvgRondel', () => {
 			selectableWedge.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		});
 
-		expect(mapCtx.onItemSelected).toHaveBeenCalled();
+		expect(mapCtx.onRondelItemSelected).toHaveBeenCalled();
 
 		ReactDOM.unmountComponentAtNode(div);
 		document.body.removeChild(div);
 	});
 
-	test('click on non-selectable wedge does NOT call onItemSelected', () => {
+	test('click on non-selectable wedge does NOT call onRondelItemSelected', () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = 'select-rondel';
-		mapCtx.selectableItems = ['Factory'];
+		mapCtx.rondelSelectableItems = ['Factory'];
 		const div = document.createElement('div');
 		document.body.appendChild(div);
-
-		act(() => {
-			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
-				div
-			);
-		});
+		renderRondel(mapCtx, div);
 
 		// Get all wedges, find one that is NOT selectable
 		let allWedges = div.querySelectorAll('.imp-rondel-wedge');
@@ -696,31 +673,22 @@ describe('SvgRondel', () => {
 			nonSelectable.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		});
 
-		expect(mapCtx.onItemSelected).not.toHaveBeenCalled();
+		expect(mapCtx.onRondelItemSelected).not.toHaveBeenCalled();
 
 		ReactDOM.unmountComponentAtNode(div);
 		document.body.removeChild(div);
 	});
 
-	test('displays dynamic cost labels from selectableCosts context', () => {
+	test('displays dynamic cost labels from rondelCosts context', () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = 'select-rondel';
-		mapCtx.selectableItems = ['Factory', 'Import', 'Taxation', 'Investor', 'L-Produce', 'L-Maneuver'];
-		mapCtx.selectableCosts = {
+		mapCtx.rondelSelectableItems = ['Factory', 'Import', 'Taxation', 'Investor', 'L-Produce', 'L-Maneuver'];
+		mapCtx.rondelCosts = {
 			Investor: '($2)',
 			'L-Produce': '($4)',
 			'L-Maneuver': '($6)',
 		};
 		const div = document.createElement('div');
-
-		act(() => {
-			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
-				div
-			);
-		});
+		renderRondel(mapCtx, div);
 
 		let costLabels = div.querySelectorAll('.imp-rondel-cost-label');
 		// Only Investor, L-Produce, L-Maneuver have costs
@@ -734,24 +702,27 @@ describe('SvgRondel', () => {
 		ReactDOM.unmountComponentAtNode(div);
 	});
 
-	test('does not display cost labels when selectableCosts is empty', () => {
+	test('does not display cost labels when rondelCosts is empty', () => {
 		const mapCtx = createMockMapCtx();
-		mapCtx.interactionMode = 'select-rondel';
-		mapCtx.selectableItems = ['Factory', 'Import', 'Taxation'];
-		mapCtx.selectableCosts = {};
+		mapCtx.rondelSelectableItems = ['Factory', 'Import', 'Taxation'];
+		mapCtx.rondelCosts = {};
 		const div = document.createElement('div');
-
-		act(() => {
-			ReactDOM.render(
-				<MapInteractionContext.Provider value={mapCtx}>
-					<SvgRondel rondelData={{}} colorblindMode={false} />
-				</MapInteractionContext.Provider>,
-				div
-			);
-		});
+		renderRondel(mapCtx, div);
 
 		let costLabels = div.querySelectorAll('.imp-rondel-cost-label');
 		expect(costLabels.length).toBe(0);
+
+		ReactDOM.unmountComponentAtNode(div);
+	});
+
+	test('highlights current country wedge with imp-rondel-wedge--current class', () => {
+		const mapCtx = createMockMapCtx();
+		const rondelData = { Factory: [null, ['Austria']] };
+		const div = document.createElement('div');
+		renderRondel(mapCtx, div, rondelData, { country: 'Austria' });
+
+		let currentWedges = div.querySelectorAll('.imp-rondel-wedge--current');
+		expect(currentWedges.length).toBe(1);
 
 		ReactDOM.unmountComponentAtNode(div);
 	});

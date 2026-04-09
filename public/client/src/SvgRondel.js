@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import MapInteractionContext from './MapInteractionContext.js';
+import UserContext from './UserContext.js';
 import { getCountryColorPalette } from './countryColors.js';
 import './MapOverlay.css';
 
@@ -108,13 +109,35 @@ function labelPos(index) {
 
 function SvgRondel({ rondelData, colorblindMode, wheelOrder }) {
 	const mapInteraction = useContext(MapInteractionContext);
-	let isInteractive = mapInteraction.interactionMode === 'select-rondel';
-	let dynamicCosts = mapInteraction.selectableCosts || {};
+	const userContext = useContext(UserContext);
+
+	// Use rondel-specific interaction channel
+	let rondelItems = mapInteraction.rondelSelectableItems || [];
+	let isRondelInteractive = rondelItems.length > 0;
+	let rondelSelected = mapInteraction.rondelSelectedItem;
+	let dynamicCosts = mapInteraction.rondelCosts || {};
+
 	let order = wheelOrder || DEFAULT_WHEEL_ORDER;
+
+	// Find the current country's wedge position
+	let currentCountry = userContext.country;
+	let currentWedge = null;
+	if (currentCountry && rondelData) {
+		for (let actionName in rondelData) {
+			let countriesAtPos = rondelData[actionName] && rondelData[actionName][1];
+			if (countriesAtPos && countriesAtPos.includes(currentCountry)) {
+				currentWedge = actionName;
+				break;
+			}
+		}
+	}
+
+	let palette = getCountryColorPalette(colorblindMode);
+	let currentCountryColor = currentCountry ? palette.bright[currentCountry] || '#c9a84c' : '#c9a84c';
+	if (currentCountryColor === '#000000') currentCountryColor = '#8c8c8c';
 
 	function renderMarkers() {
 		if (!rondelData) return null;
-		let palette = getCountryColorPalette(colorblindMode);
 		let markers = [];
 
 		for (let actionName in rondelData) {
@@ -201,8 +224,9 @@ function SvgRondel({ rondelData, colorblindMode, wheelOrder }) {
 			<circle cx={CX} cy={CY} r={OUTER_R + 0.8} fill="none" stroke="rgba(201,168,76,0.12)" strokeWidth={1.5} />
 
 			{order.map((action, i) => {
-				let isClickable = isInteractive && mapInteraction.selectableItems.includes(action);
-				let isSelected = isInteractive && mapInteraction.selectedItem === action;
+				let isClickable = isRondelInteractive && rondelItems.includes(action);
+				let isSelected = isRondelInteractive && rondelSelected === action;
+				let isCurrent = currentWedge === action;
 				let cost = dynamicCosts[action];
 
 				// Check if any countries are on this wedge
@@ -222,17 +246,30 @@ function SvgRondel({ rondelData, colorblindMode, wheelOrder }) {
 
 				return (
 					<g key={action}>
+						{/* Current position glow ring (behind the wedge) */}
+						{isCurrent && (
+							<path
+								d={wedgePath(i)}
+								fill="none"
+								stroke={currentCountryColor}
+								strokeWidth={2}
+								className="imp-rondel-wedge--current-glow"
+								style={{ pointerEvents: 'none' }}
+							/>
+						)}
 						<path
 							d={wedgePath(i)}
 							fill={fillColor}
-							stroke="rgba(201,168,76,0.25)"
-							strokeWidth={0.4}
+							stroke={isCurrent ? currentCountryColor : 'rgba(201,168,76,0.25)'}
+							strokeWidth={isCurrent ? 1.2 : 0.4}
 							className={
 								'imp-rondel-wedge' +
 								(isSelected
 									? ' imp-rondel-wedge--selected'
 									: isClickable
 									? ' imp-rondel-wedge--selectable'
+									: isCurrent
+									? ' imp-rondel-wedge--current'
 									: hasCountries
 									? ' imp-rondel-wedge--occupied'
 									: '')
@@ -240,7 +277,7 @@ function SvgRondel({ rondelData, colorblindMode, wheelOrder }) {
 							onClick={(e) => {
 								if (isClickable) {
 									e.stopPropagation();
-									mapInteraction.onItemSelected(action);
+									mapInteraction.onRondelItemSelected(action);
 								}
 							}}
 							style={{ cursor: isClickable ? 'pointer' : 'default' }}
@@ -252,9 +289,15 @@ function SvgRondel({ rondelData, colorblindMode, wheelOrder }) {
 							dominantBaseline="central"
 							className="imp-rondel-label"
 							style={{
-								fill: isSelected ? '#e8c85a' : isClickable ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.6)',
+								fill: isSelected
+									? '#e8c85a'
+									: isCurrent
+									? '#ffffff'
+									: isClickable
+									? 'rgba(255,255,255,0.92)'
+									: 'rgba(255,255,255,0.6)',
 								pointerEvents: 'none',
-								fontWeight: isSelected || isClickable ? 700 : 600,
+								fontWeight: isSelected || isClickable || isCurrent ? 700 : 600,
 							}}
 							transform={'rotate(' + textRotation + ', ' + lp.x + ', ' + lp.y + ')'}
 						>

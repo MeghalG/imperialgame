@@ -17,6 +17,13 @@ const MapInteractionContext = React.createContext({
 	setUnitMarkers: () => {}, // update unit markers
 	onUnitMarkerClicked: () => {}, // callback (phase, index) when a unit marker is clicked
 	setOnUnitMarkerClickedCb: () => {}, // setter for the unit marker click callback
+	// Rondel-specific interaction (persists alongside territory interaction)
+	rondelSelectableItems: [],
+	rondelSelectedItem: null,
+	rondelCosts: {},
+	onRondelItemSelected: () => {},
+	setRondelInteraction: () => {},
+	clearRondelInteraction: () => {},
 });
 
 export default MapInteractionContext;

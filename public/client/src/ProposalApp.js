@@ -108,7 +108,7 @@ function TaxFlow(props) {
 }
 
 function ManeuverStartMessage(props) {
-	return <SimpleMessage object="move" message="Submit to plan your maneuver." data={props.data} />;
+	return <SimpleMessage object="move" message="Begin maneuver planning." data={props.data} />;
 }
 
 function ImportFlow(props) {

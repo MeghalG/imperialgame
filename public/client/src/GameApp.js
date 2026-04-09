@@ -107,6 +107,36 @@ function GameApp() {
 	const [onUnitMarkerClickedCb, setOnUnitMarkerClickedCb] = useState(() => () => {});
 	const [onItemRightClickedCb, setOnItemRightClickedCb] = useState(null);
 
+	// Rondel-specific interaction state (persists alongside territory interaction)
+	const [rondelSelectableItems, setRondelSelectableItems] = useState([]);
+	const [rondelSelectedItem, setRondelSelectedItem] = useState(null);
+	const [rondelCosts, setRondelCosts] = useState({});
+	const [onRondelItemSelectedCb, setOnRondelItemSelectedCb] = useState(() => () => {});
+
+	const setRondelInteraction = useCallback((items, callback, costs) => {
+		setRondelSelectableItems(items || []);
+		setRondelSelectedItem(null);
+		setOnRondelItemSelectedCb(() => callback || (() => {}));
+		setRondelCosts(costs || {});
+	}, []);
+
+	const clearRondelInteraction = useCallback(() => {
+		setRondelSelectableItems([]);
+		setRondelSelectedItem(null);
+		setOnRondelItemSelectedCb(() => () => {});
+		setRondelCosts({});
+	}, []);
+
+	const handleRondelItemSelected = useCallback(
+		(name, event) => {
+			setRondelSelectedItem(name);
+			if (onRondelItemSelectedCb) {
+				onRondelItemSelectedCb(name, event);
+			}
+		},
+		[onRondelItemSelectedCb]
+	);
+
 	const setInteraction = useCallback((mode, items, color, callback, highlights, costs) => {
 		setInteractionMode(mode);
 		setSelectableItems(items || []);
@@ -173,6 +203,12 @@ function GameApp() {
 		onUnitMarkerClicked: handleUnitMarkerClicked,
 		setOnUnitMarkerClickedCb,
 		setOnItemRightClickedCb,
+		rondelSelectableItems,
+		rondelSelectedItem,
+		rondelCosts,
+		onRondelItemSelected: handleRondelItemSelected,
+		setRondelInteraction,
+		clearRondelInteraction,
 	};
 
 	return (
