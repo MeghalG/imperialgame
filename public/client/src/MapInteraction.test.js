@@ -573,15 +573,12 @@ describe('OptionSelect passes dynamic costs through setRondelInteraction', () =>
 });
 
 describe('SvgRondel', () => {
-	function renderRondel(mapCtx, div, rondelData, userCtx) {
-		let userContext = { country: null, ...(userCtx || {}) };
+	function renderRondel(mapCtx, div, rondelData, extraProps) {
 		act(() => {
 			ReactDOM.render(
-				<UserContext.Provider value={userContext}>
-					<MapInteractionContext.Provider value={mapCtx}>
-						<SvgRondel rondelData={rondelData || {}} colorblindMode={false} />
-					</MapInteractionContext.Provider>
-				</UserContext.Provider>,
+				<MapInteractionContext.Provider value={mapCtx}>
+					<SvgRondel rondelData={rondelData || {}} colorblindMode={false} {...(extraProps || {})} />
+				</MapInteractionContext.Provider>,
 				div
 			);
 		});
@@ -719,7 +716,7 @@ describe('SvgRondel', () => {
 		const mapCtx = createMockMapCtx();
 		const rondelData = { Factory: [null, ['Austria']] };
 		const div = document.createElement('div');
-		renderRondel(mapCtx, div, rondelData, { country: 'Austria' });
+		renderRondel(mapCtx, div, rondelData, { countryUp: 'Austria' });
 
 		let currentWedges = div.querySelectorAll('.imp-rondel-wedge--current');
 		expect(currentWedges.length).toBe(1);

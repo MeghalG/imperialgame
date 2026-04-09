@@ -1,6 +1,5 @@
 import React, { useContext } from 'react';
 import MapInteractionContext from './MapInteractionContext.js';
-import UserContext from './UserContext.js';
 import { getCountryColorPalette } from './countryColors.js';
 import './MapOverlay.css';
 
@@ -107,9 +106,8 @@ function labelPos(index) {
 	};
 }
 
-function SvgRondel({ rondelData, colorblindMode, wheelOrder }) {
+function SvgRondel({ rondelData, colorblindMode, wheelOrder, countryUp }) {
 	const mapInteraction = useContext(MapInteractionContext);
-	const userContext = useContext(UserContext);
 
 	// Use rondel-specific interaction channel
 	let rondelItems = mapInteraction.rondelSelectableItems || [];
@@ -120,21 +118,21 @@ function SvgRondel({ rondelData, colorblindMode, wheelOrder }) {
 	let order = wheelOrder || DEFAULT_WHEEL_ORDER;
 
 	// Find the current country's wedge position
-	let currentCountry = userContext.country;
 	let currentWedge = null;
-	if (currentCountry && rondelData) {
+	let palette = getCountryColorPalette(colorblindMode);
+	let currentCountryColor = '#c9a84c';
+	if (countryUp && rondelData) {
 		for (let actionName in rondelData) {
 			let countriesAtPos = rondelData[actionName] && rondelData[actionName][1];
-			if (countriesAtPos && countriesAtPos.includes(currentCountry)) {
+			if (countriesAtPos && countriesAtPos.includes(countryUp)) {
 				currentWedge = actionName;
 				break;
 			}
 		}
+		let c = palette.bright[countryUp] || '#c9a84c';
+		if (c === '#000000') c = '#8c8c8c';
+		currentCountryColor = c;
 	}
-
-	let palette = getCountryColorPalette(colorblindMode);
-	let currentCountryColor = currentCountry ? palette.bright[currentCountry] || '#c9a84c' : '#c9a84c';
-	if (currentCountryColor === '#000000') currentCountryColor = '#8c8c8c';
 
 	function renderMarkers() {
 		if (!rondelData) return null;

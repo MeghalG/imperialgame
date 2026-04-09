@@ -266,7 +266,11 @@ function MapApp() {
 					{' '}
 					Mountain Range{' '}
 				</mark>
-				<SvgRondel rondelData={rondel} colorblindMode={context.colorblindMode} />
+				<SvgRondel
+					rondelData={rondel}
+					colorblindMode={context.colorblindMode}
+					countryUp={gameState && gameState.countryUp}
+				/>
 				{buildComponents()}
 				<TerritoryHotspotLayer />
 				<UnifiedUnitLayer mapWidth={mapWidth} />
