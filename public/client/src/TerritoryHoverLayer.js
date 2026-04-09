@@ -84,7 +84,10 @@ function TerritoryHoverLayer() {
 			let pctX = ((hoverSignal.clientX - canvasRect.left) / canvasRect.width) * 100;
 			let pctY = ((hoverSignal.clientY - canvasRect.top) / canvasRect.height) * 100;
 
-			let name = hitTest(pctX, pctY);
+			// Suppress hover when over the rondel area (top-left corner)
+			let overRondel = pctX < 20 && pctY < 27;
+
+			let name = overRondel ? null : hitTest(pctX, pctY);
 
 			if (name !== hoveredNameRef.current) {
 				hoveredNameRef.current = name;
