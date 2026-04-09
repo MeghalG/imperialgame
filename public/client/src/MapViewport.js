@@ -1,25 +1,22 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import hoverSignal from './hoverSignal.js';
 import './MapOverlay.css';
 
 /**
- * Clamp pan so the map can't slide off-screen.
- * At zoom=1 the map fills the viewport exactly, so pan is (0,0).
- * At higher zoom, you can pan but the map edges can't pull inward
- * past the viewport edges.
+ * Clamp pan so the map edges can't pull past the viewport edges.
+ * canvasW/canvasH are the natural (unscaled) size of the map content.
  */
-function clampPan(panX, panY, zoom, viewport) {
-	if (!viewport) return { x: panX, y: panY };
-	const rect = viewport.getBoundingClientRect();
-	const vw = rect.width;
-	const vh = rect.height;
-	// The canvas is vw*zoom × vh*zoom (since the map image fills 100%).
-	// At zoom > 1 the extra pixels can scroll, but edges stay within bounds.
-	const minX = vw - vw * zoom; // negative: how far left you can pan
-	const minY = vh - vh * zoom;
+function clampPan(panX, panY, zoom, vw, vh, canvasW, canvasH) {
+	let scaledW = canvasW * zoom;
+	let scaledH = canvasH * zoom;
+	// If scaled map is smaller than viewport, center it
+	let minX = scaledW <= vw ? (vw - scaledW) / 2 : vw - scaledW;
+	let maxX = scaledW <= vw ? (vw - scaledW) / 2 : 0;
+	let minY = scaledH <= vh ? (vh - scaledH) / 2 : vh - scaledH;
+	let maxY = scaledH <= vh ? (vh - scaledH) / 2 : 0;
 	return {
-		x: Math.min(0, Math.max(minX, panX)),
-		y: Math.min(0, Math.max(minY, panY)),
+		x: Math.min(maxX, Math.max(minX, panX)),
+		y: Math.min(maxY, Math.max(minY, panY)),
 	};
 }
 
@@ -30,7 +27,46 @@ function MapViewport({ children }) {
 	const dragStartRef = useRef({ x: 0, y: 0 });
 	const panStartRef = useRef({ x: 0, y: 0 });
 	const viewportRef = useRef(null);
+	const canvasRef = useRef(null);
 	const didDragRef = useRef(false);
+
+	function getDimensions() {
+		let vw = 0,
+			vh = 0,
+			cw = 0,
+			ch = 0;
+		if (viewportRef.current) {
+			let r = viewportRef.current.getBoundingClientRect();
+			vw = r.width;
+			vh = r.height;
+		}
+		if (canvasRef.current) {
+			cw = canvasRef.current.scrollWidth;
+			ch = canvasRef.current.scrollHeight;
+		}
+		return { vw, vh, cw, ch };
+	}
+
+	// Center map on initial render and when viewport resizes
+	useEffect(() => {
+		function recenter() {
+			let { vw, vh, cw, ch } = getDimensions();
+			if (cw > 0 && ch > 0) {
+				setPan(clampPan(0, 0, 1, vw, vh, cw, ch));
+			}
+		}
+		// Delay to let image load and size
+		let timer = setTimeout(recenter, 100);
+		let obs;
+		if (viewportRef.current) {
+			obs = new ResizeObserver(recenter);
+			obs.observe(viewportRef.current);
+		}
+		return () => {
+			clearTimeout(timer);
+			if (obs) obs.disconnect();
+		};
+	}, []);
 
 	const handleWheel = useCallback(
 		(e) => {
@@ -42,7 +78,8 @@ function MapViewport({ children }) {
 			const mouseY = e.clientY - rect.top;
 			const newPanX = mouseX - (mouseX - pan.x) * (newZoom / zoom);
 			const newPanY = mouseY - (mouseY - pan.y) * (newZoom / zoom);
-			const clamped = clampPan(newPanX, newPanY, newZoom, viewportRef.current);
+			let { vw, vh, cw, ch } = getDimensions();
+			const clamped = clampPan(newPanX, newPanY, newZoom, vw, vh, cw, ch);
 			setZoom(newZoom);
 			setPan(clamped);
 		},
@@ -78,7 +115,8 @@ function MapViewport({ children }) {
 			if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
 				didDragRef.current = true;
 			}
-			const newPan = clampPan(panStartRef.current.x + dx, panStartRef.current.y + dy, zoom, viewportRef.current);
+			let { vw, vh, cw, ch } = getDimensions();
+			const newPan = clampPan(panStartRef.current.x + dx, panStartRef.current.y + dy, zoom, vw, vh, cw, ch);
 			setPan(newPan);
 		},
 		[isDragging, zoom]
@@ -116,11 +154,10 @@ function MapViewport({ children }) {
 			}}
 		>
 			<div
+				ref={canvasRef}
 				className="imp-canvas"
 				style={{
 					transform: 'translate(' + pan.x + 'px, ' + pan.y + 'px) scale(' + zoom + ')',
-					width: '100%',
-					height: '100%',
 				}}
 			>
 				{children}
