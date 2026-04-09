@@ -18,7 +18,9 @@ function pointInPolygon(px, py, verts) {
 			yi = verts[i][1];
 		let xj = verts[j][0],
 			yj = verts[j][1];
-		if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+		let aboveI = yi > py;
+		let aboveJ = yj > py;
+		if (aboveI !== aboveJ && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
 			inside = !inside;
 		}
 	}
