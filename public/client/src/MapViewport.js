@@ -2,6 +2,27 @@ import React, { useState, useRef, useCallback } from 'react';
 import hoverSignal from './hoverSignal.js';
 import './MapOverlay.css';
 
+/**
+ * Clamp pan so the map can't slide off-screen.
+ * At zoom=1 the map fills the viewport exactly, so pan is (0,0).
+ * At higher zoom, you can pan but the map edges can't pull inward
+ * past the viewport edges.
+ */
+function clampPan(panX, panY, zoom, viewport) {
+	if (!viewport) return { x: panX, y: panY };
+	const rect = viewport.getBoundingClientRect();
+	const vw = rect.width;
+	const vh = rect.height;
+	// The canvas is vw*zoom × vh*zoom (since the map image fills 100%).
+	// At zoom > 1 the extra pixels can scroll, but edges stay within bounds.
+	const minX = vw - vw * zoom; // negative: how far left you can pan
+	const minY = vh - vh * zoom;
+	return {
+		x: Math.min(0, Math.max(minX, panX)),
+		y: Math.min(0, Math.max(minY, panY)),
+	};
+}
+
 function MapViewport({ children }) {
 	const [zoom, setZoom] = useState(1);
 	const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -21,8 +42,9 @@ function MapViewport({ children }) {
 			const mouseY = e.clientY - rect.top;
 			const newPanX = mouseX - (mouseX - pan.x) * (newZoom / zoom);
 			const newPanY = mouseY - (mouseY - pan.y) * (newZoom / zoom);
+			const clamped = clampPan(newPanX, newPanY, newZoom, viewportRef.current);
 			setZoom(newZoom);
-			setPan({ x: newPanX, y: newPanY });
+			setPan(clamped);
 		},
 		[zoom, pan]
 	);
@@ -32,7 +54,7 @@ function MapViewport({ children }) {
 			if (e.target.closest('.imp-panel') || e.target.closest('.imp-vp-track')) {
 				return;
 			}
-			if (e.button === 0) {
+			if (e.button === 0 && zoom > 1) {
 				setIsDragging(true);
 				hoverSignal.dragging = true;
 				didDragRef.current = false;
@@ -40,7 +62,7 @@ function MapViewport({ children }) {
 				panStartRef.current = { x: pan.x, y: pan.y };
 			}
 		},
-		[pan]
+		[pan, zoom]
 	);
 
 	const handleMouseMove = useCallback(
@@ -56,12 +78,10 @@ function MapViewport({ children }) {
 			if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
 				didDragRef.current = true;
 			}
-			setPan({
-				x: panStartRef.current.x + dx,
-				y: panStartRef.current.y + dy,
-			});
+			const newPan = clampPan(panStartRef.current.x + dx, panStartRef.current.y + dy, zoom, viewportRef.current);
+			setPan(newPan);
 		},
-		[isDragging]
+		[isDragging, zoom]
 	);
 
 	const handleMouseUp = useCallback(() => {
@@ -75,10 +95,14 @@ function MapViewport({ children }) {
 		hoverSignal.dragging = false;
 	}, []);
 
+	let cursorClass = 'imp-viewport';
+	if (isDragging) cursorClass += ' imp-viewport--dragging';
+	else if (zoom > 1) cursorClass += ' imp-viewport--pannable';
+
 	return (
 		<div
 			ref={viewportRef}
-			className={'imp-viewport' + (isDragging ? ' imp-viewport--dragging' : '')}
+			className={cursorClass}
 			onWheel={handleWheel}
 			onMouseDown={handleMouseDown}
 			onMouseMove={handleMouseMove}
@@ -95,6 +119,8 @@ function MapViewport({ children }) {
 				className="imp-canvas"
 				style={{
 					transform: 'translate(' + pan.x + 'px, ' + pan.y + 'px) scale(' + zoom + ')',
+					width: '100%',
+					height: '100%',
 				}}
 			>
 				{children}

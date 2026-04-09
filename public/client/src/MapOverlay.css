@@ -117,6 +117,9 @@ body {
 	min-width: 0;
 	overflow: hidden;
 	background: #0a0b0d;
+}
+
+.imp-viewport--pannable {
 	cursor: grab;
 }
 
