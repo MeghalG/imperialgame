@@ -13,32 +13,6 @@ import { invalidateIfStale, readGameState } from './backendFiles/stateCache.js';
 import useGameState from './useGameState.js';
 import { getCountryColorPalette } from './countryColors.js';
 
-function CompassRose() {
-	return (
-		<svg className="imp-compass" width="48" height="48" viewBox="0 0 48 48" fill="none">
-			<g opacity="0.8">
-				<path d="M24 2 L26 20 L24 16 L22 20 Z" fill="#c9a84c" />
-				<path d="M24 46 L26 28 L24 32 L22 28 Z" fill="rgba(255,255,255,0.4)" />
-				<path d="M2 24 L20 22 L16 24 L20 26 Z" fill="rgba(255,255,255,0.4)" />
-				<path d="M46 24 L28 22 L32 24 L28 26 Z" fill="rgba(255,255,255,0.4)" />
-				<circle cx="24" cy="24" r="3" fill="none" stroke="#c9a84c" strokeWidth="0.5" />
-				<circle cx="24" cy="24" r="1" fill="#c9a84c" />
-				<text
-					x="24"
-					y="0"
-					textAnchor="middle"
-					fill="#c9a84c"
-					fontSize="5"
-					fontWeight="700"
-					fontFamily="var(--imp-font-condensed)"
-				>
-					N
-				</text>
-			</g>
-		</svg>
-	);
-}
-
 function GameApp() {
 	const context = useContext(UserContext);
 	const [announcement, setAnnouncement] = useState(null);
@@ -216,7 +190,6 @@ function GameApp() {
 			<div style={{ background: '#0a0b0d', minHeight: '100vh' }}>
 				<TopBar />
 				<MainApp />
-				<CompassRose />
 				{announcement && (
 					<TurnAnnouncement
 						key={announcement.key}
