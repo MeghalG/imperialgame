@@ -17,7 +17,7 @@
 	--imp-danger: #d32029;
 
 	/* Typography — system fonts only */
-	--imp-font-display: Georgia, 'Times New Roman', serif;
+	--imp-font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	--imp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	--imp-font-condensed: 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
 }
@@ -310,8 +310,8 @@ body {
 }
 
 .imp-player-card {
-	padding: 6px 10px;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+	padding: 8px 10px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 	font-size: 12px;
 	line-height: 1.4;
 	cursor: default;
@@ -326,19 +326,49 @@ body {
 	border-bottom: none;
 }
 
+.imp-player-card__header {
+	display: flex;
+	align-items: center;
+}
+
 .imp-player-card__name {
 	font-weight: 600;
-	font-size: 12px;
+	font-size: 13px;
+	flex: 1;
 }
 
 .imp-player-card__money {
-	color: var(--imp-text-dim);
+	color: var(--imp-accent-gold);
 	font-variant-numeric: tabular-nums;
-	margin-left: 6px;
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.imp-player-card__scores {
+	display: flex;
+	gap: 12px;
+	margin-top: 3px;
+}
+
+.imp-player-card__score-item {
+	display: flex;
+	gap: 4px;
+	align-items: baseline;
+}
+
+.imp-player-card__score-label {
+	color: rgba(255, 255, 255, 0.35);
+	font-size: 11px;
+}
+
+.imp-player-card__score-value {
+	color: rgba(255, 255, 255, 0.7);
+	font-variant-numeric: tabular-nums;
+	font-size: 12px;
 }
 
 .imp-player-card__stock {
-	margin-top: 3px;
+	margin-top: 4px;
 	display: flex;
 	flex-wrap: wrap;
 	gap: 2px;
@@ -1703,6 +1733,18 @@ body {
 	text-decoration: underline;
 }
 
+/* ---- Bid List ---- */
+.imp-bid-list {
+	margin-left: 9px;
+}
+
+.imp-bid-list__row {
+	display: flex;
+	justify-content: space-between;
+	padding: 2px 0;
+	font-size: 13px;
+}
+
 /* ---- Active Maneuver Unit ---- */
 .imp-unit-row--active {
 	border-color: var(--imp-accent-gold) !important;
@@ -2286,17 +2328,13 @@ body {
 .imp-rules {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
-	max-height: calc(100vh - 135px);
-	overflow-y: auto;
-	padding-right: 4px;
+	gap: 12px;
 }
 
 .imp-rules__section {
 	background: rgba(255, 255, 255, 0.03);
 	border: 1px solid var(--imp-panel-border);
 	border-radius: 6px;
-	overflow: hidden;
 }
 
 .imp-rules__section-header {

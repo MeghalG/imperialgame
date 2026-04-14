@@ -177,16 +177,7 @@ function ManeuverFlow(props) {
 						getAPI={proposalAPI.getArmyOptions}
 						peaceAPI={proposalAPI.getArmyPeaceOptions}
 						allGoodAPI={proposalAPI.allArmiesMoved}
-						message={
-							<div>
-								Move Armies:{' '}
-								<Alert
-									style={{ marginTop: 10, marginBottom: -10 }}
-									message="The app does not prevent various illegal army maneuvers. Do not submit them."
-									type="info"
-								/>{' '}
-							</div>
-						}
+						message="Move Armies:"
 						data={innerProps.data}
 					/>
 				),

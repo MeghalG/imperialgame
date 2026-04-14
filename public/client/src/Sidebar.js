@@ -9,7 +9,6 @@ import {
 	ThunderboltOutlined,
 	TeamOutlined,
 	GlobalOutlined,
-	TrophyOutlined,
 	HistoryOutlined,
 	ReadOutlined,
 } from '@ant-design/icons';
@@ -21,7 +20,7 @@ import * as submitAPI from './backendFiles/submitAPI.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import useGameState from './useGameState.js';
 import { getCountryColorPalette } from './countryColors.js';
-import { CountryCard, PlayerCard } from './StateApp.js';
+import { CountryCard } from './StateApp.js';
 import HistoryApp from './HistoryApp.js';
 import RulesApp from './RulesApp.js';
 import StaticTurnApp from './StaticTurnApp.js';
@@ -40,7 +39,6 @@ const TABS = [
 	{ key: 'turn', icon: ThunderboltOutlined, label: 'Turn' },
 	{ key: 'players', icon: TeamOutlined, label: 'Players' },
 	{ key: 'countries', icon: GlobalOutlined, label: 'Countries' },
-	{ key: 'scores', icon: TrophyOutlined, label: 'Scores' },
 	{ key: 'history', icon: HistoryOutlined, label: 'History' },
 	{ key: 'rules', icon: ReadOutlined, label: 'Rules' },
 ];
@@ -301,15 +299,26 @@ function Sidebar() {
 			case 'players':
 				return (
 					<div className="imp-sidebar__tab-content">
-						{playersOrdered.map((p) => {
-							if (!p) return null;
+						{playersOrdered.filter(Boolean).map((p) => {
 							let info = playerInfo[p] || {};
+							let score = helper.computeScore(info, countryInfo);
+							let cash = helper.computeCash(info, countryInfo);
 							return (
 								<div key={p} className="imp-player-card">
-									<div>
+									<div className="imp-player-card__header">
 										<span className="imp-player-card__icons">{buildPortfolioIcons(p, info)}</span>
 										<span className="imp-player-card__name">{p}</span>
 										<span className="imp-player-card__money">${twoDec(info.money)}</span>
+									</div>
+									<div className="imp-player-card__scores">
+										<span className="imp-player-card__score-item">
+											<span className="imp-player-card__score-label">Score</span>
+											<span className="imp-player-card__score-value">{score.toFixed(2)}</span>
+										</span>
+										<span className="imp-player-card__score-item">
+											<span className="imp-player-card__score-label">Cash</span>
+											<span className="imp-player-card__score-value">{cash.toFixed(2)}</span>
+										</span>
 									</div>
 									<div className="imp-player-card__stock">{formatStock(info.stock)}</div>
 								</div>
@@ -328,20 +337,6 @@ function Sidebar() {
 								darkColor={darkColors[c]}
 								info={countryInfo[c] || {}}
 								playerInfo={playerInfo}
-							/>
-						))}
-					</div>
-				);
-			case 'scores':
-				return (
-					<div className="imp-sidebar__tab-content">
-						{playersOrdered.filter(Boolean).map((p) => (
-							<PlayerCard
-								key={p}
-								player={p}
-								countryColors={countries.map((c) => darkColors[c])}
-								info={playerInfo[p] || {}}
-								countryInfos={countryInfo}
 							/>
 						))}
 					</div>
