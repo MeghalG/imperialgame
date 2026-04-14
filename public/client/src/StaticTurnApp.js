@@ -3,7 +3,6 @@ import './App.css';
 import UserContext from './UserContext.js';
 import { Collapse, Divider, Alert } from 'antd';
 import * as miscAPI from './backendFiles/miscAPI.js';
-import { getCountryColorPalette } from './countryColors.js';
 
 const { Panel } = Collapse;
 
@@ -24,10 +23,6 @@ function StaticTurnApp() {
 		if (!gameState) {
 			return null;
 		}
-
-		let palette = getCountryColorPalette(context.colorblindMode);
-		let colors = palette.dark;
-		let country = gameState.countryUp;
 
 		switch (gameState.mode) {
 			case 'bid':
