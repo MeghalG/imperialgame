@@ -34,6 +34,8 @@ import VoteApp from './VoteApp.js';
 import ManeuverPlannerApp from './ManeuverPlannerApp.js';
 import PeaceVoteApp from './PeaceVoteApp.js';
 import SoundManager from './SoundManager.js';
+import ActionPreview from './ActionPreview.js';
+import SidebarSubmit from './SidebarSubmit.js';
 
 const TABS = [
 	{ key: 'turn', icon: ThunderboltOutlined, label: 'Turn' },
@@ -294,6 +296,7 @@ function Sidebar() {
 					<div className="imp-sidebar__tab-content">
 						<StaticTurnApp key={turnID} />
 						<DisplayMode mode={mode} turnID={turnID} gameState={gameState} />
+						<ActionPreview />
 					</div>
 				);
 			case 'players':
@@ -386,6 +389,7 @@ function Sidebar() {
 			</div>
 			{renderTabHeader()}
 			<div className="imp-sidebar__content-scroll">{renderTabContent()}</div>
+			<SidebarSubmit />
 		</React.Fragment>
 	);
 

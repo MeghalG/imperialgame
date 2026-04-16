@@ -1,30 +1,56 @@
-import React from 'react';
-import './App.css';
-import { RadioSelect, ActionFlow } from './ComponentTemplates.js';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import UserContext from './UserContext.js';
+import TurnControlContext from './TurnControlContext.js';
 import * as miscAPI from './backendFiles/miscAPI.js';
 import * as submitAPI from './backendFiles/submitAPI.js';
+import useGameState from './useGameState.js';
 
 function VoteApp() {
+	const context = useContext(UserContext);
+	const turnControl = useContext(TurnControlContext);
+	const [options, setOptions] = useState([]);
+	const [selected, setSelected] = useState(null);
+	const contextRef = useRef(context);
+	contextRef.current = context;
+
+	const { gameState } = useGameState();
+
+	const loadOptions = useCallback(async () => {
+		let opts = await miscAPI.getVoteOptions(contextRef.current);
+		setOptions(opts || []);
+	}, []);
+
+	useEffect(() => {
+		loadOptions();
+	}, [gameState, loadOptions]);
+
+	useEffect(() => {
+		turnControl.registerSubmit({
+			handler: submitAPI.submitVote,
+			label: 'Submit Vote',
+			enabled: selected !== null,
+			preview: selected ? 'Vote: ' + selected : '',
+		});
+		return () => turnControl.clearSubmit();
+	}, [selected, turnControl]);
+
+	function handleSelect(option) {
+		setSelected(option);
+		context.setVote(option);
+	}
+
 	return (
-		<ActionFlow
-			className="VoteApp"
-			submitMethod={submitAPI.submitVote}
-			objects={['options']}
-			components={{
-				options: (props) => (
-					<RadioSelect
-						object="options"
-						setThing="setVote"
-						getAPI={miscAPI.getVoteOptions}
-						message="Vote for one of these proposals."
-						data={props.data}
-					/>
-				),
-			}}
-			submit={true}
-			triggers={{}}
-			type="vote"
-		/>
+		<div className="imp-vote-buttons">
+			{options.map((opt) => (
+				<button
+					key={opt}
+					className={'imp-vote-buttons__option' + (selected === opt ? ' imp-vote-buttons__option--selected' : '')}
+					onClick={() => handleSelect(opt)}
+				>
+					{opt}
+				</button>
+			))}
+		</div>
 	);
 }
 

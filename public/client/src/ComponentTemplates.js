@@ -3,6 +3,7 @@ import './App.css';
 import { Radio, Button } from 'antd';
 import { Select, Checkbox, Divider } from 'antd';
 import UserContext from './UserContext.js';
+import TurnControlContext from './TurnControlContext.js';
 import MapInteractionContext from './MapInteractionContext.js';
 import SoundManager from './SoundManager.js';
 import useMapTerritorySelect from './useMapTerritorySelect.js';
@@ -960,6 +961,7 @@ function Display(props) {
 
 function ActionFlow({ className, submitMethod, objects, components, submit, triggers, type, data }) {
 	const context = useContext(UserContext);
+	const turnControl = useContext(TurnControlContext);
 	const containerRef = useRef(null);
 	const [flowState, setFlowState] = useState({
 		objectValues: {},
@@ -1034,7 +1036,8 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 			}
 		}
 		// Submit button
-		let showSubmit = flowState.visibleLayers[flowState.visibleLayers.length - 1] && submit;
+		let showSubmit =
+			flowState.visibleLayers[flowState.visibleLayers.length - 1] && submit && !turnControl.submitHandler;
 		table.push(
 			<Display
 				component={SubmitButton}
@@ -1046,6 +1049,39 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 		);
 		return table;
 	}
+
+	useEffect(() => {
+		if (!submit || !submitMethod) return;
+
+		let allVisible = flowState.visibleLayers[flowState.visibleLayers.length - 1];
+		let label = 'Submit';
+		if (type === 'proposal') label = 'Submit Proposal';
+		else if (type === 'vote') label = 'Submit Vote';
+		else if (type === 'buy') label = 'Buy Stock';
+		else if (type === 'bid') label = 'Submit Bid';
+
+		let preview = '';
+		if (type === 'proposal' && flowState.objectValues['wheel']) {
+			preview = 'Propose: ' + flowState.objectValues['wheel'];
+		} else if (type === 'vote') {
+			preview = 'Cast your vote';
+		} else if (type === 'buy') {
+			preview = 'Buy stock';
+		} else if (type === 'bid') {
+			preview = 'Place your bid';
+		}
+
+		turnControl.registerSubmit({
+			handler: submitMethod,
+			label: label,
+			enabled: allVisible,
+			preview: preview,
+		});
+
+		return () => {
+			turnControl.clearSubmit();
+		};
+	}, [submit, submitMethod, type, flowState.visibleLayers, flowState.objectValues, turnControl]);
 
 	// Auto-scroll to show newly visible layers (e.g. after rondel click)
 	useEffect(() => {

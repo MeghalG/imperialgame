@@ -4,21 +4,53 @@
    ============================================ */
 
 :root {
-	/* Colors */
-	--imp-panel-bg: rgba(20, 21, 24, 0.88);
-	--imp-panel-border: rgba(255, 255, 255, 0.08);
-	--imp-topbar-bg: rgba(20, 21, 24, 0.94);
-	--imp-accent-gold: #c9a84c;
-	--imp-accent-gold-dim: rgba(201, 168, 76, 0.35);
-	--imp-accent-green: #49aa19;
-	--imp-accent-green-dim: rgba(73, 170, 25, 0.3);
-	--imp-text: rgba(255, 255, 255, 0.88);
-	--imp-text-dim: rgba(255, 255, 255, 0.5);
-	--imp-danger: #d32029;
+	/* ── DESIGN.md color tokens ── */
+	--bg-primary: #090b0f;
+	--bg-surface: #12141a;
+	--bg-elevated: #1a1d24;
+	--accent-gold: #c9a84c;
+	--accent-teal: #13a8a8;
+	--text-primary: rgba(255, 255, 255, 0.87);
+	--text-secondary: rgba(255, 255, 255, 0.7);
+	--text-muted: rgba(255, 255, 255, 0.38);
+	--success: #49aa19;
+	--error: #d32029;
+	--warning: #d8bd14;
+	--info: #177ddc;
 
-	/* Typography — system fonts only */
-	--imp-font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	--imp-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	/* ── Spacing tokens (4px base) ── */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-12: 48px;
+
+	/* ── Border radius tokens ── */
+	--radius-sm: 2px;
+	--radius-md: 4px;
+	--radius-lg: 6px;
+	--radius-round: 50%;
+
+	/* ── Font tokens ── */
+	--font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'JetBrains Mono', monospace;
+
+	/* ── Legacy aliases (existing --imp-* refs keep working) ── */
+	--imp-panel-bg: rgba(18, 20, 26, 0.88);
+	--imp-panel-border: rgba(255, 255, 255, 0.08);
+	--imp-topbar-bg: rgba(18, 20, 26, 0.94);
+	--imp-accent-gold: var(--accent-gold);
+	--imp-accent-gold-dim: rgba(201, 168, 76, 0.35);
+	--imp-accent-green: var(--success);
+	--imp-accent-green-dim: rgba(73, 170, 25, 0.3);
+	--imp-text: var(--text-primary);
+	--imp-text-dim: var(--text-secondary);
+	--imp-danger: var(--error);
+	--imp-font-display: var(--font-display);
+	--imp-font-body: var(--font-body);
 	--imp-font-condensed: 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -1854,9 +1886,10 @@ body {
 }
 
 .imp-state__card-header-extra {
-	font-family: var(--imp-font-body);
+	font-family: var(--font-mono);
 	font-size: 12px;
 	font-weight: 600;
+	font-variant-numeric: tabular-nums;
 	color: var(--imp-accent-gold);
 }
 
@@ -1874,7 +1907,7 @@ body {
 	font-size: 18px;
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
-	font-family: var(--imp-font-body);
+	font-family: var(--font-mono);
 }
 
 .imp-state__key-stat--gold {
@@ -2866,4 +2899,113 @@ body {
 
 .imp-territory-tooltip__tag--warn {
 	background: rgba(200, 80, 40, 0.85);
+}
+
+/* ── Sidebar Submit (anchored at bottom) ── */
+.imp-sidebar-submit {
+	position: sticky;
+	bottom: 0;
+	padding: var(--space-3) var(--space-4);
+	background: linear-gradient(to top, var(--bg-surface) 60%, transparent);
+	z-index: 5;
+}
+
+.imp-sidebar-submit__btn {
+	width: 100%;
+	padding: var(--space-3) var(--space-4);
+	border: none;
+	border-radius: var(--radius-md);
+	color: #fff;
+	font-family: var(--font-display);
+	font-weight: 600;
+	font-size: 15px;
+	cursor: pointer;
+	transition: opacity 0.15s ease-out;
+}
+
+.imp-sidebar-submit__btn:hover:not(:disabled) {
+	opacity: 0.85;
+}
+
+.imp-sidebar-submit__btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+/* ── Action Preview ── */
+.imp-action-preview {
+	margin: var(--space-3) 0;
+	padding: var(--space-3);
+	background: var(--bg-elevated);
+	border-radius: var(--radius-md);
+	border-left: 3px solid var(--accent-gold);
+}
+
+.imp-action-preview__label {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+	margin-bottom: var(--space-1);
+}
+
+.imp-action-preview__text {
+	font-family: var(--font-body);
+	font-size: 14px;
+	color: var(--text-secondary);
+	line-height: 1.5;
+}
+
+/* ── Vote Buttons ── */
+.imp-vote-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-3) 0;
+}
+
+.imp-vote-buttons__option {
+	padding: var(--space-4) var(--space-4);
+	background: var(--bg-elevated);
+	border: 2px solid rgba(255, 255, 255, 0.1);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	font-family: var(--font-body);
+	font-size: 16px;
+	font-weight: 500;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.15s ease-out, background 0.15s ease-out;
+}
+
+.imp-vote-buttons__option:hover {
+	border-color: var(--accent-teal);
+	background: rgba(19, 168, 168, 0.08);
+}
+
+.imp-vote-buttons__option--selected {
+	border-color: var(--accent-teal);
+	background: rgba(19, 168, 168, 0.15);
+}
+
+/* ── Peace Vote accent colors ── */
+.imp-vote-buttons__option--accept {
+	border-color: var(--success);
+}
+
+.imp-vote-buttons__option--accept:hover,
+.imp-vote-buttons__option--accept.imp-vote-buttons__option--selected {
+	border-color: var(--success);
+	background: rgba(73, 170, 25, 0.12);
+}
+
+.imp-vote-buttons__option--reject {
+	border-color: var(--error);
+}
+
+.imp-vote-buttons__option--reject:hover,
+.imp-vote-buttons__option--reject.imp-vote-buttons__option--selected {
+	border-color: var(--error);
+	background: rgba(211, 32, 41, 0.12);
 }
