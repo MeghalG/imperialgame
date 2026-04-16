@@ -79,7 +79,12 @@ async function buildInvestorPreview(context) {
 		}
 		if (investorHolder) {
 			let buyOrder = [investorHolder, ...otherPlayers];
-			lines.push('Buy order: ' + buyOrder.join(' \u2192 '));
+			if (buyOrder.length === 1) {
+				lines.push(buyOrder[0] + ' will get a buy.');
+			} else {
+				let last = buyOrder.pop();
+				lines.push(buyOrder.join(', ') + ', and ' + last + ' will get buys.');
+			}
 		}
 	} catch (e) {
 		// If we can't get buy order, just show the payout
