@@ -2,36 +2,13 @@ import React, { useContext, useState, useEffect, useRef } from 'react';
 import UserContext from './UserContext.js';
 import TurnControlContext from './TurnControlContext.js';
 import * as proposalAPI from './backendFiles/proposalAPI.js';
+import { readGameState } from './backendFiles/stateCache.js';
+import * as helper from './backendFiles/helper.js';
 
 function ActionPreview() {
 	const context = useContext(UserContext);
 	const turnControl = useContext(TurnControlContext);
-	const [asyncPreview, setAsyncPreview] = useState('');
-	const contextRef = useRef(context);
-	contextRef.current = context;
-
-	// Only show when there's an active submit handler (it's the user's turn)
-	if (!turnControl.submitHandler) return null;
-
-	let lines = buildPreview(context, asyncPreview);
-	if (lines.length === 0) return null;
-
-	return (
-		<div className="imp-action-preview">
-			<div className="imp-action-preview__label">Preview</div>
-			<div className="imp-action-preview__text">
-				{lines.map((line, i) => (
-					<div key={i}>{line}</div>
-				))}
-			</div>
-		</div>
-	);
-}
-
-function ActionPreviewWrapper() {
-	const context = useContext(UserContext);
-	const turnControl = useContext(TurnControlContext);
-	const [asyncPreview, setAsyncPreview] = useState('');
+	const [asyncPreview, setAsyncPreview] = useState([]);
 	const contextRef = useRef(context);
 	contextRef.current = context;
 
@@ -41,21 +18,21 @@ function ActionPreviewWrapper() {
 
 		async function fetchPreview() {
 			if (!context.wheelSpot) {
-				setAsyncPreview('');
+				setAsyncPreview([]);
 				return;
 			}
 			try {
 				if (context.wheelSpot === 'Taxation') {
 					let msg = await proposalAPI.getTaxMessage(contextRef.current);
-					if (!cancelled) setAsyncPreview(msg);
+					if (!cancelled) setAsyncPreview([msg]);
 				} else if (context.wheelSpot === 'Investor') {
-					let msg = await proposalAPI.getInvestorMessage(contextRef.current);
-					if (!cancelled) setAsyncPreview(msg);
+					let lines = await buildInvestorPreview(contextRef.current);
+					if (!cancelled) setAsyncPreview(lines);
 				} else {
-					if (!cancelled) setAsyncPreview('');
+					if (!cancelled) setAsyncPreview([]);
 				}
 			} catch (e) {
-				if (!cancelled) setAsyncPreview('');
+				if (!cancelled) setAsyncPreview([]);
 			}
 		}
 
@@ -82,21 +59,44 @@ function ActionPreviewWrapper() {
 	);
 }
 
-function buildPreview(ctx, asyncPreview) {
+async function buildInvestorPreview(context) {
+	let lines = [];
+	let msg = await proposalAPI.getInvestorMessage(context);
+	lines.push(msg);
+
+	// Show buy order: investor card holder buys first
+	try {
+		let gameState = await readGameState(context);
+		let investorHolder = null;
+		let otherPlayers = [];
+		let playersOrdered = await helper.getPlayersInOrder(context);
+		for (let p of playersOrdered) {
+			if (gameState.playerInfo[p] && gameState.playerInfo[p].investor) {
+				investorHolder = p;
+			} else {
+				otherPlayers.push(p);
+			}
+		}
+		if (investorHolder) {
+			let buyOrder = [investorHolder, ...otherPlayers];
+			lines.push('Buy order: ' + buyOrder.join(' \u2192 '));
+		}
+	} catch (e) {
+		// If we can't get buy order, just show the payout
+	}
+
+	return lines;
+}
+
+function buildPreview(ctx, asyncLines) {
 	let lines = [];
 
 	if (ctx.wheelSpot) {
-		if (ctx.wheelSpot === 'Taxation') {
-			if (asyncPreview) {
-				lines.push(asyncPreview);
+		if (ctx.wheelSpot === 'Taxation' || ctx.wheelSpot === 'Investor') {
+			if (asyncLines.length > 0) {
+				lines.push(...asyncLines);
 			} else {
-				lines.push('Calculating tax...');
-			}
-		} else if (ctx.wheelSpot === 'Investor') {
-			if (asyncPreview) {
-				lines.push(asyncPreview);
-			} else {
-				lines.push('Calculating investor payout...');
+				lines.push('Loading...');
 			}
 		} else if (ctx.wheelSpot === 'Factory') {
 			if (ctx.factoryLoc) {
@@ -162,4 +162,4 @@ function formatImports(val) {
 	return [String(val)];
 }
 
-export default ActionPreviewWrapper;
+export default ActionPreview;
