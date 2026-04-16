@@ -960,7 +960,6 @@ function Display(props) {
 }
 
 function ActionFlow({ className, submitMethod, objects, components, submit, triggers, type, data }) {
-	const context = useContext(UserContext);
 	const turnControl = useContext(TurnControlContext);
 	const containerRef = useRef(null);
 	const [flowState, setFlowState] = useState({
