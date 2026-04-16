@@ -193,7 +193,7 @@ function GameApp() {
 	const [turnPreviewText, setTurnPreviewText] = useState('');
 
 	const registerSubmit = useCallback(({ handler, label, enabled, preview }) => {
-		setTurnSubmitHandler(() => handler);
+		if (handler !== undefined) setTurnSubmitHandler(() => handler);
 		if (label !== undefined) setTurnSubmitLabel(label);
 		if (enabled !== undefined) setTurnSubmitEnabled(enabled);
 		if (preview !== undefined) setTurnPreviewText(preview);
