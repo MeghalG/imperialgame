@@ -1012,10 +1012,6 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 		}
 	}
 
-	async function handleSubmit() {
-		await submitMethod(context);
-	}
-
 	function buildComponents() {
 		let table = [];
 		for (let i = 0; i < objects.length; i++) {
