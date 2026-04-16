@@ -44,9 +44,7 @@ function VoteApp() {
 			{options.map((opt) => (
 				<button
 					key={opt}
-					className={
-						'imp-vote-buttons__option' + (selected === opt ? ' imp-vote-buttons__option--selected' : '')
-					}
+					className={'imp-vote-buttons__option' + (selected === opt ? ' imp-vote-buttons__option--selected' : '')}
 					onClick={() => handleSelect(opt)}
 				>
 					{opt}

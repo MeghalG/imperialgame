@@ -1036,7 +1036,8 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 			}
 		}
 		// Submit button
-		let showSubmit = flowState.visibleLayers[flowState.visibleLayers.length - 1] && submit && !turnControl.submitHandler;
+		let showSubmit =
+			flowState.visibleLayers[flowState.visibleLayers.length - 1] && submit && !turnControl.submitHandler;
 		table.push(
 			<Display
 				component={SubmitButton}

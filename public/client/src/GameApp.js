@@ -218,7 +218,15 @@ function GameApp() {
 			registerSubmit,
 			clearSubmit,
 		}),
-		[turnSubmitHandler, turnSubmitLabel, turnSubmitEnabled, turnSubmitting, turnPreviewText, registerSubmit, clearSubmit]
+		[
+			turnSubmitHandler,
+			turnSubmitLabel,
+			turnSubmitEnabled,
+			turnSubmitting,
+			turnPreviewText,
+			registerSubmit,
+			clearSubmit,
+		]
 	);
 
 	return (

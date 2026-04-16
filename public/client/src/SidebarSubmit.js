@@ -36,9 +36,7 @@ function SidebarSubmit() {
 				disabled={!turnControl.submitEnabled || turnControl.submitting}
 				onClick={handleClick}
 			>
-				{turnControl.submitting ? (
-					<LoadingOutlined style={{ marginRight: 8 }} />
-				) : null}
+				{turnControl.submitting ? <LoadingOutlined style={{ marginRight: 8 }} /> : null}
 				{turnControl.submitLabel}
 			</button>
 		</div>

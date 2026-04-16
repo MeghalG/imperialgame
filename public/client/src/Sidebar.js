@@ -389,7 +389,7 @@ function Sidebar() {
 			</div>
 			{renderTabHeader()}
 			<div className="imp-sidebar__content-scroll">{renderTabContent()}</div>
-		<SidebarSubmit />
+			<SidebarSubmit />
 		</React.Fragment>
 	);
 

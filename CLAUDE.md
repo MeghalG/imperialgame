@@ -251,6 +251,13 @@ Run: `npm test -- --watchAll=false --ci`
 - Firebase SDK v11 modular API is wrapped in a v8-compatible shim in `firebase.js`; call sites still use the old `database.ref(path).once()` pattern
 - `proposalAPI.js` has several test-only exported helpers
 
+## Design System
+Always read DESIGN.md before making any visual or UI decisions.
+All font choices, colors, spacing, layout, and interaction patterns are defined there.
+Do not deviate without explicit user approval.
+In QA mode, flag any code that doesn't match DESIGN.md.
+The Guard Rails section lists protected patterns that must not be changed.
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill
