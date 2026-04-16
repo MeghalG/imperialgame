@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect, useContext, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useContext, useRef, useMemo } from 'react';
 import './App.css';
 import './MapOverlay.css';
 import MainApp from './MainApp.js';
 import TopBar from './TopBar.js';
 import MapInteractionContext from './MapInteractionContext.js';
+import TurnControlContext from './TurnControlContext.js';
 import TurnAnnouncement from './TurnAnnouncement.js';
 import SoundManager from './SoundManager.js';
 import UserContext from './UserContext.js';
@@ -185,20 +186,57 @@ function GameApp() {
 		clearRondelInteraction,
 	};
 
+	const [turnSubmitHandler, setTurnSubmitHandler] = useState(null);
+	const [turnSubmitLabel, setTurnSubmitLabel] = useState('Submit');
+	const [turnSubmitEnabled, setTurnSubmitEnabled] = useState(false);
+	const [turnSubmitting, setTurnSubmitting] = useState(false);
+	const [turnPreviewText, setTurnPreviewText] = useState('');
+
+	const registerSubmit = useCallback(({ handler, label, enabled, preview }) => {
+		setTurnSubmitHandler(() => handler);
+		if (label !== undefined) setTurnSubmitLabel(label);
+		if (enabled !== undefined) setTurnSubmitEnabled(enabled);
+		if (preview !== undefined) setTurnPreviewText(preview);
+	}, []);
+
+	const clearSubmit = useCallback(() => {
+		setTurnSubmitHandler(null);
+		setTurnSubmitLabel('Submit');
+		setTurnSubmitEnabled(false);
+		setTurnSubmitting(false);
+		setTurnPreviewText('');
+	}, []);
+
+	const turnControlValue = useMemo(
+		() => ({
+			submitHandler: turnSubmitHandler,
+			submitLabel: turnSubmitLabel,
+			submitEnabled: turnSubmitEnabled,
+			submitting: turnSubmitting,
+			setSubmitting: setTurnSubmitting,
+			previewText: turnPreviewText,
+			registerSubmit,
+			clearSubmit,
+		}),
+		[turnSubmitHandler, turnSubmitLabel, turnSubmitEnabled, turnSubmitting, turnPreviewText, registerSubmit, clearSubmit]
+	);
+
 	return (
 		<MapInteractionContext.Provider value={mapInteractionValue}>
-			<div style={{ background: '#0a0b0d', minHeight: '100vh' }}>
-				<TopBar />
-				<MainApp />
-				{announcement && (
-					<TurnAnnouncement
-						key={announcement.key}
-						countryName={announcement.country}
-						countryColor={announcement.color}
-						subtitle={announcement.subtitle}
-					/>
-				)}
-			</div>
+			<TurnControlContext.Provider value={turnControlValue}>
+				<div style={{ background: '#0a0b0d', minHeight: '100vh' }}>
+					<TopBar />
+					<MainApp />
+					{announcement && (
+						<TurnAnnouncement
+							key={announcement.key}
+							countryName={announcement.country}
+							countryColor={announcement.color}
+							subtitle={announcement.subtitle}
+						/>
+					)}
+				</div>
+			</TurnControlContext.Provider>
 		</MapInteractionContext.Provider>
 	);
 }
