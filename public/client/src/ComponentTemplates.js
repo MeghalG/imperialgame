@@ -1035,18 +1035,6 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 				table.push('');
 			}
 		}
-		// Submit button
-		let showSubmit =
-			flowState.visibleLayers[flowState.visibleLayers.length - 1] && submit && !turnControl.submitHandler;
-		table.push(
-			<Display
-				component={SubmitButton}
-				show={showSubmit}
-				fn={handleSubmit}
-				k={flowState.keys[flowState.visibleLayers.length - 1]}
-				submit={submit}
-			/>
-		);
 		return table;
 	}
 
@@ -1060,28 +1048,16 @@ function ActionFlow({ className, submitMethod, objects, components, submit, trig
 		else if (type === 'buy') label = 'Buy Stock';
 		else if (type === 'bid') label = 'Submit Bid';
 
-		let preview = '';
-		if (type === 'proposal' && flowState.objectValues['wheel']) {
-			preview = 'Propose: ' + flowState.objectValues['wheel'];
-		} else if (type === 'vote') {
-			preview = 'Cast your vote';
-		} else if (type === 'buy') {
-			preview = 'Buy stock';
-		} else if (type === 'bid') {
-			preview = 'Place your bid';
-		}
-
 		turnControl.registerSubmit({
 			handler: submitMethod,
 			label: label,
 			enabled: allVisible,
-			preview: preview,
 		});
 
 		return () => {
 			turnControl.clearSubmit();
 		};
-	}, [submit, submitMethod, type, flowState.visibleLayers, flowState.objectValues, turnControl]);
+	}, [submit, submitMethod, type, flowState.visibleLayers, turnControl]);
 
 	// Auto-scroll to show newly visible layers (e.g. after rondel click)
 	useEffect(() => {
