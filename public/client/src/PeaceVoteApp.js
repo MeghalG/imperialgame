@@ -94,16 +94,21 @@ function PeaceVoteApp() {
 						<em>You have already voted. Waiting for other stockholders.</em>
 					</p>
 				) : (
-					<div>
+					<div className="imp-vote-buttons">
 						<Button
 							type="primary"
-							style={{ marginRight: 10 }}
+							className="imp-vote-buttons__option imp-vote-buttons__option--accept"
 							loading={submitting}
 							onClick={() => submitVote('accept')}
 						>
 							Accept Peace
 						</Button>
-						<Button danger loading={submitting} onClick={() => submitVote('reject')}>
+						<Button
+							danger
+							className="imp-vote-buttons__option imp-vote-buttons__option--reject"
+							loading={submitting}
+							onClick={() => submitVote('reject')}
+						>
 							Reject (War)
 						</Button>
 					</div>

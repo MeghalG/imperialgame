@@ -2956,3 +2956,56 @@ body {
 	color: var(--text-secondary);
 	line-height: 1.5;
 }
+
+/* ── Vote Buttons ── */
+.imp-vote-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+	padding: var(--space-3) 0;
+}
+
+.imp-vote-buttons__option {
+	padding: var(--space-4) var(--space-4);
+	background: var(--bg-elevated);
+	border: 2px solid rgba(255, 255, 255, 0.1);
+	border-radius: var(--radius-md);
+	color: var(--text-primary);
+	font-family: var(--font-body);
+	font-size: 16px;
+	font-weight: 500;
+	text-align: left;
+	cursor: pointer;
+	transition: border-color 0.15s ease-out, background 0.15s ease-out;
+}
+
+.imp-vote-buttons__option:hover {
+	border-color: var(--accent-teal);
+	background: rgba(19, 168, 168, 0.08);
+}
+
+.imp-vote-buttons__option--selected {
+	border-color: var(--accent-teal);
+	background: rgba(19, 168, 168, 0.15);
+}
+
+/* ── Peace Vote accent colors ── */
+.imp-vote-buttons__option--accept {
+	border-color: var(--success);
+}
+
+.imp-vote-buttons__option--accept:hover,
+.imp-vote-buttons__option--accept.imp-vote-buttons__option--selected {
+	border-color: var(--success);
+	background: rgba(73, 170, 25, 0.12);
+}
+
+.imp-vote-buttons__option--reject {
+	border-color: var(--error);
+}
+
+.imp-vote-buttons__option--reject:hover,
+.imp-vote-buttons__option--reject.imp-vote-buttons__option--selected {
+	border-color: var(--error);
+	background: rgba(211, 32, 41, 0.12);
+}
