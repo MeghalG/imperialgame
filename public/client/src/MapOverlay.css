@@ -2931,3 +2931,28 @@ body {
 	opacity: 0.4;
 	cursor: not-allowed;
 }
+
+/* ── Action Preview ── */
+.imp-action-preview {
+	margin: var(--space-3) 0;
+	padding: var(--space-3);
+	background: var(--bg-elevated);
+	border-radius: var(--radius-md);
+	border-left: 3px solid var(--accent-gold);
+}
+
+.imp-action-preview__label {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--text-muted);
+	margin-bottom: var(--space-1);
+}
+
+.imp-action-preview__text {
+	font-family: var(--font-body);
+	font-size: 14px;
+	color: var(--text-secondary);
+	line-height: 1.5;
+}
