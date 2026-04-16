@@ -1886,9 +1886,10 @@ body {
 }
 
 .imp-state__card-header-extra {
-	font-family: var(--imp-font-body);
+	font-family: var(--font-mono);
 	font-size: 12px;
 	font-weight: 600;
+	font-variant-numeric: tabular-nums;
 	color: var(--imp-accent-gold);
 }
 
@@ -1906,7 +1907,7 @@ body {
 	font-size: 18px;
 	font-weight: 700;
 	font-variant-numeric: tabular-nums;
-	font-family: var(--imp-font-body);
+	font-family: var(--font-mono);
 }
 
 .imp-state__key-stat--gold {
