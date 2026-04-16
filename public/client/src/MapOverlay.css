@@ -2900,3 +2900,34 @@ body {
 .imp-territory-tooltip__tag--warn {
 	background: rgba(200, 80, 40, 0.85);
 }
+
+/* ── Sidebar Submit (anchored at bottom) ── */
+.imp-sidebar-submit {
+	position: sticky;
+	bottom: 0;
+	padding: var(--space-3) var(--space-4);
+	background: linear-gradient(to top, var(--bg-surface) 60%, transparent);
+	z-index: 5;
+}
+
+.imp-sidebar-submit__btn {
+	width: 100%;
+	padding: var(--space-3) var(--space-4);
+	border: none;
+	border-radius: var(--radius-md);
+	color: #fff;
+	font-family: var(--font-display);
+	font-weight: 600;
+	font-size: 15px;
+	cursor: pointer;
+	transition: opacity 0.15s ease-out;
+}
+
+.imp-sidebar-submit__btn:hover:not(:disabled) {
+	opacity: 0.85;
+}
+
+.imp-sidebar-submit__btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
