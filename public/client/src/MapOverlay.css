@@ -3148,29 +3148,8 @@ body {
 	min-width: 0;
 }
 
-/* Player score: invisible at rest, fades in when the row is hovered.
- * No tooltips (user preference — tooltips stacked on sweep across icons).
- * Row-hover reveal is fast (120ms) and avoids any tooltip-layer behavior. */
-.imp-players-col__score {
-	margin-left: auto;
-	font-family: var(--imp-font-mono, 'JetBrains Mono', monospace);
-	font-variant-numeric: tabular-nums;
-	font-size: 11px;
-	color: var(--text-muted, rgba(255, 255, 255, 0.55));
-	opacity: 0;
-	transition: opacity 120ms ease-out;
-	pointer-events: none;
-}
-
-.imp-players-col__row:hover .imp-players-col__score {
-	opacity: 0.75;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.imp-players-col__score {
-		transition: none;
-	}
-}
+/* Player score is shown via Tooltip on the player's name
+ * (mouseEnterDelay=0, destroyTooltipOnHide) — no inline score element. */
 
 /* ── CountryCard leadership (lifted into header, 2026-04-17) ──
  * Sits flush against the country-colored header as a visually-continuous 2nd row.
