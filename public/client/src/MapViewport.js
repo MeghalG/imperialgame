@@ -39,11 +39,6 @@ function MapViewport({ children, overlay }) {
 			let r = viewportRef.current.getBoundingClientRect();
 			vw = r.width;
 			vh = r.height;
-			// The score track (.imp-vp-track) overlays the bottom of the
-			// viewport. Subtract its height so the map centers in the
-			// VISIBLE area, not the full viewport.
-			const track = viewportRef.current.querySelector('.imp-vp-track');
-			if (track) vh -= track.offsetHeight;
 		}
 		if (canvasRef.current) {
 			// clientWidth/Height ignore overflow from absolutely-positioned
@@ -150,43 +145,45 @@ function MapViewport({ children, overlay }) {
 		hoverSignal.dragging = false;
 	}, []);
 
-	let cursorClass = 'imp-viewport';
-	if (isDragging) cursorClass += ' imp-viewport--dragging';
-	else if (zoom > 1) cursorClass += ' imp-viewport--pannable';
+	let mapClass = 'imp-viewport__map';
+	if (isDragging) mapClass += ' imp-viewport__map--dragging';
+	else if (zoom > 1) mapClass += ' imp-viewport__map--pannable';
 
 	return (
-		<div
-			ref={viewportRef}
-			className={cursorClass}
-			onWheel={handleWheel}
-			onMouseDown={handleMouseDown}
-			onMouseMove={handleMouseMove}
-			onMouseUp={handleMouseUp}
-			onMouseLeave={handleMouseLeave}
-			onContextMenu={(e) => {
-				e.preventDefault();
-				hoverSignal.clientX = e.clientX;
-				hoverSignal.clientY = e.clientY;
-				hoverSignal.rightClick = true;
-			}}
-		>
+		<div className="imp-viewport">
 			<div
-				ref={canvasRef}
-				className="imp-canvas"
-				style={{
-					transform: 'translate(' + pan.x + 'px, ' + pan.y + 'px) scale(' + zoom + ')',
+				ref={viewportRef}
+				className={mapClass}
+				onWheel={handleWheel}
+				onMouseDown={handleMouseDown}
+				onMouseMove={handleMouseMove}
+				onMouseUp={handleMouseUp}
+				onMouseLeave={handleMouseLeave}
+				onContextMenu={(e) => {
+					e.preventDefault();
+					hoverSignal.clientX = e.clientX;
+					hoverSignal.clientY = e.clientY;
+					hoverSignal.rightClick = true;
 				}}
 			>
-				{children}
+				<div
+					ref={canvasRef}
+					className="imp-canvas"
+					style={{
+						transform: 'translate(' + pan.x + 'px, ' + pan.y + 'px) scale(' + zoom + ')',
+					}}
+				>
+					{children}
+				</div>
+				{/*
+				 * Overlay: rendered as a sibling of the transformed imp-canvas. Content
+				 * stays pinned to the viewport regardless of pan/zoom (does NOT inherit
+				 * the transform). Used for the FloatingSubmit FAB — see design doc
+				 * "Mount strategy (committed)".
+				 */}
+				{overlay && <div className="imp-viewport__overlay">{overlay}</div>}
 			</div>
-			{/*
-			 * Overlay: rendered as a sibling of the transformed imp-canvas. Content
-			 * stays pinned to the viewport regardless of pan/zoom (does NOT inherit
-			 * the transform). Used for the FloatingSubmit FAB — see design doc
-			 * "Mount strategy (committed)".
-			 */}
-			{overlay && <div className="imp-viewport__overlay">{overlay}</div>}
-			<div id="imp-vp-track-portal" />
+			<div id="imp-vp-track-portal" className="imp-vp-track-portal" />
 		</div>
 	);
 }

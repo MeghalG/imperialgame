@@ -19,14 +19,14 @@ describe('MapViewport overlay prop', () => {
 				<div data-testid="map-content">MAP</div>
 			</MapViewport>
 		);
-		const viewport = container.querySelector('.imp-viewport');
-		const canvas = viewport.querySelector('.imp-canvas');
-		const overlay = viewport.querySelector('.imp-viewport__overlay');
+		const mapArea = container.querySelector('.imp-viewport__map');
+		const canvas = mapArea.querySelector('.imp-canvas');
+		const overlay = mapArea.querySelector('.imp-viewport__overlay');
 		expect(canvas).not.toBeNull();
 		expect(overlay).not.toBeNull();
-		// Canvas and overlay are direct children of the viewport (siblings)
-		expect(canvas.parentElement).toBe(viewport);
-		expect(overlay.parentElement).toBe(viewport);
+		// Canvas and overlay are direct siblings inside the map area
+		expect(canvas.parentElement).toBe(mapArea);
+		expect(overlay.parentElement).toBe(mapArea);
 	});
 
 	it('does NOT apply the pan/zoom transform to overlay content', () => {

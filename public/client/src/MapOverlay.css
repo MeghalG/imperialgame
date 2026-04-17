@@ -143,24 +143,41 @@ body {
 }
 
 /* ---- Map Viewport ---- */
+/* Outer viewport: flex column splitting the map area from the score-track row.
+ * Previously the score track was position:absolute bottom:0 inside the viewport,
+ * which made it overlay the bottom of the map (and capture hover-through to
+ * map hotspots underneath). Splitting into two flex rows reserves dedicated
+ * space for the track so it never sits on top of the map. */
 .imp-viewport {
-	position: relative;
 	flex: 4;
 	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.imp-viewport__map {
+	position: relative;
+	flex: 1;
+	min-height: 0;
 	overflow: hidden;
 	background: #0a0b0d;
 }
 
-.imp-viewport--pannable {
+.imp-vp-track-portal {
+	position: relative;
+	flex: 0 0 44px;
+}
+
+.imp-viewport__map--pannable {
 	cursor: grab;
 }
 
-.imp-viewport--dragging {
+.imp-viewport__map--dragging {
 	cursor: grabbing;
 }
 
 /* Map atmosphere: vignette overlay */
-.imp-viewport::before {
+.imp-viewport__map::before {
 	content: '';
 	position: absolute;
 	top: 0;
@@ -178,7 +195,7 @@ body {
 }
 
 /* Map atmosphere: subtle grain texture */
-.imp-viewport::after {
+.imp-viewport__map::after {
 	content: '';
 	position: absolute;
 	top: 0;
@@ -2175,6 +2192,10 @@ body {
 		height: 36px;
 	}
 
+	.imp-vp-track-portal {
+		flex-basis: 36px;
+	}
+
 	.imp-vp-track__number {
 		font-size: 7px;
 	}
@@ -2244,12 +2265,12 @@ body {
 
 /* ---- Touch support for map viewport ---- */
 @media (pointer: coarse) {
-	.imp-viewport {
+	.imp-viewport__map {
 		cursor: default;
 		touch-action: none;
 	}
 
-	.imp-viewport--dragging {
+	.imp-viewport__map--dragging {
 		cursor: default;
 	}
 
