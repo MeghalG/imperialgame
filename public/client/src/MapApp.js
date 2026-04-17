@@ -254,7 +254,7 @@ function MapApp() {
 	return (
 		<React.Fragment>
 			<div className="imp-map-wrap" style={{ position: 'relative', display: 'inline-block' }}>
-				<img ref={imgRef} src={map} alt="Map" className="imp-map-img" />
+				<img ref={imgRef} src={map} alt="Map" width="1400" height="1048" className="imp-map-img" />
 				<mark
 					style={{
 						backgroundColor: 'black',
