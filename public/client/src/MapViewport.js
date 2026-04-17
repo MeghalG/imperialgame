@@ -39,6 +39,11 @@ function MapViewport({ children, overlay }) {
 			let r = viewportRef.current.getBoundingClientRect();
 			vw = r.width;
 			vh = r.height;
+			// The score track (.imp-vp-track) overlays the bottom of the
+			// viewport. Subtract its height so the map centers in the
+			// VISIBLE area, not the full viewport.
+			const track = viewportRef.current.querySelector('.imp-vp-track');
+			if (track) vh -= track.offsetHeight;
 		}
 		if (canvasRef.current) {
 			// clientWidth/Height ignore overflow from absolutely-positioned
