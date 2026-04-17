@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
-import { Tooltip } from 'antd';
 import { FlagFilled, FlagOutlined, DollarCircleFilled, DollarCircleOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
@@ -11,9 +10,14 @@ import { getCountryColorPalette } from './countryColors.js';
  * Always-on Players column.
  *
  * Reading order per row (committed in design review): name → leadership flags →
- * stock badges → right-aligned money + muted score. User's row gets a 3px gold
- * accent bar on the left and an elevated background (semantic ownership marker,
- * paired with aria-current="true").
+ * stock badges → right-aligned money. User's row gets a 3px gold accent bar on
+ * the left and an elevated background (semantic ownership marker, paired with
+ * aria-current="true").
+ *
+ * No tooltips anywhere (deliberate — the user dislikes them: too persistent,
+ * overlap content, stack when the cursor sweeps across adjacent icons). Country
+ * identity is conveyed by color alone (stock badges, leadership flags). Score
+ * reveals inline on row hover (CSS transition, respects prefers-reduced-motion).
  *
  * Edge cases:
  *   - Initial loading (no cached state): render 6 skeleton rows at same height.
@@ -108,18 +112,12 @@ function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette }) {
 		(isUser ? ' imp-players-col__row--user' : '') +
 		(isAbsent ? ' imp-players-col__row--absent' : '');
 
-	// Score is hover-only (tooltip on the name). Not rendered visibly — money
-	// carries the numeric weight on the right; score is context the user can
-	// reveal when they want it.
-	const scoreTitle = isAbsent
-		? player
-		: player + ' — score ' + helper.computeScore(info || {}, countryInfo || {}).toFixed(2);
+	const score = isAbsent ? null : helper.computeScore(info || {}, countryInfo || {});
+
 	return (
 		<li className={rowClass} aria-current={isUser ? 'true' : undefined}>
 			<div className="imp-players-col__row-top">
-				<Tooltip title={scoreTitle} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
-					<span className="imp-players-col__name">{player}</span>
-				</Tooltip>
+				<span className="imp-players-col__name">{player}</span>
 				<Leaderships player={player} countryInfo={countryInfo} palette={palette} />
 				<InvestorSwiss info={info} />
 				<span className="imp-players-col__money">{isAbsent ? '—' : '$' + (twoDec(info.money) ?? '0.00')}</span>
@@ -127,6 +125,7 @@ function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette }) {
 			{!isAbsent && (
 				<div className="imp-players-col__row-bottom">
 					<StockBadges stock={info.stock} palette={palette} />
+					{score !== null && <span className="imp-players-col__score">{score.toFixed(2)} pts</span>}
 				</div>
 			)}
 		</li>
@@ -141,22 +140,22 @@ function Leaderships({ player, countryInfo, palette }) {
 		const leadership = info.leadership || [];
 		if (leadership[0] === player) {
 			chips.push(
-				<Tooltip key={'lead-' + c} title={c + ' Leader'} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
-					<FlagFilled className="imp-players-col__flag" style={{ color: bright[c] }} />
-				</Tooltip>
+				<FlagFilled
+					key={'lead-' + c}
+					className="imp-players-col__flag"
+					aria-label={c + ' leader'}
+					style={{ color: bright[c] }}
+				/>
 			);
 		}
 		if (info.gov === 'democracy' && leadership[1] === player) {
 			chips.push(
-				<Tooltip
+				<FlagOutlined
 					key={'opp-' + c}
-					title={c + ' Opposition'}
-					mouseLeaveDelay={0}
-					mouseEnterDelay={0.3}
-					destroyTooltipOnHide
-				>
-					<FlagOutlined className="imp-players-col__flag" style={{ color: bright[c] }} />
-				</Tooltip>
+					className="imp-players-col__flag"
+					aria-label={c + ' opposition'}
+					style={{ color: bright[c] }}
+				/>
 			);
 		}
 	}
@@ -168,16 +167,20 @@ function InvestorSwiss({ info }) {
 	const badges = [];
 	if (info.investor) {
 		badges.push(
-			<Tooltip key="investor" title="Investor Card" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
-				<DollarCircleFilled className="imp-players-col__icon imp-players-col__icon--investor" />
-			</Tooltip>
+			<DollarCircleFilled
+				key="investor"
+				className="imp-players-col__icon imp-players-col__icon--investor"
+				aria-label="Investor card"
+			/>
 		);
 	}
 	if (info.swiss) {
 		badges.push(
-			<Tooltip key="swiss" title="Swiss Banking" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
-				<DollarCircleOutlined className="imp-players-col__icon imp-players-col__icon--swiss" />
-			</Tooltip>
+			<DollarCircleOutlined
+				key="swiss"
+				className="imp-players-col__icon imp-players-col__icon--swiss"
+				aria-label="Swiss banking"
+			/>
 		);
 	}
 	if (badges.length === 0) return null;
@@ -190,20 +193,14 @@ function StockBadges({ stock, palette }) {
 	return (
 		<span className="imp-players-col__stock">
 			{stock.map((entry, i) => (
-				<Tooltip
+				<span
 					key={entry.country + '-' + i}
-					title={entry.country}
-					mouseLeaveDelay={0}
-					mouseEnterDelay={0.3}
-					destroyTooltipOnHide
+					className="imp-sidebar__stock-badge"
+					aria-label={entry.country + ' stock ' + entry.stock}
+					style={{ backgroundColor: dark[entry.country], cursor: 'default' }}
 				>
-					<span
-						className="imp-sidebar__stock-badge"
-						style={{ backgroundColor: dark[entry.country], cursor: 'default' }}
-					>
-						{entry.stock}
-					</span>
-				</Tooltip>
+					{entry.stock}
+				</span>
 			))}
 		</span>
 	);
