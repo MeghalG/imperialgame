@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
-import { Tooltip } from 'antd';
 import { FlagFilled, FlagOutlined, DollarCircleFilled, DollarCircleOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
@@ -14,13 +13,14 @@ import { getCountryColorPalette } from './countryColors.js';
  * stock badges → right-aligned money. User's row gets a 3px gold accent bar on
  * the left and an elevated background (paired with aria-current="true").
  *
- * Tooltips:
- *   All Tooltip wrappers use mouseEnterDelay={0} + mouseLeaveDelay={0} +
- *   destroyTooltipOnHide. In a dense icon cluster, any enter-delay queues
- *   up multiple tooltip animations when the cursor sweeps across adjacent
- *   targets — zero delay means sweeping instantly swaps visible tooltips
- *   rather than stacking them. destroyTooltipOnHide removes the hidden
- *   tooltip from the DOM so there's no half-animated remnant.
+ * Tooltips: single shared custom tooltip (no antd Tooltip here). One <div>,
+ * one position, controlled by React state. Every hoverable target calls the
+ * same `showTip`/`scheduleHide` pair, so at most ONE tooltip is ever rendered
+ * at any point. No stacking, no ghosting — tested cases:
+ *   - Moving from icon A to icon B: showTip immediately replaces the content
+ *     in place (no flicker because scheduleHide is debounced 50ms).
+ *   - Leaving the column entirely: scheduleHide's timer fires, tooltip clears.
+ *   - Mounting/unmounting: useEffect cleanup clears any pending timer.
  *
  * Edge cases:
  *   - Initial loading (no cached state): render 6 skeleton rows at same height.
@@ -38,6 +38,35 @@ function PlayersColumn() {
 	const [playersOrdered, setPlayersOrdered] = useState(null); // null = loading, [] = loaded empty
 
 	const { gameState, loading } = useGameState();
+
+	// Single shared tooltip state. {text, rect} or null.
+	const [tip, setTip] = useState(null);
+	const hideTimerRef = useRef(null);
+
+	const showTip = useCallback((text, el) => {
+		if (hideTimerRef.current) {
+			clearTimeout(hideTimerRef.current);
+			hideTimerRef.current = null;
+		}
+		if (!el) return;
+		const rect = el.getBoundingClientRect();
+		setTip({ text, rect });
+	}, []);
+
+	const scheduleHide = useCallback(() => {
+		if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+		hideTimerRef.current = setTimeout(() => {
+			setTip(null);
+			hideTimerRef.current = null;
+		}, 50);
+	}, []);
+
+	// Cleanup any pending hide timer on unmount
+	useEffect(() => {
+		return () => {
+			if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+		};
+	}, []);
 
 	const reinitialize = useCallback(async () => {
 		try {
@@ -96,11 +125,36 @@ function PlayersColumn() {
 							isAbsent={isAbsent}
 							countryInfo={countryInfo}
 							palette={palette}
+							showTip={showTip}
+							scheduleHide={scheduleHide}
 						/>
 					);
 				})}
 			</ul>
+			{tip && <SharedTip text={tip.text} rect={tip.rect} />}
 		</aside>
+	);
+}
+
+/**
+ * The one and only tooltip rendered while anything in the Players column is
+ * hovered. Position is fixed to the viewport so overflow:auto on the column
+ * doesn't clip it. Centered horizontally above the target element.
+ */
+function SharedTip({ text, rect }) {
+	return (
+		<div
+			className="imp-players-col__tip"
+			role="tooltip"
+			aria-hidden="true"
+			style={{
+				position: 'fixed',
+				top: Math.max(4, rect.top - 6),
+				left: rect.left + rect.width / 2,
+			}}
+		>
+			{text}
+		</div>
 	);
 }
 
@@ -109,20 +163,7 @@ function twoDec(money) {
 	return parseFloat(money).toFixed(2);
 }
 
-// Shared tooltip props for the entire Players column.
-// Zero delays + destroy-on-hide + overlayClassName that disables antd's
-// fade animation prevents the "stacking on cursor sweep" issue. Without
-// the animation kill, antd's ~100ms hide transition leaves the outgoing
-// tooltip visible while the new one is already showing. See feedback
-// memory `tooltips` and the CSS rule `.imp-insta-tip`.
-const TIP = {
-	mouseEnterDelay: 0,
-	mouseLeaveDelay: 0,
-	destroyTooltipOnHide: true,
-	overlayClassName: 'imp-insta-tip',
-};
-
-function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette }) {
+function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette, showTip, scheduleHide }) {
 	const rowClass =
 		'imp-players-col__row' +
 		(isUser ? ' imp-players-col__row--user' : '') +
@@ -132,26 +173,33 @@ function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette }) {
 		? player
 		: player + ' — score ' + helper.computeScore(info || {}, countryInfo || {}).toFixed(2);
 
+	// Factory: one call produces {onMouseEnter, onMouseLeave} bound to a
+	// specific tooltip text. Reuse for every hoverable child.
+	const tipOn = (text) => ({
+		onMouseEnter: (e) => showTip(text, e.currentTarget),
+		onMouseLeave: scheduleHide,
+	});
+
 	return (
 		<li className={rowClass} aria-current={isUser ? 'true' : undefined}>
 			<div className="imp-players-col__row-top">
-				<Tooltip title={scoreTitle} placement="top" {...TIP}>
-					<span className="imp-players-col__name">{player}</span>
-				</Tooltip>
-				<Leaderships player={player} countryInfo={countryInfo} palette={palette} />
-				<InvestorSwiss info={info} />
+				<span className="imp-players-col__name" {...tipOn(scoreTitle)}>
+					{player}
+				</span>
+				<Leaderships player={player} countryInfo={countryInfo} palette={palette} tipOn={tipOn} />
+				<InvestorSwiss info={info} tipOn={tipOn} />
 				<span className="imp-players-col__money">{isAbsent ? '—' : '$' + (twoDec(info.money) ?? '0.00')}</span>
 			</div>
 			{!isAbsent && (
 				<div className="imp-players-col__row-bottom">
-					<StockBadges stock={info.stock} palette={palette} />
+					<StockBadges stock={info.stock} palette={palette} tipOn={tipOn} />
 				</div>
 			)}
 		</li>
 	);
 }
 
-function Leaderships({ player, countryInfo, palette }) {
+function Leaderships({ player, countryInfo, palette, tipOn }) {
 	const bright = palette.bright;
 	const chips = [];
 	for (const c in countryInfo) {
@@ -159,16 +207,24 @@ function Leaderships({ player, countryInfo, palette }) {
 		const leadership = info.leadership || [];
 		if (leadership[0] === player) {
 			chips.push(
-				<Tooltip key={'lead-' + c} title={c + ' Leader'} placement="top" {...TIP}>
-					<FlagFilled className="imp-players-col__flag" style={{ color: bright[c] }} />
-				</Tooltip>
+				<FlagFilled
+					key={'lead-' + c}
+					className="imp-players-col__flag"
+					aria-label={c + ' Leader'}
+					style={{ color: bright[c] }}
+					{...tipOn(c + ' Leader')}
+				/>
 			);
 		}
 		if (info.gov === 'democracy' && leadership[1] === player) {
 			chips.push(
-				<Tooltip key={'opp-' + c} title={c + ' Opposition'} placement="top" {...TIP}>
-					<FlagOutlined className="imp-players-col__flag" style={{ color: bright[c] }} />
-				</Tooltip>
+				<FlagOutlined
+					key={'opp-' + c}
+					className="imp-players-col__flag"
+					aria-label={c + ' Opposition'}
+					style={{ color: bright[c] }}
+					{...tipOn(c + ' Opposition')}
+				/>
 			);
 		}
 	}
@@ -176,40 +232,47 @@ function Leaderships({ player, countryInfo, palette }) {
 	return <span className="imp-players-col__flags">{chips}</span>;
 }
 
-function InvestorSwiss({ info }) {
+function InvestorSwiss({ info, tipOn }) {
 	const badges = [];
 	if (info.investor) {
 		badges.push(
-			<Tooltip key="investor" title="Investor Card" placement="top" {...TIP}>
-				<DollarCircleFilled className="imp-players-col__icon imp-players-col__icon--investor" />
-			</Tooltip>
+			<DollarCircleFilled
+				key="investor"
+				className="imp-players-col__icon imp-players-col__icon--investor"
+				aria-label="Investor Card"
+				{...tipOn('Investor Card')}
+			/>
 		);
 	}
 	if (info.swiss) {
 		badges.push(
-			<Tooltip key="swiss" title="Swiss Banking" placement="top" {...TIP}>
-				<DollarCircleOutlined className="imp-players-col__icon imp-players-col__icon--swiss" />
-			</Tooltip>
+			<DollarCircleOutlined
+				key="swiss"
+				className="imp-players-col__icon imp-players-col__icon--swiss"
+				aria-label="Swiss Banking"
+				{...tipOn('Swiss Banking')}
+			/>
 		);
 	}
 	if (badges.length === 0) return null;
 	return <span className="imp-players-col__icons">{badges}</span>;
 }
 
-function StockBadges({ stock, palette }) {
+function StockBadges({ stock, palette, tipOn }) {
 	if (!stock || stock.length === 0) return <span className="imp-players-col__stock" />;
 	const dark = palette.dark;
 	return (
 		<span className="imp-players-col__stock">
 			{stock.map((entry, i) => (
-				<Tooltip key={entry.country + '-' + i} title={entry.country} placement="top" {...TIP}>
-					<span
-						className="imp-sidebar__stock-badge"
-						style={{ backgroundColor: dark[entry.country], cursor: 'default' }}
-					>
-						{entry.stock}
-					</span>
-				</Tooltip>
+				<span
+					key={entry.country + '-' + i}
+					className="imp-sidebar__stock-badge"
+					aria-label={entry.country + ' stock ' + entry.stock}
+					style={{ backgroundColor: dark[entry.country], cursor: 'default' }}
+					{...tipOn(entry.country)}
+				>
+					{entry.stock}
+				</span>
 			))}
 		</span>
 	);
