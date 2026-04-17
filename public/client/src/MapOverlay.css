@@ -3009,3 +3009,291 @@ body {
 	border-color: var(--error);
 	background: rgba(211, 32, 41, 0.12);
 }
+
+/* ── PlayersColumn — always-on player-info column ── */
+.imp-players-col {
+	display: flex;
+	flex-direction: column;
+	width: 240px;
+	min-width: 240px;
+	background: var(--bg-surface);
+	border-left: 1px solid rgba(255, 255, 255, 0.06);
+	border-right: 1px solid rgba(255, 255, 255, 0.06);
+	overflow-y: auto;
+	overflow-x: hidden;
+	font-size: 13px;
+	line-height: 1.35;
+}
+
+.imp-players-col__header {
+	padding: 10px 12px 6px 12px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	color: var(--text-secondary);
+	text-transform: uppercase;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.imp-players-col__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.imp-players-col__row {
+	position: relative;
+	padding: 8px 10px 8px 12px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+	background: var(--bg-surface);
+}
+
+.imp-players-col__row--user {
+	background: var(--bg-elevated);
+}
+
+.imp-players-col__row--user::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background: var(--accent-gold);
+}
+
+.imp-players-col__row--absent {
+	opacity: 0.4;
+}
+
+.imp-players-col__row--skeleton {
+	min-height: 48px;
+	background: var(--bg-elevated);
+	opacity: 0.5;
+	animation: imp-players-col-pulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.imp-players-col__row--skeleton {
+		animation: none;
+	}
+}
+
+@keyframes imp-players-col-pulse {
+	0%,
+	100% {
+		opacity: 0.5;
+	}
+	50% {
+		opacity: 0.3;
+	}
+}
+
+.imp-players-col__row-top {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.imp-players-col__name {
+	font-weight: 600;
+	color: var(--text-primary);
+	max-width: 90px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.imp-players-col__flags {
+	display: inline-flex;
+	gap: 3px;
+}
+
+.imp-players-col__flag {
+	font-size: 11px;
+}
+
+.imp-players-col__icons {
+	display: inline-flex;
+	gap: 3px;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.imp-players-col__icon {
+	font-size: 11px;
+}
+
+.imp-players-col__money {
+	margin-left: auto;
+	font-family: var(--imp-font-mono, 'JetBrains Mono', monospace);
+	font-variant-numeric: tabular-nums;
+	font-size: 13px;
+	color: var(--accent-gold);
+	font-weight: 500;
+}
+
+.imp-players-col__row-bottom {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 4px;
+	min-height: 14px;
+}
+
+.imp-players-col__stock {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+}
+
+.imp-players-col__score {
+	margin-left: auto;
+	font-family: var(--imp-font-mono, 'JetBrains Mono', monospace);
+	font-variant-numeric: tabular-nums;
+	font-size: 11px;
+	color: var(--text-muted, rgba(255, 255, 255, 0.38));
+}
+
+/* ── CountryCard gov pill + leadership chips (replaces old govText line) ── */
+.imp-state__gov {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.imp-state__gov-pill {
+	font-family: var(--imp-font-mono, 'JetBrains Mono', monospace);
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	padding: 1px 4px;
+	background: var(--bg-elevated);
+	color: var(--text-secondary);
+	border-radius: 2px;
+	line-height: 1.4;
+}
+
+.imp-state__gov-chip {
+	display: inline-flex;
+	align-items: center;
+	font-size: 11px;
+	color: var(--text-primary);
+	line-height: 1.3;
+}
+
+/* ── MapViewport overlay layer — sibling of imp-canvas, outside transform ──
+ * z-index 75 sits above the viewport vignette pseudo-elements (70/71) so the
+ * FAB isn't darkened by the radial gradient at the map's edge. Below panel-
+ * level overlays (80+) and TurnAnnouncement (1000) so those still occlude it.
+ */
+.imp-viewport__overlay {
+	position: absolute;
+	inset: 0;
+	pointer-events: none; /* children opt-in with their own pointer-events */
+	z-index: 75;
+}
+
+.imp-viewport__overlay > * {
+	pointer-events: auto;
+}
+
+/* ── FloatingSubmit — FAB + attached preview pill over the map ── */
+.imp-floating-submit {
+	position: absolute;
+	right: 24px;
+	bottom: 24px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 8px;
+	pointer-events: none; /* children opt in */
+}
+
+.imp-floating-submit__preview-slot {
+	pointer-events: auto;
+	max-width: 40vw;
+	padding: 6px 10px;
+	background: rgba(18, 20, 26, 0.92);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 4px;
+	font-size: 12px;
+	color: var(--text-secondary);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+	min-height: 0;
+}
+
+.imp-floating-submit__preview-slot:empty {
+	display: none;
+}
+
+.imp-submit-fab {
+	pointer-events: auto;
+	width: 56px;
+	min-width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	border: none;
+	color: #fff;
+	font-family: var(--imp-font-condensed, inherit);
+	font-weight: 600;
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	cursor: pointer;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 4px;
+	transition: transform 150ms ease-out, box-shadow 150ms ease-out, opacity 150ms ease-out;
+	animation: imp-fab-fade-in 150ms ease-out;
+}
+
+.imp-submit-fab:hover:not(:disabled) {
+	transform: translateY(-1px);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.imp-submit-fab:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.imp-submit-fab__label {
+	text-align: center;
+	line-height: 1.1;
+	word-break: break-word;
+	max-width: 48px;
+}
+
+@keyframes imp-fab-fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.imp-submit-fab {
+		animation: none;
+		transition: none;
+	}
+	.imp-submit-fab:hover:not(:disabled) {
+		transform: none;
+	}
+}
+
+/* ── PlayersColumn narrow-screen rule ──
+ * Minimal rule for this iteration: hide PlayersColumn below 1024px (matches
+ * existing sidebar-drawer breakpoint). Full mobile redesign is deferred —
+ * see Open Questions section in the design doc.
+ */
+@media (max-width: 1024px) {
+	.imp-players-col {
+		display: none;
+	}
+}

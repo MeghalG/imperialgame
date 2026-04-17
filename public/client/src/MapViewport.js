@@ -20,7 +20,7 @@ function clampPan(panX, panY, zoom, vw, vh, canvasW, canvasH) {
 	};
 }
 
-function MapViewport({ children }) {
+function MapViewport({ children, overlay }) {
 	const [zoom, setZoom] = useState(1);
 	const [pan, setPan] = useState({ x: 0, y: 0 });
 	const [isDragging, setIsDragging] = useState(false);
@@ -171,6 +171,13 @@ function MapViewport({ children }) {
 			>
 				{children}
 			</div>
+			{/*
+			 * Overlay: rendered as a sibling of the transformed imp-canvas. Content
+			 * stays pinned to the viewport regardless of pan/zoom (does NOT inherit
+			 * the transform). Used for the FloatingSubmit FAB — see design doc
+			 * "Mount strategy (committed)".
+			 */}
+			{overlay && <div className="imp-viewport__overlay">{overlay}</div>}
 			<div id="imp-vp-track-portal" />
 		</div>
 	);

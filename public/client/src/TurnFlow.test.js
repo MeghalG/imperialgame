@@ -10,8 +10,15 @@
 // ---------------------------------------------------------------------------
 
 import React from 'react';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import { setCachedState, clearCache } from './backendFiles/stateCache.js';
+
+// Stub ResizeObserver (MapViewport uses it; Sidebar doesn't but imports may)
+global.ResizeObserver = class {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+};
 
 // ---- Mock Firebase --------------------------------------------------------
 jest.mock('./backendFiles/firebase.js', () => ({
@@ -230,6 +237,20 @@ async function flushAll() {
 	}
 }
 
+/**
+ * After the 2026-04-16 panel rework, Countries is the sidebar's default tab
+ * (except during continue-man). These tests predate that and assert that
+ * mode components (BidApp, ProposalApp, etc) render in the sidebar — which
+ * means the Turn tab must be active. Click Turn to activate it.
+ */
+async function clickTurnTab() {
+	const turnBtn = document.querySelector('.imp-sidebar__tab-btn[aria-label="Turn"]');
+	if (!turnBtn) throw new Error('Turn tab button not found in sidebar');
+	await act(async () => {
+		fireEvent.click(turnBtn);
+	});
+}
+
 // ---- Setup / teardown -----------------------------------------------------
 
 beforeEach(() => {
@@ -263,6 +284,7 @@ describe('Sidebar displays correct mode component', () => {
 
 		renderSidebar();
 		await flushAll();
+		await clickTurnTab();
 
 		expect(screen.getByTestId('mode-bid')).toBeInTheDocument();
 	});
@@ -277,6 +299,7 @@ describe('Sidebar displays correct mode component', () => {
 
 		renderSidebar();
 		await flushAll();
+		await clickTurnTab();
 
 		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
 	});
@@ -291,6 +314,7 @@ describe('Sidebar displays correct mode component', () => {
 
 		renderSidebar();
 		await flushAll();
+		await clickTurnTab();
 
 		expect(screen.getByTestId('mode-vote')).toBeInTheDocument();
 	});
@@ -325,6 +349,7 @@ describe('Sidebar updates when game state changes via stateCache', () => {
 
 		renderSidebar();
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByTestId('mode-bid')).toBeInTheDocument();
 
 		// Simulate turn change: new state arrives via stateCache
@@ -339,6 +364,9 @@ describe('Sidebar updates when game state changes via stateCache', () => {
 			setCachedState('testGame', 10, { mode: 'proposal', turnID: 10 });
 		});
 		await flushAll();
+		// After mode change, userOverrodeTab is cleared, so Countries becomes the
+		// default again. Re-click Turn to see the proposal component.
+		await clickTurnTab();
 
 		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
 		expect(screen.queryByTestId('mode-bid')).not.toBeInTheDocument();
@@ -354,6 +382,7 @@ describe('Sidebar updates when game state changes via stateCache', () => {
 
 		renderSidebar();
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByText('Bidding on Austria')).toBeInTheDocument();
 
 		// Change to proposal
@@ -368,6 +397,7 @@ describe('Sidebar updates when game state changes via stateCache', () => {
 			setCachedState('testGame', 10, { mode: 'proposal', turnID: 10 });
 		});
 		await flushAll();
+		await clickTurnTab();
 
 		expect(screen.getByText('France proposal — Alice leads')).toBeInTheDocument();
 	});
@@ -382,6 +412,7 @@ describe('Sidebar updates when game state changes via stateCache', () => {
 
 		renderSidebar();
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByTestId('mode-bid')).toBeInTheDocument();
 
 		// Change to buy
@@ -396,6 +427,7 @@ describe('Sidebar updates when game state changes via stateCache', () => {
 			setCachedState('testGame', 10, { mode: 'buy', turnID: 10 });
 		});
 		await flushAll();
+		await clickTurnTab();
 
 		expect(screen.getByTestId('mode-buy')).toBeInTheDocument();
 		// Old mode component should be gone
@@ -413,6 +445,7 @@ describe('Sidebar updates when game state changes via stateCache', () => {
 			setCachedState('testGame', 11, { mode: 'vote', turnID: 11 });
 		});
 		await flushAll();
+		await clickTurnTab();
 
 		expect(screen.getByTestId('mode-vote')).toBeInTheDocument();
 		expect(screen.queryByTestId('mode-buy')).not.toBeInTheDocument();
@@ -527,7 +560,11 @@ describe('UserContext cleanup on mode transitions', () => {
 // ===========================================================================
 // Portfolio display — verify player info renders
 // ===========================================================================
-describe('portfolio display', () => {
+// NOTE: The 'portfolio display' describe block was deleted in the 2026-04-16
+// panel rework. The portfolio row was removed from Sidebar; user's info now
+// lives in the always-on PlayersColumn (tested in PlayersColumn.test.js).
+// See DESIGN.md Decisions Log 2026-04-16 for the approved override.
+describe.skip('portfolio display (REMOVED — see PlayersColumn.test.js)', () => {
 	test('shows player name and money', async () => {
 		stateAPI.getPlayerInfo.mockResolvedValue({
 			Alice: { money: 42.5, stock: [], investor: false, swiss: false },
@@ -716,6 +753,7 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 
 		renderSidebar({ name: 'Alice' });
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByTestId('mode-bid')).toBeInTheDocument();
 		expect(screen.getByText('Bidding on Austria')).toBeInTheDocument();
 
@@ -732,6 +770,7 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 			setCachedState('testGame', 6, { mode: 'buy-bid', turnID: 6 });
 		});
 		await flushAll();
+		await clickTurnTab();
 
 		// Sidebar should now show buy-bid mode
 		expect(screen.getByTestId('mode-buy-bid')).toBeInTheDocument();
@@ -749,6 +788,7 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 
 		renderSidebar({ name: 'Alice' });
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
 
 		// Step 1: finalizeSubmit — optimistic state (dictatorship executes, moves to next country)
@@ -763,6 +803,9 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England' });
 		});
 		await flushAll();
+		// After mode-change, userOverrodeTab cleared — Countries is default again.
+		// Click Turn to see turnTitle ("England proposal") in the tab header.
+		await clickTurnTab();
 		expect(screen.getByText('England proposal')).toBeInTheDocument();
 
 		// Step 2: callCF returns — authoritative state (same turnID, possibly adjusted data)
@@ -777,6 +820,7 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England', authoritative: true });
 		});
 		await flushAll();
+		await clickTurnTab();
 
 		// Sidebar should still show the correct state (not blank, not stale)
 		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
@@ -794,6 +838,7 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 
 		renderSidebar({ name: 'Bob' });
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByText('France proposal — Alice leads')).toBeInTheDocument();
 
 		// Alice submits. Firebase listener fires on Bob's client.
@@ -809,8 +854,9 @@ describe('full submit cycle (optimistic → authoritative → listener)', () => 
 			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England' });
 		});
 		await flushAll();
+		await clickTurnTab();
 
-		// Bob should now see the updated state
+		// Bob should now see the updated state (title in the Turn tab header)
 		expect(screen.getByText('England proposal — Charlie leads')).toBeInTheDocument();
 	});
 });
@@ -834,6 +880,7 @@ describe('listener path: invalidateIfStale → readGameState → sidebar updates
 
 		renderSidebar({ name: 'Bob' });
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByTestId('mode-bid')).toBeInTheDocument();
 
 		// Another player submits. Firebase mock returns new state.
@@ -864,6 +911,7 @@ describe('listener path: invalidateIfStale → readGameState → sidebar updates
 			await readGameState({ game: 'testGame' });
 		});
 		await flushAll();
+		await clickTurnTab();
 
 		// Sidebar should have updated to proposal mode
 		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
@@ -883,6 +931,7 @@ describe('listener path: invalidateIfStale → readGameState → sidebar updates
 
 		renderSidebar({ name: 'Alice' });
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByTestId('mode-proposal')).toBeInTheDocument();
 
 		// Step 1: Alice submits. finalizeSubmit caches optimistic state.
@@ -897,6 +946,7 @@ describe('listener path: invalidateIfStale → readGameState → sidebar updates
 			setCachedState('testGame', 11, { mode: 'proposal', turnID: 11, countryUp: 'England' });
 		});
 		await flushAll();
+		await clickTurnTab();
 		expect(screen.getByText('England proposal')).toBeInTheDocument();
 
 		// Step 2: database.set() triggers onValue. Cache matches (turnID 11), so

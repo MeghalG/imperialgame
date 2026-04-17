@@ -1,17 +1,7 @@
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import './MapOverlay.css';
-import { Tooltip, Popconfirm } from 'antd';
-import {
-	DollarCircleFilled,
-	DollarCircleOutlined,
-	FlagFilled,
-	FlagOutlined,
-	ThunderboltOutlined,
-	TeamOutlined,
-	GlobalOutlined,
-	HistoryOutlined,
-	ReadOutlined,
-} from '@ant-design/icons';
+import { Popconfirm } from 'antd';
+import { ThunderboltOutlined, GlobalOutlined, HistoryOutlined, ReadOutlined } from '@ant-design/icons';
 import UserContext from './UserContext.js';
 import * as stateAPI from './backendFiles/stateAPI.js';
 import * as helper from './backendFiles/helper.js';
@@ -34,16 +24,30 @@ import VoteApp from './VoteApp.js';
 import ManeuverPlannerApp from './ManeuverPlannerApp.js';
 import PeaceVoteApp from './PeaceVoteApp.js';
 import SoundManager from './SoundManager.js';
-import ActionPreview from './ActionPreview.js';
-import SidebarSubmit from './SidebarSubmit.js';
 
+/**
+ * Tabs in the right-hand sidebar column. Players tab removed — players info
+ * lives in the always-on PlayersColumn (sibling of MapViewport + Sidebar).
+ * Portfolio row also removed — user's info is visually highlighted in
+ * PlayersColumn (accent-bar + elevated background).
+ */
 const TABS = [
-	{ key: 'turn', icon: ThunderboltOutlined, label: 'Turn' },
-	{ key: 'players', icon: TeamOutlined, label: 'Players' },
 	{ key: 'countries', icon: GlobalOutlined, label: 'Countries' },
+	{ key: 'turn', icon: ThunderboltOutlined, label: 'Turn' },
 	{ key: 'history', icon: HistoryOutlined, label: 'History' },
 	{ key: 'rules', icon: ReadOutlined, label: 'Rules' },
 ];
+
+/**
+ * Given the current mode, return the default tab.
+ * Countries default except during maneuver (continue-man → Turn) so the
+ * maneuver planner isn't buried behind a tab.
+ * No default during game-over (GameOverApp overlay covers the UI).
+ */
+function getDefaultTab(mode) {
+	if (mode === 'continue-man') return 'turn';
+	return 'countries';
+}
 
 function DisplayMode({ mode, turnID, gameState }) {
 	switch (mode) {
@@ -78,9 +82,11 @@ function Sidebar() {
 	const contextRef = useRef(context);
 	contextRef.current = context;
 
-	// Tab state
-	const [activeTab, setActiveTab] = useState('turn');
-	const [isDefaultTab, setIsDefaultTab] = useState(true);
+	// Tab state. Default tab is derived from mode (see getDefaultTab); a
+	// manual click sets userOverrodeTab so the default doesn't clobber the
+	// user's choice. userOverrodeTab resets on every mode change.
+	const [activeTab, setActiveTab] = useState(() => getDefaultTab(''));
+	const userOverrodeTabRef = useRef(false);
 
 	// Turn metadata (Sidebar owns this)
 	const [turnTitle, setTurnTitle] = useState('');
@@ -88,14 +94,12 @@ function Sidebar() {
 	const [turnID, setTurnID] = useState('');
 	const [undoable, setUndoable] = useState(false);
 	const [countryUp, setCountryUp] = useState('');
-	const [myTurn, setMyTurn] = useState(false);
 	const prevModeRef = useRef(null);
 
-	// Player/country data (shared across portfolio + tabs)
+	// Country data (used by Countries tab)
 	const [countries, setCountries] = useState([]);
 	const [countryInfo, setCountryInfo] = useState({});
 	const [playerInfo, setPlayerInfo] = useState({});
-	const [playersOrdered, setPlayersOrdered] = useState([]);
 
 	// Narrow screen drawer state
 	const [drawerOpen, setDrawerOpen] = useState(false);
@@ -104,23 +108,26 @@ function Sidebar() {
 	const { gameState } = useGameState();
 
 	const refreshData = useCallback(async () => {
-		console.log('[Sidebar] refreshData called');
 		try {
-			let [turnState, gs, countriesData, country, player, order, myTurnData] = await Promise.all([
+			let [turnState, gs, countriesData, country, player] = await Promise.all([
 				turnAPI.getTurnState(contextRef.current),
 				miscAPI.getGameState(contextRef.current),
 				helper.getCountries(contextRef.current),
 				stateAPI.getCountryInfo(contextRef.current),
 				stateAPI.getPlayerInfo(contextRef.current),
-				helper.getPlayersInOrder(contextRef.current),
-				turnAPI.getMyTurn(contextRef.current),
 			]);
 
 			setTurnTitle(turnState.turnTitle);
-			if (prevModeRef.current !== null && turnState.mode !== prevModeRef.current) {
-				SoundManager.playShuffle();
-				// Clear stale form values from the previous mode
-				contextRef.current.resetValues();
+			if (turnState.mode !== prevModeRef.current) {
+				// Mode changed (includes initial mount where prevModeRef.current was null).
+				// On real transitions (not initial), play shuffle + reset form values.
+				if (prevModeRef.current !== null) {
+					SoundManager.playShuffle();
+					contextRef.current.resetValues();
+				}
+				// Clear manual-override flag and re-derive default tab from new mode
+				userOverrodeTabRef.current = false;
+				setActiveTab(getDefaultTab(turnState.mode));
 			}
 			prevModeRef.current = turnState.mode;
 			setMode(turnState.mode);
@@ -129,34 +136,22 @@ function Sidebar() {
 			if (gs && gs.countryUp) {
 				setCountryUp(gs.countryUp);
 			}
-			setMyTurn(myTurnData);
 			setCountries(countriesData || []);
 			setCountryInfo(country || {});
 			setPlayerInfo(player || {});
-			setPlayersOrdered(order || []);
 		} catch (e) {
 			console.warn('Sidebar: failed to load data, will retry on next turn change', e);
 		}
 	}, []);
 
 	// Refresh display data whenever the centralized game state changes.
-	// Replaces the old independent turnID listener.
-	// Also re-fetch on player name changes.
 	useEffect(() => {
 		refreshData();
 	}, [gameState, context.name, refreshData]);
 
-	// Auto-switch to Turn tab when it's the player's turn (only if on default tab)
-	useEffect(() => {
-		if (myTurn && isDefaultTab) {
-			setActiveTab('turn');
-		}
-	}, [myTurn, isDefaultTab]);
-
 	function handleTabClick(key) {
 		setActiveTab(key);
-		setIsDefaultTab(key === 'turn');
-		// On narrow screens, if drawer was open via icon strip, keep it open
+		userOverrodeTabRef.current = true;
 	}
 
 	async function undo() {
@@ -166,7 +161,6 @@ function Sidebar() {
 	let palette = getCountryColorPalette(context.colorblindMode);
 	let accentColor = countryUp && palette.bright[countryUp] ? palette.bright[countryUp] : '#c9a84c';
 	let darkColors = palette.dark;
-	let brightColors = palette.bright;
 
 	// Game over gets a full-screen overlay
 	if (mode === 'game-over') {
@@ -178,91 +172,6 @@ function Sidebar() {
 				<div className="imp-sidebar" />
 			</React.Fragment>
 		);
-	}
-
-	// --- Portfolio section (always visible) ---
-	function renderPortfolio() {
-		if (!context.name) return null;
-		let info = playerInfo[context.name] || {};
-		return (
-			<div className="imp-sidebar__section imp-sidebar__portfolio">
-				<div className="imp-sidebar__portfolio-header">
-					<span className="imp-sidebar__portfolio-name">{context.name}</span>
-					<span className="imp-sidebar__portfolio-money">${twoDec(info.money)}</span>
-				</div>
-				<div className="imp-sidebar__portfolio-details">
-					<span className="imp-sidebar__portfolio-icons">{buildPortfolioIcons(context.name, info)}</span>
-					<span className="imp-sidebar__portfolio-stocks">{formatStock(info.stock)}</span>
-				</div>
-			</div>
-		);
-	}
-
-	function twoDec(money) {
-		if (!money) return '0.00';
-		return parseFloat(money).toFixed(2);
-	}
-
-	function formatStock(stock) {
-		if (!stock) return null;
-		let grouped = {};
-		for (let entry of stock) {
-			if (!grouped[entry.country]) grouped[entry.country] = [];
-			grouped[entry.country].push(entry.stock);
-		}
-		let badges = [];
-		for (let country of countries) {
-			if (!grouped[country]) continue;
-			for (let i = 0; i < grouped[country].length; i++) {
-				badges.push(
-					<span key={country + i} className="imp-sidebar__stock-badge" style={{ backgroundColor: darkColors[country] }}>
-						{grouped[country][i]}
-					</span>
-				);
-			}
-		}
-		return badges;
-	}
-
-	function buildPortfolioIcons(player, info) {
-		let icons = [];
-		if (info.investor) {
-			icons.push(
-				<Tooltip key="inv" title="Investor Card" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
-					<DollarCircleFilled style={{ fontSize: 12, color: '#CCCCCC' }} />
-				</Tooltip>
-			);
-		}
-		if (info.swiss) {
-			icons.push(
-				<Tooltip key="swiss" title="Swiss Banking" mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
-					<DollarCircleOutlined style={{ fontSize: 12, color: '#999' }} />
-				</Tooltip>
-			);
-		}
-		for (let c in countryInfo) {
-			if ((countryInfo[c].leadership || [])[0] === player) {
-				icons.push(
-					<Tooltip key={'l-' + c} title={c + ' Leader'} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
-						<FlagFilled style={{ fontSize: 11, color: brightColors[c] }} />
-					</Tooltip>
-				);
-			}
-			if ((countryInfo[c] || {}).gov === 'democracy' && (countryInfo[c].leadership || [])[1] === player) {
-				icons.push(
-					<Tooltip
-						key={'o-' + c}
-						title={c + ' Opposition'}
-						mouseLeaveDelay={0}
-						mouseEnterDelay={0.3}
-						destroyTooltipOnHide
-					>
-						<FlagOutlined style={{ fontSize: 11, color: brightColors[c] }} />
-					</Tooltip>
-				);
-			}
-		}
-		return icons;
 	}
 
 	// --- Tab header ---
@@ -292,41 +201,11 @@ function Sidebar() {
 	function renderTabContent() {
 		switch (activeTab) {
 			case 'turn':
+				// Note: ActionPreview now lives inside FloatingSubmit (over the map) — not here.
 				return (
 					<div className="imp-sidebar__tab-content">
 						<StaticTurnApp key={turnID} />
 						<DisplayMode mode={mode} turnID={turnID} gameState={gameState} />
-						<ActionPreview />
-					</div>
-				);
-			case 'players':
-				return (
-					<div className="imp-sidebar__tab-content">
-						{playersOrdered.filter(Boolean).map((p) => {
-							let info = playerInfo[p] || {};
-							let score = helper.computeScore(info, countryInfo);
-							let cash = helper.computeCash(info, countryInfo);
-							return (
-								<div key={p} className="imp-player-card">
-									<div className="imp-player-card__header">
-										<span className="imp-player-card__icons">{buildPortfolioIcons(p, info)}</span>
-										<span className="imp-player-card__name">{p}</span>
-										<span className="imp-player-card__money">${twoDec(info.money)}</span>
-									</div>
-									<div className="imp-player-card__scores">
-										<span className="imp-player-card__score-item">
-											<span className="imp-player-card__score-label">Score</span>
-											<span className="imp-player-card__score-value">{score.toFixed(2)}</span>
-										</span>
-										<span className="imp-player-card__score-item">
-											<span className="imp-player-card__score-label">Cash</span>
-											<span className="imp-player-card__score-value">{cash.toFixed(2)}</span>
-										</span>
-									</div>
-									<div className="imp-player-card__stock">{formatStock(info.stock)}</div>
-								</div>
-							);
-						})}
 					</div>
 				);
 			case 'countries':
@@ -364,21 +243,14 @@ function Sidebar() {
 	// --- Render ---
 	let sidebarContent = (
 		<React.Fragment>
-			{renderPortfolio()}
-			<div className="imp-sidebar__divider" />
 			<div className="imp-sidebar__tab-bar">
 				{TABS.map((tab) => {
 					let Icon = tab.icon;
 					let isActive = activeTab === tab.key;
-					let showIndicator = tab.key === 'turn' && myTurn && !isDefaultTab;
 					return (
 						<button
 							key={tab.key}
-							className={
-								'imp-sidebar__tab-btn' +
-								(isActive ? ' imp-sidebar__tab-btn--active' : '') +
-								(showIndicator ? ' imp-sidebar__tab-btn--indicator' : '')
-							}
+							className={'imp-sidebar__tab-btn' + (isActive ? ' imp-sidebar__tab-btn--active' : '')}
 							onClick={() => handleTabClick(tab.key)}
 							aria-label={tab.label}
 						>
@@ -389,7 +261,6 @@ function Sidebar() {
 			</div>
 			{renderTabHeader()}
 			<div className="imp-sidebar__content-scroll">{renderTabContent()}</div>
-			<SidebarSubmit />
 		</React.Fragment>
 	);
 
@@ -407,15 +278,10 @@ function Sidebar() {
 			<div className="imp-sidebar-strip">
 				{TABS.map((tab) => {
 					let Icon = tab.icon;
-					let showIndicator = tab.key === 'turn' && myTurn && !isDefaultTab;
 					return (
 						<button
 							key={tab.key}
-							className={
-								'imp-sidebar-strip__btn' +
-								(activeTab === tab.key ? ' imp-sidebar-strip__btn--active' : '') +
-								(showIndicator ? ' imp-sidebar-strip__btn--indicator' : '')
-							}
+							className={'imp-sidebar-strip__btn' + (activeTab === tab.key ? ' imp-sidebar-strip__btn--active' : '')}
 							onClick={() => {
 								setDrawerOpen(true);
 								handleTabClick(tab.key);
