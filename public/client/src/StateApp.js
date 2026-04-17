@@ -38,29 +38,29 @@ function CountryCard(props) {
 		return t;
 	}
 
-	function renderGov(info) {
+	function renderLeadership(info) {
+		// Lifted into the country header in the 2026-04-17 tweak.
+		// Filled dot = leader, hollow dot = opposition. Gov type is implicit from count.
 		if (!info.gov || !info.leadership || info.leadership.length === 0) {
 			return null;
 		}
-		const pill = info.gov === 'democracy' ? 'DEM' : 'DICT';
 		const leader = info.leadership[0];
 		const opposition = info.gov === 'democracy' ? info.leadership[1] : null;
 		return (
-			<span className="imp-state__gov">
-				<span className="imp-state__gov-pill">{pill}</span>
+			<div className="imp-state__card-leadership" style={{ background: props.color }}>
 				{leader && (
 					<span className="imp-state__gov-chip">
-						<FlagFilled style={{ color: props.color, fontSize: 10, marginRight: 3 }} />
+						<FlagFilled style={{ fontSize: 10, marginRight: 4 }} />
 						{leader}
 					</span>
 				)}
 				{opposition && (
 					<span className="imp-state__gov-chip">
-						<FlagOutlined style={{ color: props.color, fontSize: 10, marginRight: 3 }} />
+						<FlagOutlined style={{ fontSize: 10, marginRight: 4 }} />
 						{opposition}
 					</span>
 				)}
-			</span>
+			</div>
 		);
 	}
 
@@ -71,6 +71,7 @@ function CountryCard(props) {
 				<span>{props.country}</span>
 				<span className="imp-state__card-header-extra">{props.info.points} pts</span>
 			</div>
+			{renderLeadership(props.info)}
 			<div className="imp-state__card-body">
 				<div className="imp-state__stats">
 					<div className="imp-state__stat">
@@ -87,10 +88,6 @@ function CountryCard(props) {
 						<span className="imp-state__label">Wheel</span>
 						<span className="imp-state__value">{props.info.wheelSpot}</span>
 					</div>
-				</div>
-				<div className="imp-state__row">
-					<span className="imp-state__label">Gov</span>
-					{renderGov(props.info)}
 				</div>
 				<div className="imp-state__row">
 					<span className="imp-state__label">Available</span>

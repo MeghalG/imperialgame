@@ -64,17 +64,19 @@ describe('CountryCard (regression tests for trim + gov chip redesign)', () => {
 		expect(container.textContent).not.toMatch(/Dict: alice/);
 	});
 
-	it('renders DEM pill + leader chip + opposition chip for democracy', () => {
+	it('renders leader + opposition chips in a header-level leadership row for democracy', () => {
 		const { container } = renderCard({
 			points: 6,
 			gov: 'democracy',
 			leadership: ['alice', 'bob'],
 			availStock: [],
 		});
-		const pill = container.querySelector('.imp-state__gov-pill');
-		expect(pill).not.toBeNull();
-		expect(pill.textContent).toBe('DEM');
-		const chips = container.querySelectorAll('.imp-state__gov-chip');
+		// 2026-04-17 refinement: no DEM/DICT pill, no 'Gov' label. Leadership lives
+		// in its own row right under the country-colored header.
+		expect(container.querySelector('.imp-state__gov-pill')).toBeNull();
+		const leadershipRow = container.querySelector('.imp-state__card-leadership');
+		expect(leadershipRow).not.toBeNull();
+		const chips = leadershipRow.querySelectorAll('.imp-state__gov-chip');
 		expect(chips.length).toBe(2);
 		expect(chips[0].textContent).toContain('alice');
 		expect(chips[1].textContent).toContain('bob');
@@ -82,27 +84,40 @@ describe('CountryCard (regression tests for trim + gov chip redesign)', () => {
 		expect(chips[0].querySelector('.anticon-flag')).not.toBeNull();
 	});
 
-	it('renders DICT pill + single leader chip for dictatorship (no opposition)', () => {
+	it('renders single leader chip for dictatorship (no opposition)', () => {
 		const { container } = renderCard({
 			points: 6,
 			gov: 'dictatorship',
 			leadership: ['alice'],
 			availStock: [],
 		});
-		const pill = container.querySelector('.imp-state__gov-pill');
-		expect(pill.textContent).toBe('DICT');
-		const chips = container.querySelectorAll('.imp-state__gov-chip');
+		expect(container.querySelector('.imp-state__gov-pill')).toBeNull();
+		const leadershipRow = container.querySelector('.imp-state__card-leadership');
+		expect(leadershipRow).not.toBeNull();
+		const chips = leadershipRow.querySelectorAll('.imp-state__gov-chip');
 		expect(chips.length).toBe(1);
 		expect(chips[0].textContent).toContain('alice');
 	});
 
-	it('renders nothing for gov when no gov defined', () => {
+	it('renders no leadership row when no gov defined', () => {
 		const { container } = renderCard({
 			points: 0,
 			availStock: [],
 		});
-		expect(container.querySelector('.imp-state__gov-pill')).toBeNull();
+		expect(container.querySelector('.imp-state__card-leadership')).toBeNull();
 		expect(container.querySelectorAll('.imp-state__gov-chip').length).toBe(0);
+	});
+
+	it('does not render a "Gov" label anywhere (subtracted in 2026-04-17 tweak)', () => {
+		const { container } = renderCard({
+			points: 6,
+			gov: 'democracy',
+			leadership: ['alice', 'bob'],
+			availStock: [],
+		});
+		// The body-row 'Gov' label is gone; leadership lives in the header.
+		const labels = Array.from(container.querySelectorAll('.imp-state__label')).map((el) => el.textContent);
+		expect(labels).not.toContain('Gov');
 	});
 
 	it('still renders the kept fields: Treasury, Last Tax, Wheel, points, Available', () => {

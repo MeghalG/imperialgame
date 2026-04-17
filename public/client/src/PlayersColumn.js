@@ -108,10 +108,18 @@ function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette }) {
 		(isUser ? ' imp-players-col__row--user' : '') +
 		(isAbsent ? ' imp-players-col__row--absent' : '');
 
+	// Score is hover-only (tooltip on the name). Not rendered visibly — money
+	// carries the numeric weight on the right; score is context the user can
+	// reveal when they want it.
+	const scoreTitle = isAbsent
+		? player
+		: player + ' — score ' + helper.computeScore(info || {}, countryInfo || {}).toFixed(2);
 	return (
 		<li className={rowClass} aria-current={isUser ? 'true' : undefined}>
 			<div className="imp-players-col__row-top">
-				<span className="imp-players-col__name">{player}</span>
+				<Tooltip title={scoreTitle} mouseLeaveDelay={0} mouseEnterDelay={0.3} destroyTooltipOnHide>
+					<span className="imp-players-col__name">{player}</span>
+				</Tooltip>
 				<Leaderships player={player} countryInfo={countryInfo} palette={palette} />
 				<InvestorSwiss info={info} />
 				<span className="imp-players-col__money">{isAbsent ? '—' : '$' + (twoDec(info.money) ?? '0.00')}</span>
@@ -119,7 +127,6 @@ function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette }) {
 			{!isAbsent && (
 				<div className="imp-players-col__row-bottom">
 					<StockBadges stock={info.stock} palette={palette} />
-					<Score info={info} countryInfo={countryInfo} />
 				</div>
 			)}
 		</li>
@@ -198,15 +205,6 @@ function StockBadges({ stock, palette }) {
 					</span>
 				</Tooltip>
 			))}
-		</span>
-	);
-}
-
-function Score({ info, countryInfo }) {
-	const score = helper.computeScore(info || {}, countryInfo || {});
-	return (
-		<span className="imp-players-col__score" title="Score (and CV)">
-			{score.toFixed(2)}
 		</span>
 	);
 }

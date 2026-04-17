@@ -200,7 +200,10 @@ function MapApp() {
 		let t = [];
 		for (let i = 0; i < 26; i++) {
 			let isMilestone = i > 0 && i % 5 === 0;
-			let countriesHere = points[i + 1] || [];
+			// Off-by-one fix (2026-04-17): getPoints() keys by the country's actual
+			// `points` value (e.g. points[7] = ['Austria'] for Austria at 7 pts).
+			// Cell labeled `i` must read `points[i]`, not `points[i + 1]`.
+			let countriesHere = points[i] || [];
 
 			t.push(
 				<div

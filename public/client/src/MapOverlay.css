@@ -3148,39 +3148,30 @@ body {
 	min-width: 0;
 }
 
-.imp-players-col__score {
-	margin-left: auto;
-	font-family: var(--imp-font-mono, 'JetBrains Mono', monospace);
-	font-variant-numeric: tabular-nums;
-	font-size: 11px;
-	color: var(--text-muted, rgba(255, 255, 255, 0.38));
-}
+/* Note: player score is now shown only as hover-tooltip text on the name
+ * (Tooltip wrapping the .imp-players-col__name span). No visible inline score. */
 
-/* ── CountryCard gov pill + leadership chips (replaces old govText line) ── */
-.imp-state__gov {
-	display: inline-flex;
-	align-items: center;
+/* ── CountryCard leadership (lifted into header, 2026-04-17) ──
+ * Sits flush against the country-colored header as a visually-continuous 2nd row.
+ * Gov type is implicit from chip count: 2 chips = democracy, 1 chip = dictatorship.
+ * FlagFilled = leader, FlagOutlined = opposition.
+ */
+.imp-state__card-leadership {
+	display: flex;
 	flex-wrap: wrap;
-	gap: 4px;
-}
-
-.imp-state__gov-pill {
-	font-family: var(--imp-font-mono, 'JetBrains Mono', monospace);
-	font-size: 9px;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	padding: 1px 4px;
-	background: var(--bg-elevated);
-	color: var(--text-secondary);
-	border-radius: 2px;
-	line-height: 1.4;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 12px 5px;
+	color: rgba(255, 255, 255, 0.95);
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.2px;
 }
 
 .imp-state__gov-chip {
 	display: inline-flex;
 	align-items: center;
-	font-size: 11px;
-	color: var(--text-primary);
 	line-height: 1.3;
 }
 
