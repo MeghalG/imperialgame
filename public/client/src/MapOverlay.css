@@ -3014,8 +3014,8 @@ body {
 .imp-players-col {
 	display: flex;
 	flex-direction: column;
-	width: 240px;
-	min-width: 240px;
+	width: 280px;
+	min-width: 280px;
 	background: var(--bg-surface);
 	border-left: 1px solid rgba(255, 255, 255, 0.06);
 	border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -3098,7 +3098,7 @@ body {
 .imp-players-col__name {
 	font-weight: 600;
 	color: var(--text-primary);
-	max-width: 90px;
+	max-width: 140px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
