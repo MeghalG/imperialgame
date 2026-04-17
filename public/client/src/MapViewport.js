@@ -41,8 +41,11 @@ function MapViewport({ children, overlay }) {
 			vh = r.height;
 		}
 		if (canvasRef.current) {
-			cw = canvasRef.current.scrollWidth;
-			ch = canvasRef.current.scrollHeight;
+			// clientWidth/Height ignore overflow from absolutely-positioned
+			// children (hotspots, unit markers, FABs). Using scrollWidth/Height
+			// here makes centering drift as more overlays render in.
+			cw = canvasRef.current.clientWidth;
+			ch = canvasRef.current.clientHeight;
 		}
 		return { vw, vh, cw, ch };
 	}
