@@ -110,8 +110,17 @@ function twoDec(money) {
 }
 
 // Shared tooltip props for the entire Players column.
-// Zero delays + destroy-on-hide prevents the "stacking on cursor sweep" issue.
-const TIP = { mouseEnterDelay: 0, mouseLeaveDelay: 0, destroyTooltipOnHide: true };
+// Zero delays + destroy-on-hide + overlayClassName that disables antd's
+// fade animation prevents the "stacking on cursor sweep" issue. Without
+// the animation kill, antd's ~100ms hide transition leaves the outgoing
+// tooltip visible while the new one is already showing. See feedback
+// memory `tooltips` and the CSS rule `.imp-insta-tip`.
+const TIP = {
+	mouseEnterDelay: 0,
+	mouseLeaveDelay: 0,
+	destroyTooltipOnHide: true,
+	overlayClassName: 'imp-insta-tip',
+};
 
 function PlayerRow({ player, info, isUser, isAbsent, countryInfo, palette }) {
 	const rowClass =

@@ -3151,6 +3151,22 @@ body {
 /* Player score is shown via Tooltip on the player's name
  * (mouseEnterDelay=0, destroyTooltipOnHide) — no inline score element. */
 
+/* Zero-animation tooltips for dense icon clusters (Players column).
+ * antd's default fade takes ~100ms; without killing it, sweeping the cursor
+ * leaves the outgoing tooltip visible while the new one is already showing.
+ * This class (via Tooltip's overlayClassName prop) disables the motion
+ * entirely so tooltip swaps are instant. Map tooltips don't use this class
+ * and keep their normal fade. */
+.imp-insta-tip,
+.imp-insta-tip *,
+.imp-insta-tip .ant-tooltip-inner,
+.imp-insta-tip .ant-tooltip-arrow {
+	animation-duration: 0s !important;
+	animation-delay: 0s !important;
+	transition-duration: 0s !important;
+	transition-delay: 0s !important;
+}
+
 /* ── CountryCard leadership (lifted into header, 2026-04-17) ──
  * Sits flush against the country-colored header as a visually-continuous 2nd row.
  * Gov type is implicit from chip count: 2 chips = democracy, 1 chip = dictatorship.
