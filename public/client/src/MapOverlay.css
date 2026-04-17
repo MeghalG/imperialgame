@@ -207,6 +207,22 @@ body {
 	-webkit-user-drag: none;
 }
 
+/* Map image: scale to fill available space while preserving aspect (1400×1048).
+ * Width is whichever is smaller: aspect-derived from viewport height, or
+ * remaining horizontal space (viewport minus 280px PlayersColumn + 280px Sidebar).
+ * Below 1024px the sidebars collapse, so map gets the full viewport width. */
+.imp-map-img {
+	display: block;
+	height: auto;
+	width: min(calc((100vh - 40px) * 1400 / 1048), calc(100vw - 560px));
+}
+
+@media (max-width: 1024px) {
+	.imp-map-img {
+		width: min(calc((100vh - 40px) * 1400 / 1048), 100vw);
+	}
+}
+
 /* ---- Compass Rose ---- */
 /* ---- Floating Panel (shared base) ---- */
 .imp-panel {

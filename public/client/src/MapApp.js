@@ -253,13 +253,8 @@ function MapApp() {
 
 	return (
 		<React.Fragment>
-			<div style={{ position: 'relative', display: 'inline-block', maxHeight: '82vh' }}>
-				<img
-					ref={imgRef}
-					src={map}
-					alt="Map"
-					style={{ display: 'block', maxWidth: '100%', maxHeight: 'calc(100vh - 40px)' }}
-				/>
+			<div className="imp-map-wrap" style={{ position: 'relative', display: 'inline-block' }}>
+				<img ref={imgRef} src={map} alt="Map" className="imp-map-img" />
 				<mark
 					style={{
 						backgroundColor: 'black',
