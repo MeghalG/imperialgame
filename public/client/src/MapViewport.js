@@ -182,6 +182,11 @@ function MapViewport({ children, overlay }) {
 				 * "Mount strategy (committed)".
 				 */}
 				{overlay && <div className="imp-viewport__overlay">{overlay}</div>}
+				{/* Portal target for non-transformed map overlays (e.g., the
+				    territory hover tooltip). Sits inside the map area so
+				    position:absolute children align with the map and JS
+				    pixel coords (computed against .imp-viewport__map) match. */}
+				<div id="imp-map-overlay-portal" />
 			</div>
 			<div id="imp-vp-track-portal" className="imp-vp-track-portal" />
 		</div>

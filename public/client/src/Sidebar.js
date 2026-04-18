@@ -198,18 +198,24 @@ function Sidebar() {
 	}
 
 	// --- Tab content ---
+	// The Turn tab content stays mounted on every tab so its turn-mode
+	// component (DisplayMode) keeps setting up mapInteraction (hotspots,
+	// rondel selectables, etc). That way the user can act on the map
+	// while looking at Countries/History/Rules. Inactive tabs just hide
+	// the visual UI; the side effects keep running.
 	function renderTabContent() {
-		switch (activeTab) {
-			case 'turn':
-				// Note: ActionPreview now lives inside FloatingSubmit (over the map) — not here.
-				return (
-					<div className="imp-sidebar__tab-content">
-						<StaticTurnApp key={turnID} />
-						<DisplayMode mode={mode} turnID={turnID} gameState={gameState} />
-					</div>
-				);
-			case 'countries':
-				return (
+		const turnHidden = activeTab !== 'turn';
+		return (
+			<>
+				<div
+					className="imp-sidebar__tab-content"
+					style={turnHidden ? { display: 'none' } : undefined}
+					aria-hidden={turnHidden || undefined}
+				>
+					<StaticTurnApp key={turnID} />
+					<DisplayMode mode={mode} turnID={turnID} gameState={gameState} />
+				</div>
+				{activeTab === 'countries' && (
 					<div className="imp-sidebar__tab-content">
 						{countries.map((c) => (
 							<CountryCard
@@ -222,22 +228,19 @@ function Sidebar() {
 							/>
 						))}
 					</div>
-				);
-			case 'history':
-				return (
+				)}
+				{activeTab === 'history' && (
 					<div className="imp-sidebar__tab-content">
 						<HistoryApp />
 					</div>
-				);
-			case 'rules':
-				return (
+				)}
+				{activeTab === 'rules' && (
 					<div className="imp-sidebar__tab-content">
 						<RulesApp />
 					</div>
-				);
-			default:
-				return null;
-		}
+				)}
+			</>
+		);
 	}
 
 	// --- Render ---

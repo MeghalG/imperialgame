@@ -249,6 +249,7 @@ function MapApp() {
 	}
 
 	let vpTrackPortal = document.getElementById('imp-vp-track-portal');
+	let mapOverlayPortal = document.getElementById('imp-map-overlay-portal');
 	let vpTrack = <div className="imp-vp-track">{makePoints()}</div>;
 
 	return (
@@ -291,7 +292,7 @@ function MapApp() {
 				)}
 			</div>
 			{vpTrackPortal ? ReactDOM.createPortal(vpTrack, vpTrackPortal) : vpTrack}
-			{vpTrackPortal ? ReactDOM.createPortal(<TerritoryHoverLayer />, vpTrackPortal) : <TerritoryHoverLayer />}
+			{mapOverlayPortal ? ReactDOM.createPortal(<TerritoryHoverLayer />, mapOverlayPortal) : <TerritoryHoverLayer />}
 		</React.Fragment>
 	);
 }

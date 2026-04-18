@@ -106,7 +106,7 @@ function TerritoryHoverLayer() {
 			// Update tooltip position directly via DOM (no React re-render)
 			if (tooltipRef.current) {
 				if (name) {
-					let viewport = document.querySelector('.imp-viewport');
+					let viewport = document.querySelector('.imp-viewport__map');
 					let vpRect = viewport ? viewport.getBoundingClientRect() : { left: 0, top: 0, width: 9999, height: 9999 };
 					let tipX = hoverSignal.clientX - vpRect.left + 16;
 					let tipY = hoverSignal.clientY - vpRect.top - 10;
