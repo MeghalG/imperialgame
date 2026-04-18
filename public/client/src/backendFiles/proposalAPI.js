@@ -955,14 +955,19 @@ async function getUnitOptionsFromPlans(context, plan, phase, unitIndex) {
 				let action = fm[2] || '';
 				if (action !== MANEUVER_ACTIONS.PEACE && action !== MANEUVER_ACTIONS.MOVE) return true;
 
-				// Remove ONE fleet at this sea (not all — there may be duplicates)
+				// Remove ONE convoy-capable fleet (MOVE or PEACE) at this sea.
+				// Matching by destination alone could remove a war/hostile/blow-up
+				// fleet that doesn't contribute convoy capacity, leaving the actual
+				// convoy fleet in place and making the simulation falsely conclude
+				// that "removing this fleet doesn't break others' convoys."
 				let removed = false;
 				let reducedFleets = plan.fleetTuples.filter((f) => {
-					if (!removed && f[1] === fm[1]) {
-						removed = true;
-						return false;
-					}
-					return true;
+					if (removed) return true;
+					if (f[1] !== fm[1]) return true;
+					let fAction = f[2] || '';
+					if (fAction !== MANEUVER_ACTIONS.MOVE && fAction !== MANEUVER_ACTIONS.PEACE) return true;
+					removed = true;
+					return false;
 				});
 				let { assignments } = computeConvoyAssignments(reducedFleets, otherAssignedTuples, territorySetup, country);
 				// Check that every other army that needs convoy still got one
